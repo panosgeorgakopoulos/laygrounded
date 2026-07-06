@@ -1,11 +1,11 @@
 "use client";
 
 import { use, useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { DocumentViewer } from "@/components/laygrounded/document-viewer";
 import { EventTimeline, SofEvent } from "@/components/laygrounded/event-timeline";
 import { CalculationPane } from "@/components/laygrounded/calculation-pane";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
+import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 
 interface ClauseFlag {
   id: string;
@@ -54,7 +54,6 @@ export default function WorkspacePage({
   params: Promise<{ claimId: string }>;
 }) {
   const { claimId } = use(params);
-  const router = useRouter();
   const [data, setData] = useState<ClaimData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -63,6 +62,7 @@ export default function WorkspacePage({
   const [clauseFlags, setClauseFlags] = useState<ClauseFlag[]>([]);
   const [exporting, setExporting] = useState(false);
   const [flagging, setFlagging] = useState(false);
+  const [activeTab, setActiveTab] = useState<"document" | "events" | "calculation">("document");
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchClaim = useCallback(async () => {
@@ -289,7 +289,8 @@ export default function WorkspacePage({
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b border-[#1f2937] bg-[#0a0f1e]">
-        <div className="px-6 h-14 flex items-center justify-between">
+        {/* Desktop header — single row */}
+        <div className="hidden lg:flex px-6 h-14 items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-[#9ca3af]">Vessel:</span>
@@ -332,10 +333,85 @@ export default function WorkspacePage({
             {exporting ? "EXPORTING…" : "EXPORT"}
           </button>
         </div>
+
+        {/* Mobile header — stacked, two rows + export below */}
+        <div className="lg:hidden px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-sm text-[#f9fafb] font-medium truncate">{data.claim.vessel}</span>
+                <span className="text-xs text-[#9ca3af] tnum truncate" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                  {data.claim.voyageRef}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs text-[#9ca3af]">{data.claim.port}</span>
+                <span
+                  className="status-badge px-1.5 py-0.5"
+                  style={{
+                    color: data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af",
+                    border: `1px solid ${data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af"}40`,
+                    borderRadius: 2,
+                  }}
+                >
+                  {data.claim.status.replace(/_/g, " ")}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onExport}
+              disabled={exporting}
+              className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] px-3 text-[#0a0f1e] font-medium disabled:opacity-50"
+              style={{ background: "#f59e0b", borderRadius: 2 }}
+              aria-label={exporting ? "Exporting claim pack" : "Export claim pack"}
+            >
+              <DownloadIcon />
+            </button>
+          </div>
+        </div>
       </header>
 
-      {/* 3-pane layout */}
-      <div className="flex-1 grid grid-cols-3" style={{ height: "calc(100vh - 56px)" }}>
+      {/* Mobile tab bar */}
+      <div
+        className="lg:hidden flex border-b border-[#1f2937] bg-[#111827]"
+        role="tablist"
+        aria-label="Workspace panes"
+      >
+        {([
+          { key: "document", label: "Document" },
+          { key: "events", label: "Events" },
+          { key: "calculation", label: "Calculation" },
+        ] as const).map((t) => {
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTab(t.key)}
+              className={`flex-1 min-h-[44px] py-3 text-xs uppercase tracking-wider transition ${
+                active
+                  ? "text-[#f9fafb]"
+                  : "text-[#9ca3af]"
+              }`}
+              style={{
+                fontFamily: "var(--font-jetbrains-mono)",
+                borderBottom: active ? "2px solid #f59e0b" : "2px solid transparent",
+                background: active ? "#1f2937" : "transparent",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Desktop: 3-pane layout. Mobile: single tabbed column. */}
+      {/* Desktop 3-pane */}
+      <div
+        className="hidden lg:grid flex-1 grid-cols-3"
+        style={{ height: "calc(100vh - 56px)" }}
+      >
         {/* Left pane — Document viewer */}
         <div className="border-r border-[#1f2937] bg-[#0a0f1e] overflow-hidden">
           <DocumentViewer
@@ -381,6 +457,57 @@ export default function WorkspacePage({
             flagging={flagging}
           />
         </div>
+      </div>
+
+      {/* Mobile single-pane by tab */}
+      <div
+        className="lg:hidden flex-1 bg-[#0a0f1e] overflow-hidden"
+        style={{ height: "calc(100vh - 56px - 49px)" }}
+      >
+        {activeTab === "document" && (
+          <DocumentViewer
+            documentUrl={docUrl}
+            mime={doc?.mime ?? null}
+            extractionStatus={doc?.extractionStatus ?? "pending"}
+            highlightedBbox={highlightedBbox}
+            highlightedPage={highlightedPage}
+            onUpload={onUpload}
+            onReplace={onReplace}
+          />
+        )}
+        {activeTab === "events" && (
+          <EventTimeline
+            events={data.claim.sofEvents.map((e: any) => ({
+              ...e,
+              bbox: typeof e.bbox === "string" ? JSON.parse(e.bbox) : e.bbox,
+            }))}
+            selectedId={selectedEventId}
+            onSelect={(id) => {
+              setSelectedEventId(id);
+              // Jump to document tab so the bbox highlight is visible.
+              setActiveTab("document");
+            }}
+            onAccept={onAccept}
+            onReject={onReject}
+            onEdit={onEdit}
+            onAdd={onAdd}
+            extractionPending={extractionPending}
+          />
+        )}
+        {activeTab === "calculation" && (
+          <CalculationPane
+            key={JSON.stringify(cpTerms)}
+            claimId={claimId}
+            cpTerms={cpTerms}
+            onCpTermsChange={onCpTermsChange}
+            result={result}
+            clauseFlags={clauseFlags}
+            onRunClauseAnalysis={onRunClauseAnalysis}
+            onExport={onExport}
+            exporting={exporting}
+            flagging={flagging}
+          />
+        )}
       </div>
     </div>
   );

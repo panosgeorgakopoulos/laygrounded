@@ -96,7 +96,7 @@ export function SignUpForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-4 py-2.5 text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
+        className="w-full px-4 py-3 min-h-[48px] text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
         style={{ background: "#f59e0b", borderRadius: 2 }}
       >
         {loading ? "Creating workspace…" : "Initialize workspace"}

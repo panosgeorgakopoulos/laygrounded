@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ClaimsIcon, PlusCircleIcon, SettingsIcon } from "@/components/laygrounded/nav-icons";
 
 export default function AuthenticatedLayout({
   children,
@@ -37,7 +38,6 @@ export default function AuthenticatedLayout({
       .catch(() => {});
   }, [session, status, router]);
 
-  // userEmail is derived from session.user.email directly — no setState needed.
   const userEmailFromSession = memberEmail || session?.user?.email || "";
 
   if (status === "loading") {
@@ -55,9 +55,9 @@ export default function AuthenticatedLayout({
   if (!session?.user) return null;
 
   const navItems = [
-    { href: "/claims", label: "Claims" },
-    { href: "/claims/new", label: "New Claim" },
-    { href: "/settings", label: "Settings" },
+    { href: "/claims", label: "Claims", Icon: ClaimsIcon },
+    { href: "/claims/new", label: "New Claim", Icon: PlusCircleIcon },
+    { href: "/settings", label: "Settings", Icon: SettingsIcon },
   ];
 
   const isActive = (href: string) => {
@@ -68,8 +68,9 @@ export default function AuthenticatedLayout({
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-[#f9fafb] flex">
+      {/* Desktop sidebar — hidden on mobile/tablet */}
       <aside
-        className="fixed inset-y-0 left-0 w-60 border-r border-[#1f2937] bg-[#0a0f1e] flex flex-col"
+        className="hidden lg:flex fixed inset-y-0 left-0 w-60 border-r border-[#1f2937] bg-[#0a0f1e] flex-col"
         style={{ zIndex: 30 }}
       >
         <div className="h-14 flex items-center px-5 border-b border-[#1f2937]">
@@ -128,7 +129,49 @@ export default function AuthenticatedLayout({
         </div>
       </aside>
 
-      <div className="flex-1 ml-60 min-w-0">{children}</div>
+      {/* Main content area */}
+      <div className="flex-1 min-w-0 w-full lg:ml-60 pb-16 lg:pb-0">
+        {children}
+      </div>
+
+      {/* Mobile bottom nav — hidden on desktop */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-[#1f2937] bg-[#0a0f1e] flex"
+        style={{ zIndex: 50 }}
+        aria-label="Mobile navigation"
+      >
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          const { Icon } = item;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] relative ${
+                active ? "bg-[#111827]" : ""
+              }`}
+              aria-current={active ? "page" : undefined}
+            >
+              {active && (
+                <span
+                  className="absolute top-1.5 h-1.5 w-1.5 rounded-full"
+                  style={{ background: "#f59e0b" }}
+                  aria-hidden="true"
+                />
+              )}
+              <Icon active={active} />
+              <span
+                className={`mt-1 text-[10px] uppercase tracking-wider ${
+                  active ? "text-[#f9fafb]" : "text-[#9ca3af]"
+                }`}
+                style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

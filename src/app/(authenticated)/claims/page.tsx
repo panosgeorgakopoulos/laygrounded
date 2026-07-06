@@ -47,24 +47,24 @@ export default function ClaimsRegisterPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[#1f2937] bg-[#0a0f1e] sticky top-0" style={{ zIndex: 20 }}>
-        <div className="px-8 h-14 flex items-center justify-between">
+        <div className="px-4 sm:px-8 h-14 flex items-center justify-between gap-2">
           <h1
-            className="text-lg font-medium"
+            className="text-base sm:text-lg font-medium truncate"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
             Claims Register
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={seedDemo}
-              className="px-3 py-1.5 text-xs border border-[#1f2937] bg-[#111827] text-[#9ca3af] hover:text-[#f9fafb] hover:border-[#f59e0b]"
+              className="hidden sm:inline-block px-3 py-2 text-xs border border-[#1f2937] bg-[#111827] text-[#9ca3af] hover:text-[#f9fafb] hover:border-[#f59e0b] min-h-[36px]"
               style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
             >
               SEED DEMO
             </button>
             <Link
               href="/claims/new"
-              className="px-3 py-1.5 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90"
+              className="px-3 py-2 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90 min-h-[36px] flex items-center"
               style={{ background: "#f59e0b", borderRadius: 2 }}
             >
               New Claim
@@ -73,13 +73,13 @@ export default function ClaimsRegisterPage() {
         </div>
       </header>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {loading ? (
           <div className="text-sm text-[#9ca3af]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
             LOADING CLAIMS…
           </div>
         ) : claims.length === 0 ? (
-          <div className="border border-[#1f2937] bg-[#111827] p-12 text-center" style={{ borderRadius: 2 }}>
+          <div className="border border-[#1f2937] bg-[#111827] p-8 sm:p-12 text-center" style={{ borderRadius: 2 }}>
             <div
               className="text-xs uppercase tracking-wider text-[#6b7280] mb-4"
               style={{ fontFamily: "var(--font-jetbrains-mono)" }}
@@ -89,17 +89,17 @@ export default function ClaimsRegisterPage() {
             <div className="text-[#f9fafb] mb-6">
               No claims yet — initialize your first claim workspace
             </div>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
               <Link
                 href="/claims/new"
-                className="px-4 py-2 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90"
+                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2 flex items-center justify-center text-sm text-[#0a0f1e] font-medium transition hover:opacity-90"
                 style={{ background: "#f59e0b", borderRadius: 2 }}
               >
                 Initialize Claim Workspace
               </Link>
               <button
                 onClick={seedDemo}
-                className="px-4 py-2 text-sm border border-[#1f2937] bg-[#111827] text-[#f9fafb] hover:border-[#f59e0b]"
+                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2 text-sm border border-[#1f2937] bg-[#111827] text-[#f9fafb] hover:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
               >
                 Seed demo scenarios
@@ -107,42 +107,72 @@ export default function ClaimsRegisterPage() {
             </div>
           </div>
         ) : (
-          <div className="border border-[#1f2937] bg-[#111827]" style={{ borderRadius: 2 }}>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#1f2937]">
-                  {["Vessel", "Voyage Ref", "Port", "Status", "Exposure"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-4 py-3 text-xs uppercase tracking-wider text-[#9ca3af] font-medium"
-                      style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {claims.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => router.push(`/claims/${c.id}/workspace`)}
-                    className="border-b border-[#1f2937] last:border-b-0 cursor-pointer hover:bg-[#1f2937] transition"
-                  >
-                    <td className="px-4 py-3 text-sm text-[#f9fafb]">{c.vessel}</td>
-                    <td className="px-4 py-3 text-sm text-[#9ca3af] tnum">{c.voyageRef}</td>
-                    <td className="px-4 py-3 text-sm text-[#9ca3af]">{c.port}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={c.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm tnum">
+          <>
+            {/* Mobile: card list */}
+            <div className="md:hidden space-y-3">
+              {claims.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => router.push(`/claims/${c.id}/workspace`)}
+                  className="block w-full text-left border border-[#1f2937] bg-[#111827] p-4 transition hover:border-[#f59e0b] min-h-[44px]"
+                  style={{ borderRadius: 2 }}
+                >
+                  <div className="text-sm font-medium text-[#f9fafb] truncate">
+                    {c.vessel}
+                  </div>
+                  <div className="mt-1 text-xs text-[#9ca3af] flex items-center gap-2 truncate">
+                    <span className="tnum" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>{c.voyageRef}</span>
+                    <span className="text-[#6b7280]">·</span>
+                    <span className="truncate">{c.port}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <StatusBadge status={c.status} />
+                    <div className="text-sm tnum">
                       <ExposureCell exposure={c.exposure} />
-                    </td>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Desktop: full table */}
+            <div className="hidden md:block border border-[#1f2937] bg-[#111827]" style={{ borderRadius: 2 }}>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#1f2937]">
+                    {["Vessel", "Voyage Ref", "Port", "Status", "Exposure"].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 text-xs uppercase tracking-wider text-[#9ca3af] font-medium"
+                        style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {claims.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => router.push(`/claims/${c.id}/workspace`)}
+                      className="border-b border-[#1f2937] last:border-b-0 cursor-pointer hover:bg-[#1f2937] transition"
+                    >
+                      <td className="px-4 py-3 text-sm text-[#f9fafb]">{c.vessel}</td>
+                      <td className="px-4 py-3 text-sm text-[#9ca3af] tnum">{c.voyageRef}</td>
+                      <td className="px-4 py-3 text-sm text-[#9ca3af]">{c.port}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={c.status} />
+                      </td>
+                      <td className="px-4 py-3 text-sm tnum">
+                        <ExposureCell exposure={c.exposure} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

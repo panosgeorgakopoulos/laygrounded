@@ -90,9 +90,9 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[#1f2937] bg-[#0a0f1e] sticky top-0" style={{ zIndex: 20 }}>
-        <div className="px-8 h-14 flex items-center">
+        <div className="px-4 sm:px-8 h-14 flex items-center">
           <h1
-            className="text-lg font-medium"
+            className="text-base sm:text-lg font-medium truncate"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
             Settings
@@ -100,9 +100,9 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="p-8 max-w-3xl space-y-6">
+      <div className="p-4 sm:p-8 max-w-3xl space-y-6">
         {/* Company name */}
-        <section className="border border-[#1f2937] bg-[#111827] p-6" style={{ borderRadius: 2 }}>
+        <section className="border border-[#1f2937] bg-[#111827] p-4 sm:p-6" style={{ borderRadius: 2 }}>
           <div
             className="text-xs uppercase tracking-wider text-[#9ca3af] mb-3"
             style={{ fontFamily: "var(--font-jetbrains-mono)" }}
@@ -120,14 +120,14 @@ export default function SettingsPage() {
               type="text"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+              className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
               style={{ borderRadius: 2 }}
             />
           </label>
           <button
             onClick={saveName}
             disabled={savingName}
-            className="mt-3 px-3 py-1.5 text-xs text-[#0a0f1e] font-medium disabled:opacity-50"
+            className="mt-3 px-4 py-2.5 min-h-[44px] text-xs text-[#0a0f1e] font-medium disabled:opacity-50"
             style={{ background: "#f59e0b", borderRadius: 2 }}
           >
             {savingName ? "SAVING…" : "SAVE"}
@@ -136,7 +136,7 @@ export default function SettingsPage() {
 
         {/* Members */}
         <section className="border border-[#1f2937] bg-[#111827]" style={{ borderRadius: 2 }}>
-          <div className="p-6 pb-3">
+          <div className="p-4 sm:p-6 pb-3">
             <div
               className="text-xs uppercase tracking-wider text-[#9ca3af]"
               style={{ fontFamily: "var(--font-jetbrains-mono)" }}
@@ -144,7 +144,9 @@ export default function SettingsPage() {
               MEMBERS ({data?.members.length ?? 0})
             </div>
           </div>
-          <table className="w-full">
+
+          {/* Desktop: full table with Joined column */}
+          <table className="hidden md:table w-full">
             <thead>
               <tr className="border-y border-[#1f2937]">
                 {["Email", "Role", "Joined"].map((h) => (
@@ -182,40 +184,62 @@ export default function SettingsPage() {
             </tbody>
           </table>
 
+          {/* Mobile: simplified list with only Email + Role */}
+          <div className="md:hidden">
+            {data?.members.map((m) => (
+              <div key={m.id} className="border-y border-[#1f2937] first:border-t-0 px-4 py-3 flex items-center justify-between gap-3 min-h-[44px]">
+                <span className="text-sm text-[#f9fafb] truncate min-w-0">{m.email}</span>
+                <span
+                  className="status-badge px-1.5 py-0.5 shrink-0"
+                  style={{
+                    color: m.role === "admin" ? "#f59e0b" : "#9ca3af",
+                    border: `1px solid ${m.role === "admin" ? "#f59e0b" : "#9ca3af"}40`,
+                    borderRadius: 2,
+                  }}
+                >
+                  {m.role}
+                </span>
+              </div>
+            ))}
+          </div>
+
           {/* Invite form */}
-          <div className="p-6 pt-4 border-t border-[#1f2937]">
+          <div className="p-4 sm:p-6 pt-4 border-t border-[#1f2937]">
             <div
               className="text-[10px] uppercase tracking-wider text-[#6b7280] mb-2"
               style={{ fontFamily: "var(--font-jetbrains-mono)" }}
             >
               INVITE BY EMAIL
             </div>
-            <div className="flex items-center gap-2">
+            {/* Mobile: stacked; Desktop: inline row */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="captain@fleet.com"
-                className="flex-1 bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+                className="flex-1 w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
               />
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
-                className="bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb]"
-                style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
-              >
-                <option value="member">member</option>
-                <option value="admin">admin</option>
-              </select>
-              <button
-                onClick={invite}
-                disabled={inviting || !inviteEmail}
-                className="px-3 py-2 text-xs text-[#0a0f1e] font-medium disabled:opacity-50"
-                style={{ background: "#f59e0b", borderRadius: 2 }}
-              >
-                {inviting ? "INVITING…" : "INVITE"}
-              </button>
+              <div className="flex gap-2">
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
+                  className="flex-1 md:flex-none bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb]"
+                  style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
+                >
+                  <option value="member">member</option>
+                  <option value="admin">admin</option>
+                </select>
+                <button
+                  onClick={invite}
+                  disabled={inviting || !inviteEmail}
+                  className="px-4 py-2.5 min-h-[44px] text-xs text-[#0a0f1e] font-medium disabled:opacity-50"
+                  style={{ background: "#f59e0b", borderRadius: 2 }}
+                >
+                  {inviting ? "INVITING…" : "INVITE"}
+                </button>
+              </div>
             </div>
           </div>
         </section>

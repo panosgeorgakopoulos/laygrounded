@@ -71,7 +71,7 @@ export function SignInForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-4 py-2.5 text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
+        className="w-full px-4 py-3 min-h-[48px] text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
         style={{ background: "#f59e0b", borderRadius: 2 }}
       >
         {loading ? "Signing in…" : "Sign in"}
@@ -92,7 +92,7 @@ export function SignInForm() {
           setEmail("demo@laygrounded.io");
           setPassword("demo1234");
         }}
-        className="w-full px-4 py-2.5 border border-[#1f2937] bg-[#111827] text-[#f9fafb] transition hover:border-[#f59e0b]"
+        className="w-full px-4 py-3 min-h-[48px] border border-[#1f2937] bg-[#111827] text-[#f9fafb] transition hover:border-[#f59e0b]"
         style={{ borderRadius: 2 }}
       >
         Use demo credentials

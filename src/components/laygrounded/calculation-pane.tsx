@@ -69,7 +69,7 @@ export function CalculationPane({
           >
             CP TERMS — GENCON 94
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Laytime allowed (hrs)">
               <input
                 type="number"
@@ -281,8 +281,8 @@ export function CalculationPane({
             BREAKDOWN — HOUR RESOLUTION
           </div>
           {result && result.breakdown.length > 0 ? (
-            <div className="max-h-72 overflow-y-auto">
-              <table className="w-full text-xs">
+            <div className="max-h-72 overflow-auto">
+              <table className="w-full text-xs min-w-[420px]">
                 <thead className="sticky top-0 bg-[#0a0f1e]">
                   <tr className="text-left text-[10px] uppercase tracking-wider text-[#6b7280]">
                     <th className="py-1 pr-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>Start</th>
@@ -295,10 +295,10 @@ export function CalculationPane({
                 <tbody>
                   {result.breakdown.map((row, i) => (
                     <tr key={i} className="border-t border-[#1f2937] align-top">
-                      <td className="py-1.5 pr-2 tnum text-[#9ca3af]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                      <td className="py-1.5 pr-2 tnum text-[#9ca3af] whitespace-nowrap" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
                         {row.start_time.slice(5, 16).replace("T", " ")}
                       </td>
-                      <td className="py-1.5 pr-2 tnum text-[#9ca3af]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                      <td className="py-1.5 pr-2 tnum text-[#9ca3af] whitespace-nowrap" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
                         {row.end_time.slice(5, 16).replace("T", " ")}
                       </td>
                       <td className="py-1.5 pr-2 tnum text-[#f9fafb]">
@@ -306,7 +306,7 @@ export function CalculationPane({
                       </td>
                       <td className="py-1.5 pr-2">
                         <span
-                          className="status-badge px-1 py-0.5"
+                          className="status-badge px-1 py-0.5 whitespace-nowrap"
                           style={{
                             color: breakdownColor(row.status, row.counts),
                             background: `${breakdownColor(row.status, row.counts)}10`,
@@ -317,7 +317,7 @@ export function CalculationPane({
                           {!row.counts && " ✕"}
                         </span>
                       </td>
-                      <td className="py-1.5 pr-2 tnum text-[#f59e0b]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+                      <td className="py-1.5 pr-2 tnum text-[#f59e0b] whitespace-nowrap" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
                         {row.clause_ref}
                       </td>
                     </tr>

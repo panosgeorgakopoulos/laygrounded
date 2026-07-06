@@ -35,13 +35,13 @@ export default function NewClaimPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[#1f2937] bg-[#0a0f1e] sticky top-0" style={{ zIndex: 20 }}>
-        <div className="px-8 h-14 flex items-center gap-3">
-          <Link href="/claims" className="text-sm text-[#9ca3af] hover:text-[#f9fafb]">
+        <div className="px-4 sm:px-8 h-14 flex items-center gap-3 min-w-0">
+          <Link href="/claims" className="text-sm text-[#9ca3af] hover:text-[#f9fafb] shrink-0">
             ← Claims
           </Link>
-          <span className="text-[#1f2937]">/</span>
+          <span className="text-[#1f2937] shrink-0">/</span>
           <h1
-            className="text-lg font-medium"
+            className="text-base sm:text-lg font-medium truncate"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
             New Claim
@@ -49,7 +49,7 @@ export default function NewClaimPage() {
         </div>
       </header>
 
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 sm:p-8 max-w-2xl">
         <div className="border border-[#1f2937] bg-[#111827] p-6" style={{ borderRadius: 2 }}>
           <form onSubmit={onSubmit} className="space-y-5">
             <div>
@@ -61,7 +61,7 @@ export default function NewClaimPage() {
                 required
                 value={vessel}
                 onChange={(e) => setVessel(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
                 placeholder="MV Pacific Trader"
               />
@@ -75,7 +75,7 @@ export default function NewClaimPage() {
                 required
                 value={voyageRef}
                 onChange={(e) => setVoyageRef(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
                 placeholder="VR-2024-0142"
               />
@@ -89,7 +89,7 @@ export default function NewClaimPage() {
                 required
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
                 placeholder="Port Hedland, AU"
               />
@@ -103,7 +103,7 @@ export default function NewClaimPage() {
                 required
                 value={cargo}
                 onChange={(e) => setCargo(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
+                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
                 style={{ borderRadius: 2 }}
                 placeholder="Iron Ore Fines, 165,000 MT"
               />
@@ -132,18 +132,18 @@ export default function NewClaimPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2.5 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
+                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
                 style={{ background: "#f59e0b", borderRadius: 2 }}
               >
                 {loading ? "Creating…" : "Create claim & open workspace"}
               </button>
               <Link
                 href="/claims"
-                className="px-4 py-2.5 text-sm text-[#9ca3af] hover:text-[#f9fafb]"
+                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 flex items-center justify-center text-sm text-[#9ca3af] hover:text-[#f9fafb]"
               >
                 Cancel
               </Link>

@@ -7,7 +7,7 @@ export default function SignUpPage() {
   return (
     <main className="min-h-screen bg-[#0a0f1e] text-[#f9fafb] flex flex-col">
       <header className="border-b border-[#1f2937]">
-        <div className="mx-auto max-w-7xl px-6 h-14 flex items-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center">
           <Link href="/" className="flex items-center gap-2">
             <span
               className="inline-block h-2 w-2 rounded-full"
@@ -18,8 +18,8 @@ export default function SignUpPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+        <div className="w-full max-w-md mx-auto">
           <h1
             className="text-3xl font-semibold mb-2"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
