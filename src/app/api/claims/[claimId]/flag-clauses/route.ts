@@ -1,10 +1,8 @@
-// POST /api/claims/[claimId]/flag-clauses — run clause flagging on accepted events.
-
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/server-auth";
 import { flagClauses } from "@/lib/clause-flagging";
 import { CpTerms } from "@/lib/laytime/types";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function POST(
   _req: NextRequest,
@@ -13,25 +11,30 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase
+      .from("claims")
+      .select("company_id, cp_terms")
+      .eq("id", claimId)
+      .single();
+      
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
-    const cpTerms: CpTerms | null = claim.cpTerms
-      ? JSON.parse(claim.cpTerms)
-      : null;
+    const cpTerms: CpTerms | null = claim.cp_terms as any;
     if (!cpTerms) {
       return NextResponse.json({ error: "NO_CP_TERMS" }, { status: 400 });
     }
     const flags = await flagClauses(claimId, cpTerms);
     return NextResponse.json({
-      flags: flags.map((f) => ({
+      flags: flags.map((f: any) => ({
         id: f.id,
-        eventId: f.eventId,
-        clauseRef: f.clauseRef,
+        eventId: f.event_id,
+        clauseRef: f.clause_ref,
         severity: f.severity,
         note: f.note,
-        createdAt: f.createdAt,
+        createdAt: f.created_at,
       })),
     });
   } catch (e) {

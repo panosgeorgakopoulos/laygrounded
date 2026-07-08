@@ -1,82 +1,67 @@
-// LayGrounded auth + bootstrap helpers.
-// Uses NextAuth credentials provider with bcrypt-hashed passwords stored in Prisma.
-// On first sign-in or sign-up, auto-bootstraps a company membership for the user.
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
-import { db } from "@/lib/db";
-import bcrypt from "bcryptjs";
-import { v4 as uuid } from "uuid";
-
-// Auto-bootstrap: creates a company if user has no membership, inserts as admin.
-// Equivalent to spec's bootstrap_user_company(user_id, company_name) Postgres function.
 export async function bootstrapUserCompany(
   userId: string,
   userEmail: string,
   companyName?: string
 ): Promise<{ companyId: string; companyName: string }> {
-  const existing = await db.companyMember.findFirst({
-    where: { userId },
-    include: { company: true },
-  });
+  const supabase = createServiceRoleClient();
+  
+  const { data: existing } = await supabase
+    .from("company_members")
+    .select("company_id, companies(name)")
+    .eq("user_id", userId)
+    .single();
+
   if (existing) {
-    return { companyId: existing.companyId, companyName: existing.company.name };
+    const cName = Array.isArray(existing.companies)
+      ? existing.companies[0]?.name
+      : (existing.companies as any)?.name;
+    return { companyId: existing.company_id, companyName: cName };
   }
 
   const name = companyName?.trim() || `${userEmail.split("@")[0]}'s Fleet`;
-  const company = await db.company.create({
-    data: {
-      id: uuid(),
-      name,
-      members: {
-        create: {
-          id: uuid(),
-          userId,
-          email: userEmail,
-          role: "admin",
-        },
-      },
-    },
-  });
+  
+  const { data: company, error: cErr } = await supabase
+    .from("companies")
+    .insert({ name })
+    .select("id, name")
+    .single();
+
+  if (cErr || !company) throw new Error("Failed to create company: " + cErr?.message);
+
+  const { error: mErr } = await supabase
+    .from("company_members")
+    .insert({
+      company_id: company.id,
+      user_id: userId,
+      role: "admin",
+    });
+
+  if (mErr) throw new Error("Failed to assign company admin: " + mErr?.message);
+
   return { companyId: company.id, companyName: company.name };
 }
 
-// Create a new user with hashed password.
-export async function createUser(email: string, password: string, name?: string) {
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await db.user.create({
-    data: {
-      id: uuid(),
-      email: email.toLowerCase().trim(),
-      name: name?.trim() || null,
-      passwordHash,
-    },
-  });
-  return user;
-}
-
-// Verify password against stored hash.
-export async function verifyPassword(
-  password: string,
-  hash: string | null
-): Promise<boolean> {
-  if (!hash) return false;
-  return bcrypt.compare(password, hash);
-}
-
-// Get or create a demo user for the SEED_DEMO flow.
 export async function ensureDemoUser() {
+  const supabase = createServiceRoleClient();
   const email = "demo@laygrounded.io";
-  let user = await db.user.findUnique({ where: { email } });
+  const password = "demo1234";
+
+  let { data: usersData } = await supabase.auth.admin.listUsers();
+  let user = usersData?.users.find((u) => u.email === email);
+
   if (!user) {
-    const passwordHash = await bcrypt.hash("demo1234", 10);
-    user = await db.user.create({
-      data: {
-        id: uuid(),
-        email,
-        name: "Demo Captain",
-        passwordHash,
-      },
+    const { data: newUser, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name: "Demo Captain" }
     });
+    if (error || !newUser.user) throw new Error("Could not create demo user");
+    user = newUser.user;
   }
-  await bootstrapUserCompany(user.id, user.email, "LayGrounded Demo Fleet");
+
+  await bootstrapUserCompany(user.id, user.email!, "LayGrounded Demo Fleet");
   return user;
 }

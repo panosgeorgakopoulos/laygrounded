@@ -1,8 +1,7 @@
-// POST /api/claims/[claimId]/recompute — re-run laytime engine on accepted events.
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function POST(
   _req: NextRequest,
@@ -11,9 +10,15 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const { db } = await import("@/lib/db");
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase
+      .from("claims")
+      .select("company_id")
+      .eq("id", claimId)
+      .single();
+      
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
     const result = await recomputeLaytimeServerFn(claimId);

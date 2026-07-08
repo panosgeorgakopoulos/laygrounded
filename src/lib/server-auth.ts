@@ -1,7 +1,4 @@
-// Server-side helpers to retrieve the authenticated user + their company.
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 
 export interface AuthContext {
   userId: string;
@@ -10,27 +7,35 @@ export interface AuthContext {
   companyName: string;
 }
 
-// Equivalent to spec's requireSupabaseAuth — enforces auth + company membership.
 export async function requireAuth(): Promise<AuthContext> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user || !user.email) {
     throw new Error("UNAUTHORIZED");
   }
-  const userId = (session.user as { id?: string }).id;
-  if (!userId) {
-    throw new Error("UNAUTHORIZED");
-  }
-  const membership = await db.companyMember.findFirst({
-    where: { userId },
-    include: { company: true },
-  });
-  if (!membership) {
+
+  const { data: membership, error: memError } = await supabase
+    .from("company_members")
+    .select(`
+      company_id,
+      companies ( name )
+    `)
+    .eq("user_id", user.id)
+    .single();
+
+  if (memError || !membership) {
     throw new Error("NO_COMPANY");
   }
+
+  const companyName = Array.isArray(membership.companies)
+    ? membership.companies[0]?.name
+    : (membership.companies as any)?.name;
+
   return {
-    userId,
-    email: session.user.email,
-    companyId: membership.companyId,
-    companyName: membership.company.name,
+    userId: user.id,
+    email: user.email,
+    companyId: membership.company_id,
+    companyName: companyName || "",
   };
 }

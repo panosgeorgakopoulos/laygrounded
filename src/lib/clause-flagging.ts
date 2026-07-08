@@ -1,13 +1,7 @@
-// Clause flagging engine for LayGrounded.
-// Second LLM-equivalent pass over accepted sof_events for a claim.
-// Maps ambiguous events to clause_flags rows per the spec's trigger rules.
-// Bundles GENCON 94 clause reference text server-side (no network fetch).
-
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, SofEventInput } from "@/lib/laytime/types";
 
-// === Bundled GENCON 94 reference text (server-side, no network) ===
 export const GENCON94_REFERENCE: Record<string, string> = {
   "GENCON94-6":
     "Clause 6 — Commenc of Laytime. Laytime shall commence at the time the Notice of Readiness is accepted, plus any agreed turn time.",
@@ -25,7 +19,6 @@ export const GENCON94_REFERENCE: Record<string, string> = {
     "Clause 8 — Demurrage. Once allowed laytime is exhausted, demurrage runs continuously at the agreed rate per day, pro rata for part of a day. Weather, weekends, shifting do not interrupt demurrage.",
 };
 
-// === Flag trigger rules (per spec) ===
 type Severity = "info" | "warning" | "critical";
 
 interface FlagRule {
@@ -35,14 +28,12 @@ interface FlagRule {
   eventId: string;
 }
 
-// Detect: NOR_TENDERED at anchorage, not berth → GENCON94-6c, severity info.
 function detectNorAtAnchorage(
   events: Array<{ id: string; eventType: string; occurredAt: Date }>,
   norVariant: string
 ): FlagRule[] {
   const nor = events.find((e) => e.eventType === "NOR_TENDERED");
   if (!nor) return [];
-  // If a SHIFTING or BERTHED event follows NOR before ALL_FAST, NOR was at anchorage.
   const allFast = events.find((e) => e.eventType === "ALL_FAST");
   const shifting = events.find((e) => e.eventType === "SHIFTING");
   const berthed = events.find((e) => e.eventType === "BERTHED");
@@ -61,7 +52,6 @@ function detectNorAtAnchorage(
   ];
 }
 
-// Detect: SHIFTING between NOR_TENDERED and ALL_FAST → GENCON94-6c, warning.
 function detectShiftingBeforeAllFast(
   events: Array<{ id: string; eventType: string; occurredAt: Date }>
 ): FlagRule[] {
@@ -86,7 +76,6 @@ function detectShiftingBeforeAllFast(
   ];
 }
 
-// Detect: COMMENCED_LOADING on Sunday/Holiday → GENCON94-7, warning.
 function detectSundayLoading(
   events: Array<{ id: string; eventType: string; occurredAt: Date }>
 ): FlagRule[] {
@@ -106,7 +95,6 @@ function detectSundayLoading(
   return flags;
 }
 
-// Detect: used_hours >= allowed_hours → GENCON94-8, critical.
 function detectOnDemurrage(
   events: Array<{ id: string; eventType: string; occurredAt: Date }>,
   cpTerms: CpTerms
@@ -119,7 +107,6 @@ function detectOnDemurrage(
   try {
     const result = recomputeLaytime(sofInputs, cpTerms);
     if (result.totals.used_hours >= cpTerms.laytime_allowed_hours) {
-      // Attach to NOR event (or first event) — flag refers to whole claim.
       const nor = events.find((e) => e.eventType === "NOR_TENDERED");
       return [
         {
@@ -136,7 +123,6 @@ function detectOnDemurrage(
   return [];
 }
 
-// Detect: WEATHER_DELAY active simultaneously with HATCH_OPEN + active loading → critical.
 function detectWeatherHatchConflict(
   events: Array<{ id: string; eventType: string; occurredAt: Date }>
 ): FlagRule[] {
@@ -149,7 +135,7 @@ function detectWeatherHatchConflict(
   const openEnd = hatchClose ? hatchClose.occurredAt : new Date(8.64e15);
   const loadEnd = completedL ? completedL.occurredAt : new Date(8.64e15);
   for (const w of weather) {
-    const wEnd = new Date(w.occurredAt.getTime() + 2 * 3600_000); // assume 2h weather duration
+    const wEnd = new Date(w.occurredAt.getTime() + 2 * 3600_000);
     const weatherDuringHatchAndLoading =
       w.occurredAt >= hatchOpen.occurredAt &&
       w.occurredAt < openEnd &&
@@ -169,27 +155,26 @@ function detectWeatherHatchConflict(
   return [];
 }
 
-// === Public entrypoint ===
 export async function flagClauses(claimId: string, cpTerms: CpTerms) {
-  // Fetch accepted events for the claim.
-  const events = await db.sofEvent.findMany({
-    where: { claimId, status: { in: ["accepted", "edited"] } },
-    orderBy: { occurredAt: "asc" },
-  });
-  if (events.length === 0) return [];
+  const supabase = createServiceRoleClient();
+  const { data: events } = await supabase
+    .from("sof_events")
+    .select("*")
+    .eq("claim_id", claimId)
+    .in("status", ["accepted", "edited"])
+    .order("occurred_at", { ascending: true });
 
-  // Clear previous flags (re-flag from scratch each time).
-  await db.clauseFlag.deleteMany({
-    where: { eventId: { in: events.map((e) => e.id) } },
-  });
+  if (!events || events.length === 0) return [];
 
-  const typedEvents = events.map((e) => ({
+  const eventIds = events.map(e => e.id);
+  await supabase.from("clause_flags").delete().in("event_id", eventIds);
+
+  const typedEvents = events.map((e: any) => ({
     id: e.id,
-    eventType: e.eventType,
-    occurredAt: e.occurredAt,
+    eventType: e.event_type,
+    occurredAt: new Date(e.occurred_at),
   }));
 
-  // Apply all rules.
   const rules: FlagRule[] = [
     ...detectNorAtAnchorage(typedEvents, cpTerms.nor_variant),
     ...detectShiftingBeforeAllFast(typedEvents),
@@ -198,18 +183,19 @@ export async function flagClauses(claimId: string, cpTerms: CpTerms) {
     ...detectWeatherHatchConflict(typedEvents),
   ];
 
-  // Write flags.
-  const created = [];
+  const created: any[] = [];
   for (const r of rules) {
-    const flag = await db.clauseFlag.create({
-      data: {
-        eventId: r.eventId,
-        clauseRef: r.clauseRef,
+    const { data: flag } = await supabase
+      .from("clause_flags")
+      .insert({
+        event_id: r.eventId,
+        clause_ref: r.clauseRef,
         severity: r.severity,
         note: r.note,
-      },
-    });
-    created.push(flag);
+      })
+      .select()
+      .single();
+    if (flag) created.push(flag);
   }
   return created;
 }

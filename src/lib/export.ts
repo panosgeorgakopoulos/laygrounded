@@ -1,17 +1,8 @@
-// Export module — generates PDF (pdf-lib) + XLSX (xlsx) claim packs.
-// Every line cites its source. Returns paths to both files in /public/uploads/exports/.
-
-import { db } from "@/lib/db";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
-import { promises as fs } from "fs";
-import path from "path";
 import { LaytimeResult, CpTerms } from "@/lib/laytime/types";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "exports");
-
-// Sanitize text for WinAnsi (pdf-lib Helvetica). Replace Unicode characters
-// that Helvetica cannot encode with ASCII equivalents.
 function sanitizeForPdf(s: string): string {
   return s
     .replace(/→/g, "->")
@@ -29,84 +20,125 @@ function sanitizeForPdf(s: string): string {
     .replace(/™/g, "(TM)");
 }
 
-async function ensureUploadDir() {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-}
-
 interface ExportPayload {
   claimId: string;
   companyId: string;
 }
 
 export async function exportClaimPack(payload: ExportPayload) {
-  await ensureUploadDir();
-  const claim = await db.claim.findUnique({
-    where: { id: payload.claimId },
-    include: {
-      documents: true,
-      sofEvents: { orderBy: { occurredAt: "asc" } },
-      calculations: { orderBy: { computedAt: "desc" }, take: 1 },
-      company: true,
-    },
-  });
-  if (!claim || claim.companyId !== payload.companyId) {
+  const supabase = createServiceRoleClient();
+
+  const { data: claim, error: claimErr } = await supabase
+    .from("claims")
+    .select(`
+      *,
+      companies (*),
+      documents (*),
+      sof_events (*),
+      calculations (*)
+    `)
+    .eq("id", payload.claimId)
+    .single();
+
+  if (claimErr || !claim || claim.company_id !== payload.companyId) {
     throw new Error("CLAIM_NOT_FOUND");
   }
 
-  const cpTerms: CpTerms | null = claim.cpTerms
-    ? JSON.parse(claim.cpTerms)
-    : null;
-  const latestCalc = claim.calculations[0];
-  const breakdown: LaytimeResult["breakdown"] = latestCalc
-    ? JSON.parse(latestCalc.breakdown)
-    : [];
+  const sofEvents = (claim.sof_events || []).sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+  const calculations = (claim.calculations || []).sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+  const company = claim.companies;
+  const latestCalc = calculations[0];
+
+  const cpTerms: CpTerms | null = claim.cp_terms as any;
+  const breakdown: LaytimeResult["breakdown"] = latestCalc?.breakdown as any || [];
   const totals: LaytimeResult["totals"] | null = latestCalc
     ? {
-        allowed_hours: latestCalc.allowedHours,
-        used_hours: latestCalc.usedHours,
-        time_on_demurrage_hours: Math.max(0, latestCalc.usedHours - latestCalc.allowedHours),
-        time_saved_hours: Math.max(0, latestCalc.allowedHours - latestCalc.usedHours),
-        demurrage_amount: latestCalc.demurrageAmount ?? 0,
-        despatch_amount: latestCalc.despatchAmount ?? 0,
+        allowed_hours: latestCalc.allowed_hours,
+        used_hours: latestCalc.used_hours,
+        time_on_demurrage_hours: Math.max(0, latestCalc.used_hours - latestCalc.allowed_hours),
+        time_saved_hours: Math.max(0, latestCalc.allowed_hours - latestCalc.used_hours),
+        demurrage_amount: latestCalc.demurrage_amount ?? 0,
+        despatch_amount: latestCalc.despatch_amount ?? 0,
         currency: latestCalc.currency,
       }
     : null;
 
-  // Fetch clause flags via events.
-  const eventIds = claim.sofEvents.map((e) => e.id);
-  const clauseFlags = await db.clauseFlag.findMany({
-    where: { eventId: { in: eventIds } },
-  });
+  const eventIds = sofEvents.map((e: any) => e.id);
+  
+  let clauseFlags: any[] = [];
+  if (eventIds.length > 0) {
+    const { data: flags } = await supabase
+      .from("clause_flags")
+      .select("*")
+      .in("event_id", eventIds);
+    clauseFlags = flags || [];
+  }
 
-  // Generate PDF.
-  const pdfPath = await generatePDF(
-    claim,
+  const claimObj = {
+    id: claim.id,
+    vessel: claim.vessel,
+    voyageRef: claim.voyage_ref,
+    port: claim.port,
+    cargo: claim.cargo,
+    cpForm: claim.cp_form,
+    status: claim.status,
+    company: { name: company?.name || "" }
+  };
+  
+  const eventsObj = sofEvents.map((e: any) => ({
+    id: e.id,
+    occurredAt: e.occurred_at,
+    eventType: e.event_type,
+    page: e.page,
+    confidence: e.confidence,
+    rawText: e.raw_text,
+    source: e.source,
+    status: e.status,
+    aiReasoning: e.ai_reasoning
+  }));
+  
+  const flagsObj = clauseFlags.map((f: any) => ({
+    eventId: f.event_id,
+    severity: f.severity,
+    clauseRef: f.clause_ref,
+    note: f.note
+  }));
+
+  const pdfBytes = await generatePDF(
+    claimObj,
     cpTerms,
-    claim.sofEvents,
+    eventsObj,
     breakdown,
     totals,
-    clauseFlags
+    flagsObj
   );
 
-  // Generate XLSX.
-  const xlsxPath = await generateXLSX(
-    claim,
+  const xlsxBytes = await generateXLSX(
+    claimObj,
     cpTerms,
-    claim.sofEvents,
+    eventsObj,
     breakdown,
     totals,
-    clauseFlags
+    flagsObj
   );
+
+  const pdfName = `exports/${claim.id}/claim-${claim.id}-${Date.now()}.pdf`;
+  const xlsxName = `exports/${claim.id}/claim-${claim.id}-${Date.now()}.xlsx`;
+
+  await supabase.storage.from("sofs").upload(pdfName, pdfBytes, { contentType: "application/pdf" });
+  await supabase.storage.from("sofs").upload(xlsxName, xlsxBytes, { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+  const { data: pdfUrlData } = await supabase.storage.from("sofs").createSignedUrl(pdfName, 3600);
+  const { data: xlsxUrlData } = await supabase.storage.from("sofs").createSignedUrl(xlsxName, 3600);
 
   return {
-    pdfUrl: `/uploads/exports/${path.basename(pdfPath)}`,
-    xlsxUrl: `/uploads/exports/${path.basename(xlsxPath)}`,
-    pdfPath,
-    xlsxPath,
+    pdfUrl: pdfUrlData?.signedUrl,
+    xlsxUrl: xlsxUrlData?.signedUrl,
+    pdfPath: pdfName,
+    xlsxPath: xlsxName,
   };
 }
 
-// === PDF generation ===
 async function generatePDF(
   claim: any,
   cpTerms: CpTerms | null,
@@ -114,13 +146,13 @@ async function generatePDF(
   breakdown: LaytimeResult["breakdown"],
   totals: LaytimeResult["totals"] | null,
   clauseFlags: any[]
-): Promise<string> {
+): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const mono = await pdf.embedFont(StandardFonts.Courier);
 
-  const page = pdf.addPage([595.28, 841.89]); // A4
+  const page = pdf.addPage([595.28, 841.89]); 
   const { width, height } = page.getSize();
   const margin = 40;
   let y = height - margin;
@@ -137,9 +169,7 @@ async function generatePDF(
     const sz = opts.size ?? 10;
     const col = opts.color ?? rgb(0.1, 0.1, 0.1);
     const indent = opts.indent ?? 0;
-    // Sanitize text for WinAnsi encoding (Helvetica can't encode Unicode arrows etc.)
     const safeText = sanitizeForPdf(text);
-    // Wrap text
     const maxWidth = width - margin * 2 - indent;
     const words = safeText.split(" ");
     let line = "";
@@ -159,7 +189,6 @@ async function generatePDF(
     }
   };
 
-  // Header
   page.drawText("LAYGROUNDED", {
     x: margin,
     y,
@@ -177,7 +206,6 @@ async function generatePDF(
   });
   gap(2);
 
-  // Claim header
   writeLine(`Vessel: ${claim.vessel}`, { font: bold, size: 11 });
   writeLine(`Voyage Ref: ${claim.voyageRef}`);
   writeLine(`Port: ${claim.port}`);
@@ -187,7 +215,6 @@ async function generatePDF(
   writeLine(`Company: ${claim.company.name}`);
   gap();
 
-  // CP terms summary
   if (cpTerms) {
     writeLine("Charterparty Terms Summary", { font: bold, size: 12 });
     writeLine(`- Laytime allowed: ${cpTerms.laytime_allowed_hours} hours`, { indent: 10 });
@@ -199,7 +226,6 @@ async function generatePDF(
     gap();
   }
 
-  // Event timeline
   writeLine("Statement of Facts — Event Timeline", { font: bold, size: 12 });
   for (const ev of events) {
     const ts = new Date(ev.occurredAt).toISOString();
@@ -217,7 +243,6 @@ async function generatePDF(
   }
   gap();
 
-  // Breakdown
   if (breakdown.length > 0) {
     writeLine("Hour-Resolution Breakdown (with clause citations)", { font: bold, size: 12 });
     for (const row of breakdown) {
@@ -230,7 +255,6 @@ async function generatePDF(
     gap();
   }
 
-  // Totals
   if (totals) {
     writeLine("Totals", { font: bold, size: 12 });
     writeLine(`- Allowed: ${totals.allowed_hours.toFixed(2)} hours`, { indent: 10 });
@@ -248,7 +272,6 @@ async function generatePDF(
     gap();
   }
 
-  // Clause flags
   if (clauseFlags.length > 0) {
     writeLine("Clause Flags", { font: bold, size: 12 });
     for (const f of clauseFlags) {
@@ -271,7 +294,6 @@ async function generatePDF(
     }
   }
 
-  // Footer
   page.drawText(`Generated by LayGrounded — ${new Date().toISOString()}`, {
     x: margin,
     y: 30,
@@ -281,13 +303,9 @@ async function generatePDF(
   });
 
   const bytes = await pdf.save();
-  const fname = `claim-${claim.id}-${Date.now()}.pdf`;
-  const fpath = path.join(UPLOAD_DIR, fname);
-  await fs.writeFile(fpath, bytes);
-  return fpath;
+  return bytes;
 }
 
-// === XLSX generation ===
 async function generateXLSX(
   claim: any,
   cpTerms: CpTerms | null,
@@ -295,10 +313,9 @@ async function generateXLSX(
   breakdown: LaytimeResult["breakdown"],
   totals: LaytimeResult["totals"] | null,
   clauseFlags: any[]
-): Promise<string> {
+): Promise<Buffer> {
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Claim header
   const headerAoa: any[][] = [
     ["LAYGROUNDED — CLAIM PACK"],
     [""],
@@ -324,7 +341,6 @@ async function generateXLSX(
   const ws1 = XLSX.utils.aoa_to_sheet(headerAoa);
   XLSX.utils.book_append_sheet(wb, ws1, "Claim");
 
-  // Sheet 2: Event timeline
   const eventAoa: any[][] = [
     [
       "Timestamp",
@@ -352,7 +368,6 @@ async function generateXLSX(
   const ws2 = XLSX.utils.aoa_to_sheet(eventAoa);
   XLSX.utils.book_append_sheet(wb, ws2, "Events");
 
-  // Sheet 3: Breakdown
   if (breakdown.length > 0) {
     const bdAoa: any[][] = [
       ["Start", "End", "Duration (hrs)", "Status", "Counts", "Clause Ref", "Reasoning"],
@@ -370,7 +385,6 @@ async function generateXLSX(
     XLSX.utils.book_append_sheet(wb, ws3, "Breakdown");
   }
 
-  // Sheet 4: Totals
   if (totals) {
     const totAoa: any[][] = [
       ["Totals"],
@@ -388,7 +402,6 @@ async function generateXLSX(
     XLSX.utils.book_append_sheet(wb, ws4, "Totals");
   }
 
-  // Sheet 5: Clause flags
   if (clauseFlags.length > 0) {
     const cfAoa: any[][] = [
       ["Severity", "Clause Ref", "Event Type", "Event Timestamp", "Note"],
@@ -407,11 +420,6 @@ async function generateXLSX(
     XLSX.utils.book_append_sheet(wb, ws5, "ClauseFlags");
   }
 
-  const fname = `claim-${claim.id}-${Date.now()}.xlsx`;
-  const fpath = path.join(UPLOAD_DIR, fname);
-  // Use write buffer + manual fs.write to avoid xlsx library's writeFile issues
-  // with the sandboxed fs module in Next.js dev runtime.
   const xlsxBuffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  await fs.writeFile(fpath, xlsxBuffer);
-  return fpath;
+  return xlsxBuffer;
 }

@@ -1,9 +1,6 @@
-// GET /api/claims — list claims for current user's company.
-// POST /api/claims — create new claim.
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
 
@@ -18,35 +15,48 @@ const CreateClaimSchema = z.object({
 export async function GET() {
   try {
     const auth = await requireAuth();
-    const claims = await db.claim.findMany({
-      where: { companyId: auth.companyId },
-      orderBy: { updatedAt: "desc" },
-      include: { _count: { select: { sofEvents: true, documents: true } } },
-    });
+    const supabase = createServiceRoleClient();
+
+    const { data: claims, error } = await supabase
+      .from("claims")
+      .select(`
+        *,
+        sof_events (id),
+        documents (id)
+      `)
+      .eq("company_id", auth.companyId)
+      .order("updated_at", { ascending: false });
+      
+    if (error) throw error;
+
     const withExposure = await Promise.all(
-      claims.map(async (c) => {
-        const calc = await db.laytimeCalculation.findFirst({
-          where: { claimId: c.id },
-          orderBy: { computedAt: "desc" },
-        });
+      claims.map(async (c: any) => {
+        const { data: calc } = await supabase
+          .from("laytime_calculations")
+          .select("demurrage_amount, despatch_amount, currency, used_hours, allowed_hours")
+          .eq("claim_id", c.id)
+          .order("computed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         return {
           id: c.id,
           vessel: c.vessel,
-          voyageRef: c.voyageRef,
+          voyageRef: c.voyage_ref,
           port: c.port,
           cargo: c.cargo,
           status: c.status,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
-          eventCount: c._count.sofEvents,
-          documentCount: c._count.documents,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+          eventCount: c.sof_events?.length || 0,
+          documentCount: c.documents?.length || 0,
           exposure: calc
             ? {
-                demurrageAmount: calc.demurrageAmount,
-                despatchAmount: calc.despatchAmount,
+                demurrageAmount: calc.demurrage_amount,
+                despatchAmount: calc.despatch_amount,
                 currency: calc.currency,
-                usedHours: calc.usedHours,
-                allowedHours: calc.allowedHours,
+                usedHours: calc.used_hours,
+                allowedHours: calc.allowed_hours,
               }
             : null,
         };
@@ -61,6 +71,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
+    const supabase = createServiceRoleClient();
     const body = await req.json();
     const parsed = CreateClaimSchema.safeParse(body);
     if (!parsed.success) {
@@ -69,20 +80,40 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const claim = await db.claim.create({
-      data: {
-        companyId: auth.companyId,
+    const { data: claim, error } = await supabase
+      .from("claims")
+      .insert({
+        company_id: auth.companyId,
         vessel: parsed.data.vessel,
-        voyageRef: parsed.data.voyageRef,
+        voyage_ref: parsed.data.voyageRef,
         port: parsed.data.port,
         cargo: parsed.data.cargo,
-        cpForm: parsed.data.cpForm,
-        cpTerms: JSON.stringify(DEFAULT_CP_TERMS),
-        createdBy: auth.userId,
+        cp_form: parsed.data.cpForm,
+        cp_terms: DEFAULT_CP_TERMS,
+        created_by: auth.userId,
         status: "draft",
-      },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return NextResponse.json({ 
+      claim: {
+        id: claim.id,
+        companyId: claim.company_id,
+        vessel: claim.vessel,
+        voyageRef: claim.voyage_ref,
+        port: claim.port,
+        cargo: claim.cargo,
+        cpForm: claim.cp_form,
+        cpTerms: claim.cp_terms,
+        createdBy: claim.created_by,
+        status: claim.status,
+        createdAt: claim.created_at,
+        updatedAt: claim.updated_at
+      }
     });
-    return NextResponse.json({ claim });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 401 });
   }

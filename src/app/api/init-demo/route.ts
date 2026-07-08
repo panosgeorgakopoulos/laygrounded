@@ -1,76 +1,82 @@
-// POST /api/init-demo — pre-create the demo user + seed data, idempotent.
-// Called by the sign-in page on mount to ensure demo credentials work.
-
 import { NextResponse } from "next/server";
 import { ensureDemoUser } from "@/lib/auth-helpers";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { seedScenarios } from "@/lib/seed-data";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 
 export async function POST() {
-  if (process.env.SEED_DEMO !== "true") {
-    return NextResponse.json({ ok: false, reason: "SEED_DEMO not enabled" });
-  }
+  const supabase = createServiceRoleClient();
   const user = await ensureDemoUser();
-  const membership = await db.companyMember.findFirst({
-    where: { userId: user.id },
-    include: { company: true },
-  });
+  const { data: membership } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("user_id", user.id)
+    .single();
+
   if (!membership) {
     return NextResponse.json({ ok: false, reason: "no membership" });
   }
-  const existingClaims = await db.claim.count({
-    where: { companyId: membership.companyId },
-  });
-  if (existingClaims > 0) {
+
+  const { count } = await supabase
+    .from("claims")
+    .select("id", { count: "exact" })
+    .eq("company_id", membership.company_id);
+
+  if (count && count > 0) {
     return NextResponse.json({ ok: true, alreadySeeded: true, demoEmail: user.email });
   }
+
   for (const scenario of seedScenarios) {
-    const claim = await db.claim.create({
-      data: {
-        companyId: membership.companyId,
+    const { data: claim } = await supabase
+      .from("claims")
+      .insert({
+        company_id: membership.company_id,
         vessel: scenario.vessel,
-        voyageRef: scenario.voyageRef,
+        voyage_ref: scenario.voyageRef,
         port: scenario.port,
         cargo: scenario.cargo,
-        cpForm: "GENCON94",
-        cpTerms: JSON.stringify(scenario.cpTerms),
-        createdBy: user.id,
+        cp_form: "GENCON94",
+        cp_terms: scenario.cpTerms,
+        created_by: user.id,
         status: "draft",
-      },
-    });
-    const doc = await db.document.create({
-      data: {
-        claimId: claim.id,
-        storagePath: `seed/${claim.id}`,
-        originalFilename: `${scenario.vessel.replace(/[^a-zA-Z0-9]/g, "_")}-sof.pdf`,
+      })
+      .select("id")
+      .single();
+
+    if (!claim) continue;
+
+    const { data: doc } = await supabase
+      .from("documents")
+      .insert({
+        claim_id: claim.id,
+        storage_path: `seed/${claim.id}`,
         mime: "application/pdf",
-        extractionStatus: "extracted",
-        pageCount: 1,
-      },
-    });
+        extraction_status: "extracted",
+        page_count: 1,
+      })
+      .select("id")
+      .single();
+
+    if (!doc) continue;
+
     for (const ev of scenario.events) {
-      await db.sofEvent.create({
-        data: {
-          claimId: claim.id,
-          documentId: doc.id,
-          occurredAt: new Date(ev.occurred_at),
-          eventType: ev.event_type,
-          rawText: ev.verbatim,
-          page: ev.page,
-          bbox: JSON.stringify(ev.bbox),
-          confidence: ev.confidence,
-          source: "ai",
-          status: "accepted",
-          aiReasoning: ev.reasoning,
-        },
+      await supabase.from("sof_events").insert({
+        claim_id: claim.id,
+        document_id: doc.id,
+        occurred_at: new Date(ev.occurred_at).toISOString(),
+        event_type: ev.event_type,
+        raw_text: ev.verbatim,
+        page: ev.page,
+        bbox: ev.bbox,
+        confidence: ev.confidence,
+        source: "ai",
+        status: "accepted",
+        ai_reasoning: ev.reasoning,
       });
     }
     try {
       await recomputeLaytimeServerFn(claim.id);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
   return NextResponse.json({
     ok: true,

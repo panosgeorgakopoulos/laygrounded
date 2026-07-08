@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers";
 
 export function LandingNav() {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   return (
     <header className="sticky top-0 z-40 border-b border-[#1f2937] bg-[#0a0f1e]/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">

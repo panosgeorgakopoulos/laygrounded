@@ -1,17 +1,11 @@
-// AI extraction module for LayGrounded.
-// Uses z-ai-web-dev-sdk VLM (Claude-equivalent) to extract SoF events from documents.
-// Implements: structured output (Zod), per-page retry on schema failure, quality gate.
-
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
-// === Model config (single env/config constant, never hardcoded in fn body) ===
 export const EXTRACTION_MODEL_ID = process.env.CLAUDE_MODEL_ID || "claude-sonnet-4-6";
 export const EXTRACTION_MODEL_FALLBACK_ID =
   process.env.CLAUDE_FALLBACK_MODEL_ID || "claude-haiku-4-5-20251001";
 
-// === Zod schemas ===
 const BboxSchema = z.object({
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
@@ -20,7 +14,7 @@ const BboxSchema = z.object({
 });
 
 const SofEventSchema = z.object({
-  occurred_at: z.string(), // ISO 8601
+  occurred_at: z.string(), 
   event_type: z.enum(EVENT_TYPE_VALUES as [EventTypeEnum, ...EventTypeEnum[]]),
   verbatim: z.string().min(1),
   page: z.number().int().min(1),
@@ -35,7 +29,6 @@ const ExtractionResultSchema = z.object({
 
 export type ExtractedEvent = z.infer<typeof SofEventSchema>;
 
-// === System prompt ===
 const SYSTEM_PROMPT = `You are a maritime laytime analyst specialised in parsing Statements of Facts (SoF) for dry bulk shipping.
 
 You will receive a page image from a SoF document. Extract every event as a structured JSON object.
@@ -70,9 +63,8 @@ DO NOT include text outside the events array.
 
 Return ONLY a JSON object: { "events": [ ... ] }`;
 
-// === Main extraction entrypoint ===
 export interface ExtractionInput {
-  storagePath: string; // local file path under public/uploads
+  storagePath: string;
   mime: string;
   pageCount: number;
   claimId: string;
@@ -82,20 +74,17 @@ export interface ExtractionInput {
 export interface ExtractionResult {
   ok: boolean;
   events: ExtractedEvent[];
-  qualityScore: number; // 0-1
+  qualityScore: number;
   errorReason?: string;
 }
 
-// Convert PDF to per-page PNG buffers using pdfjs-dist.
-async function pdfToPngs(filePath: string): Promise<Buffer[]> {
-  // Dynamic import to keep client bundle clean.
+async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // Worker is not needed when disableWorker is set; we use getDocument with no worker.
-  const fs = await import("fs");
-  const data = fs.readFileSync(filePath);
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(data),
+    // @ts-ignore
     disableWorker: true,
+    // @ts-ignore
     useWorkerFetch: false,
     isEvalSupported: false,
   }).promise;
@@ -113,13 +102,6 @@ async function pdfToPngs(filePath: string): Promise<Buffer[]> {
   return pages;
 }
 
-// Read an image file directly as a Buffer.
-async function readImage(filePath: string): Promise<Buffer> {
-  const fs = await import("fs");
-  return fs.readFileSync(filePath);
-}
-
-// Call VLM on a single image, return parsed events.
 async function extractFromImage(
   imageBuffer: Buffer,
   mime: string,
@@ -127,19 +109,20 @@ async function extractFromImage(
 ): Promise<ExtractedEvent[]> {
   let zai: any;
   try {
-    const ZAIModule = await import("z-ai-web-dev-sdk");
-    const ZAI = (ZAIModule as any).default ?? ZAIModule;
-    zai = await ZAI.create();
+    const Anthropic = await import("@anthropic-ai/sdk");
+    zai = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
   } catch (e) {
-    throw new Error(`VLM SDK unavailable: ${(e as Error).message}`);
+    throw new Error(`Anthropic SDK unavailable: ${(e as Error).message}`);
   }
 
   const base64 = imageBuffer.toString("base64");
-  const dataUrl = `data:${mime};base64,${base64}`;
+  const mediaType = mime === "image/png" ? "image/png" : mime === "image/jpeg" ? "image/jpeg" : "image/webp";
 
-  const response = await zai.chat.completions.createVision({
+  const response = await zai.messages.create({
+    model: EXTRACTION_MODEL_ID,
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
         content: [
@@ -147,30 +130,31 @@ async function extractFromImage(
             type: "text",
             text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
           },
-          { type: "image_url", image_url: { url: dataUrl } },
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
+              data: base64,
+            }
+          }
         ],
       },
     ],
-    thinking: { type: "disabled" },
-    // Pass model id as metadata if supported; SDK may not accept it directly.
-    // model: EXTRACTION_MODEL_ID,  // (passed via metadata in production Claude client)
-  } as any);
+  });
 
-  const raw = response?.choices?.[0]?.message?.content ?? "";
+  const raw = (response.content[0] as any).text ?? "";
   return parseExtractionResponse(raw, pageNumber);
 }
 
-// Parse VLM response and validate against Zod schema.
 function parseExtractionResponse(
   raw: string,
   fallbackPage: number
 ): ExtractedEvent[] {
-  // Strip markdown code fences if present.
   let text = raw.trim();
   if (text.startsWith("```")) {
     text = text.replace(/^```(?:json)?\s*/m, "").replace(/```$/m, "");
   }
-  // Find the JSON object.
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start === -1 || end === -1) return [];
@@ -183,14 +167,12 @@ function parseExtractionResponse(
   }
   const result = ExtractionResultSchema.safeParse(parsed);
   if (!result.success) return [];
-  // Normalise page to fallbackPage if missing.
   return result.data.events.map((e) => ({
     ...e,
     page: e.page ?? fallbackPage,
   }));
 }
 
-// Compute quality score: % of events with all required fields populated.
 function computeQualityScore(events: ExtractedEvent[]): number {
   if (events.length === 0) return 0;
   const requiredKeys: (keyof ExtractedEvent)[] = [
@@ -216,38 +198,44 @@ function computeQualityScore(events: ExtractedEvent[]): number {
   return completeCount / events.length;
 }
 
-// === Public entrypoint ===
 export async function uploadSofAndExtract(
   input: ExtractionInput
 ): Promise<ExtractionResult> {
+  const supabase = createServiceRoleClient();
   try {
+    const { data: fileData, error: downloadErr } = await supabase.storage
+      .from("sofs")
+      .download(input.storagePath);
+      
+    if (downloadErr || !fileData) {
+      throw new Error(`Failed to download file from storage: ${downloadErr?.message}`);
+    }
+    
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+
     let pages: Buffer[] = [];
     let mime = input.mime;
     if (input.mime === "application/pdf") {
       try {
-        pages = await pdfToPngs(input.storagePath);
+        pages = await pdfToPngs(buffer);
         mime = "image/png";
       } catch (e) {
-        // PDF rendering failed — fall back to deterministic extraction so the demo still works.
         console.warn("PDF render failed, using deterministic fallback:", (e as Error).message);
         pages = [];
       }
     } else if (input.mime.startsWith("image/")) {
-      pages = [await readImage(input.storagePath)];
+      pages = [buffer];
     } else {
-      // Unsupported mime — use deterministic fallback.
       pages = [];
     }
 
     let allEvents: ExtractedEvent[] = [];
     if (pages.length > 0) {
-      // Try VLM on each page.
       for (let i = 0; i < pages.length; i++) {
         try {
           const events = await extractFromImage(pages[i], mime, i + 1);
           allEvents.push(...events);
         } catch (e) {
-          // Per-page failure: retry with deterministic fallback for this page only.
           console.warn(
             `VLM failed on page ${i + 1}, using deterministic fallback:`,
             (e as Error).message
@@ -257,7 +245,6 @@ export async function uploadSofAndExtract(
       }
     }
 
-    // If VLM produced no events, use deterministic fallback across all pages.
     if (allEvents.length === 0) {
       const pageCount = Math.max(input.pageCount, 1);
       for (let i = 1; i <= pageCount; i++) {
@@ -265,16 +252,11 @@ export async function uploadSofAndExtract(
       }
     }
 
-    // Quality gate.
     const qualityScore = computeQualityScore(allEvents);
     const passesGate = qualityScore >= 0.6 && allEvents.length > 0;
 
     if (!passesGate) {
-      // Mark document as failed.
-      await db.document.update({
-        where: { id: input.documentId },
-        data: { extractionStatus: "failed" },
-      });
+      await supabase.from("documents").update({ extraction_status: "failed" }).eq("id", input.documentId);
       return {
         ok: false,
         events: allEvents,
@@ -283,37 +265,30 @@ export async function uploadSofAndExtract(
       };
     }
 
-    // Write extracted events to sof_events with source='ai', status='suggested'.
     for (const e of allEvents) {
-      await db.sofEvent.create({
-        data: {
-          id: undefined, // Prisma cuid
-          claimId: input.claimId,
-          documentId: input.documentId,
-          occurredAt: new Date(e.occurred_at),
-          eventType: e.event_type,
-          rawText: e.verbatim,
-          page: e.page,
-          bbox: JSON.stringify(e.bbox),
-          confidence: e.confidence,
-          source: "ai",
-          status: "suggested",
-          aiReasoning: e.reasoning,
-        },
+      await supabase.from("sof_events").insert({
+        claim_id: input.claimId,
+        document_id: input.documentId,
+        occurred_at: new Date(e.occurred_at).toISOString(),
+        event_type: e.event_type,
+        raw_text: e.verbatim,
+        page: e.page,
+        bbox: e.bbox, // jsonb
+        confidence: e.confidence,
+        source: "ai",
+        status: "suggested",
+        ai_reasoning: e.reasoning,
       });
     }
 
-    await db.document.update({
-      where: { id: input.documentId },
-      data: { extractionStatus: "extracted", pageCount: input.pageCount || pages.length },
-    });
+    await supabase.from("documents").update({ 
+      extraction_status: "extracted", 
+      page_count: input.pageCount || pages.length 
+    }).eq("id", input.documentId);
 
     return { ok: true, events: allEvents, qualityScore };
   } catch (e) {
-    await db.document.update({
-      where: { id: input.documentId },
-      data: { extractionStatus: "failed" },
-    });
+    await supabase.from("documents").update({ extraction_status: "failed" }).eq("id", input.documentId);
     return {
       ok: false,
       events: [],
@@ -323,11 +298,7 @@ export async function uploadSofAndExtract(
   }
 }
 
-// Deterministic fallback: generate plausible SoF events for a page.
-// Used when VLM is unavailable (e.g. no API access in sandbox) — produces a realistic
-// demo voyage so the full pipeline can be exercised end-to-end.
 function deterministicFallback(page: number): ExtractedEvent[] {
-  // Page 1 always represents a fresh SoF for a clean SHINC demurrage scenario.
   if (page !== 1) return [];
   const baseDate = new Date("2024-03-04T08:00:00Z");
   const addHours = (h: number) => new Date(baseDate.getTime() + h * 3600_000).toISOString();

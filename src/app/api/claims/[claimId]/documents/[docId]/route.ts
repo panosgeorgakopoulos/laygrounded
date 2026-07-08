@@ -1,12 +1,7 @@
-// GET /api/claims/[claimId]/documents/[docId] — get document (signed URL equivalent).
-// DELETE — replace document (sets all child sof_events to status='rejected' with ai_reasoning,
-//          then re-extracts).
-
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
-import path from "path";
 
 export async function GET(
   _req: NextRequest,
@@ -15,18 +10,26 @@ export async function GET(
   try {
     const auth = await requireAuth();
     const { claimId, docId } = await params;
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase.from("claims").select("company_id").eq("id", claimId).single();
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
-    const doc = await db.document.findUnique({ where: { id: docId } });
-    if (!doc || doc.claimId !== claimId) {
+    
+    const { data: doc } = await supabase.from("documents").select("*").eq("id", docId).single();
+    if (!doc || doc.claim_id !== claimId) {
       return NextResponse.json({ error: "DOC_NOT_FOUND" }, { status: 404 });
     }
+
+    const { data: signedUrlData } = await supabase.storage
+      .from("sofs")
+      .createSignedUrl(doc.storage_path, 3600);
+
     return NextResponse.json({
       document: {
         ...doc,
-        url: `/uploads/${doc.storagePath}`,
+        url: signedUrlData?.signedUrl || null,
       },
     });
   } catch (e) {
@@ -41,30 +44,26 @@ export async function DELETE(
   try {
     const auth = await requireAuth();
     const { claimId, docId } = await params;
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase.from("claims").select("company_id").eq("id", claimId).single();
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
-    // Mark all child events as rejected.
-    await db.sofEvent.updateMany({
-      where: { documentId: docId },
-      data: {
-        status: "rejected",
-        aiReasoning: "superseded by document replacement",
-      },
-    });
-    // Re-extract from this document.
-    const doc = await db.document.findUnique({ where: { id: docId } });
+
+    await supabase.from("sof_events").update({
+      status: "rejected",
+      ai_reasoning: "superseded by document replacement",
+    }).eq("document_id", docId);
+
+    const { data: doc } = await supabase.from("documents").select("*").eq("id", docId).single();
     if (doc) {
-      await db.document.update({
-        where: { id: docId },
-        data: { extractionStatus: "extracting" },
-      });
-      const fpath = path.join(process.cwd(), "public", "uploads", doc.storagePath);
+      await supabase.from("documents").update({ extraction_status: "extracting" }).eq("id", docId);
+      
       uploadSofAndExtract({
-        storagePath: fpath,
+        storagePath: doc.storage_path,
         mime: doc.mime,
-        pageCount: doc.pageCount ?? 1,
+        pageCount: doc.page_count ?? 1,
         claimId,
         documentId: doc.id,
       }).catch((e) => console.error("Re-extract failed:", e));

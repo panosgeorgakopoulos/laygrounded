@@ -1,8 +1,6 @@
-// PATCH /api/claims/[claimId]/events/[eventId] — update event status (accept/edit/reject).
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
@@ -21,14 +19,28 @@ export async function PATCH(
   try {
     const auth = await requireAuth();
     const { claimId, eventId } = await params;
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase
+      .from("claims")
+      .select("company_id")
+      .eq("id", claimId)
+      .single();
+      
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
-    const event = await db.sofEvent.findUnique({ where: { id: eventId } });
-    if (!event || event.claimId !== claimId) {
+    
+    const { data: event } = await supabase
+      .from("sof_events")
+      .select("claim_id")
+      .eq("id", eventId)
+      .single();
+      
+    if (!event || event.claim_id !== claimId) {
       return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
     }
+    
     const body = await req.json();
     const parsed = UpdateEventSchema.safeParse(body);
     if (!parsed.success) {
@@ -38,32 +50,48 @@ export async function PATCH(
       );
     }
 
-    const data: any = {};
+    const data: any = { updated_at: new Date().toISOString() };
     if (parsed.data.status) data.status = parsed.data.status;
     if (parsed.data.occurredAt) {
-      data.occurredAt = new Date(parsed.data.occurredAt);
-      // Editing timestamp means user-edited.
+      data.occurred_at = new Date(parsed.data.occurredAt).toISOString();
       data.source = "user";
-      if (data.status === undefined) data.status = "edited";
+      if (!data.status) data.status = "edited";
     }
     if (parsed.data.eventType) {
-      data.eventType = parsed.data.eventType;
+      data.event_type = parsed.data.eventType;
       data.source = "user";
-      if (data.status === undefined) data.status = "edited";
+      if (!data.status) data.status = "edited";
     }
-    if (parsed.data.rawText !== undefined) data.rawText = parsed.data.rawText;
+    if (parsed.data.rawText !== undefined) data.raw_text = parsed.data.rawText;
 
-    const updated = await db.sofEvent.update({ where: { id: eventId }, data });
+    const { data: updated, error } = await supabase
+      .from("sof_events")
+      .update(data)
+      .eq("id", eventId)
+      .select()
+      .single();
+      
+    if (error) throw error;
 
-    // Trigger recompute on accept/edit/reject.
     let calc;
     try {
       calc = await recomputeLaytimeServerFn(claimId);
-    } catch {
-      // ignore — no NOR
-    }
+    } catch {}
 
-    return NextResponse.json({ event: updated, calc });
+    return NextResponse.json({ 
+      event: {
+        ...updated,
+        claimId: updated.claim_id,
+        documentId: updated.document_id,
+        occurredAt: updated.occurred_at,
+        eventType: updated.event_type,
+        rawText: updated.raw_text,
+        aiReasoning: updated.ai_reasoning,
+        createdAt: updated.created_at,
+        updatedAt: updated.updated_at,
+      }, 
+      calc 
+    });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 401 });
   }

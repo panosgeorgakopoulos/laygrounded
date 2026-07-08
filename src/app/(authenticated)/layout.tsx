@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/providers";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,7 +12,7 @@ export default function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [companyName, setCompanyName] = useState<string>("");

@@ -1,14 +1,7 @@
-// POST /api/claims/[claimId]/documents — upload a new document.
-// Inserts documents row with extraction_status='pending', triggers AI extraction.
-
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
-import { promises as fs } from "fs";
-import path from "path";
-
-const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
 
 export async function POST(
   req: NextRequest,
@@ -17,8 +10,15 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const claim = await db.claim.findUnique({ where: { id: claimId } });
-    if (!claim || claim.companyId !== auth.companyId) {
+    const supabase = createServiceRoleClient();
+    
+    const { data: claim } = await supabase
+      .from("claims")
+      .select("company_id")
+      .eq("id", claimId)
+      .single();
+      
+    if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
 
@@ -31,33 +31,40 @@ export async function POST(
       return NextResponse.json({ error: "FILE_TOO_LARGE" }, { status: 413 });
     }
 
-    // Save file to public/uploads/{companyId}/{claimId}/{filename}
-    const dir = path.join(UPLOAD_ROOT, auth.companyId, claimId);
-    await fs.mkdir(dir, { recursive: true });
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const fname = `${Date.now()}-${safeName}`;
-    const fpath = path.join(dir, fname);
-    const buf = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(fpath, buf);
-
     const storagePath = `${auth.companyId}/${claimId}/${fname}`;
     const mime = file.type || "application/octet-stream";
 
-    // Insert documents row.
-    const doc = await db.document.create({
-      data: {
-        claimId,
-        storagePath,
-        originalFilename: file.name,
-        mime,
-        extractionStatus: "extracting",
-        pageCount: mime === "application/pdf" ? 1 : 1, // PDF page count detected during extraction
-      },
-    });
+    const arrayBuffer = await file.arrayBuffer();
+    const { error: uploadErr } = await supabase.storage
+      .from("sofs")
+      .upload(storagePath, arrayBuffer, {
+        contentType: mime,
+      });
 
-    // Trigger extraction async (do not await — return immediately).
+    if (uploadErr) {
+      throw new Error(`Upload failed: ${uploadErr.message}`);
+    }
+
+    const { data: doc, error: docErr } = await supabase
+      .from("documents")
+      .insert({
+        claim_id: claimId,
+        storage_path: storagePath,
+        mime: mime,
+        extraction_status: "extracting",
+        page_count: 1, 
+      })
+      .select()
+      .single();
+
+    if (docErr || !doc) {
+      throw new Error("Failed to insert document record");
+    }
+
     uploadSofAndExtract({
-      storagePath: fpath,
+      storagePath,
       mime,
       pageCount: 1,
       claimId,
@@ -66,14 +73,18 @@ export async function POST(
       console.error("Extraction failed:", e);
     });
 
+    const { data: signedUrlData } = await supabase.storage
+      .from("sofs")
+      .createSignedUrl(storagePath, 3600);
+
     return NextResponse.json({
       document: {
         id: doc.id,
         storagePath,
-        url: `/uploads/${storagePath}`,
+        url: signedUrlData?.signedUrl || null,
         mime,
         originalFilename: file.name,
-        extractionStatus: doc.extractionStatus,
+        extractionStatus: doc.extraction_status,
       },
     });
   } catch (e) {

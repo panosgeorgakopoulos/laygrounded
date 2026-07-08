@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export function SignUpForm() {
@@ -12,23 +12,33 @@ export function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const supabase = createClient();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signIn("signup", {
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      name,
-      companyName,
-      redirect: false,
+      options: {
+        data: { name },
+      },
     });
-    setLoading(false);
-    if (res?.error) {
-      setError("Could not create account. Email may already be in use.");
+    
+    if (signUpError) {
+      setLoading(false);
+      setError(signUpError.message || "Could not create account.");
       return;
     }
+
+    await fetch("/api/bootstrap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, companyName }),
+    });
+
+    setLoading(false);
     router.push("/claims");
     router.refresh();
   }

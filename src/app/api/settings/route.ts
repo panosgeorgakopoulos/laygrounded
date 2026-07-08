@@ -1,9 +1,6 @@
-// GET /api/settings — fetch company + members.
-// PATCH /api/settings — update company name.
-
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 
 const UpdateCompanySchema = z.object({
@@ -13,25 +10,43 @@ const UpdateCompanySchema = z.object({
 export async function GET() {
   try {
     const auth = await requireAuth();
-    const company = await db.company.findUnique({
-      where: { id: auth.companyId },
-      include: { members: { orderBy: { createdAt: "asc" } } },
-    });
-    if (!company) {
+    const supabase = createServiceRoleClient();
+
+    const { data: company, error: companyErr } = await supabase
+      .from("companies")
+      .select("id, name, created_at")
+      .eq("id", auth.companyId)
+      .single();
+
+    if (companyErr || !company) {
       return NextResponse.json({ error: "COMPANY_NOT_FOUND" }, { status: 404 });
     }
+
+    const { data: membersData } = await supabase
+      .from("company_members")
+      .select("user_id, role")
+      .eq("company_id", auth.companyId);
+
+    // Fetch emails for these user IDs
+    const { data: usersData } = await supabase.auth.admin.listUsers();
+    
+    const members = (membersData || []).map((m) => {
+      const user = usersData?.users.find((u) => u.id === m.user_id);
+      return {
+        id: m.user_id,
+        email: user?.email || "Unknown",
+        role: m.role,
+        createdAt: user?.created_at || company.created_at,
+      };
+    });
+
     return NextResponse.json({
       company: {
         id: company.id,
         name: company.name,
-        createdAt: company.createdAt,
+        createdAt: company.created_at,
       },
-      members: company.members.map((m) => ({
-        id: m.id,
-        email: m.email,
-        role: m.role,
-        createdAt: m.createdAt,
-      })),
+      members,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 401 });
@@ -41,15 +56,19 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    // Only admin can rename company.
-    const membership = await db.companyMember.findUnique({
-      where: {
-        companyId_userId: { companyId: auth.companyId, userId: auth.userId },
-      },
-    });
+    const supabase = createServiceRoleClient();
+
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("role")
+      .eq("company_id", auth.companyId)
+      .eq("user_id", auth.userId)
+      .single();
+
     if (!membership || membership.role !== "admin") {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
+
     const body = await req.json();
     const parsed = UpdateCompanySchema.safeParse(body);
     if (!parsed.success) {
@@ -58,11 +77,23 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    const updated = await db.company.update({
-      where: { id: auth.companyId },
-      data: { name: parsed.data.name },
+
+    const { data: updated, error } = await supabase
+      .from("companies")
+      .update({ name: parsed.data.name })
+      .eq("id", auth.companyId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      company: {
+        id: updated.id,
+        name: updated.name,
+        createdAt: updated.created_at,
+      }
     });
-    return NextResponse.json({ company: updated });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

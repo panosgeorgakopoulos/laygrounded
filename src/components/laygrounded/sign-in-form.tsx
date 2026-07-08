@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export function SignInForm() {
@@ -10,6 +10,7 @@ export function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const supabase = createClient();
 
   // Pre-create the demo user (idempotent) so the "Use demo credentials" button works.
   useEffect(() => {
@@ -20,13 +21,12 @@ export function SignInForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signIn("credentials", {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      redirect: false,
     });
     setLoading(false);
-    if (res?.error) {
+    if (signInError) {
       setError("Invalid email or password.");
       return;
     }
