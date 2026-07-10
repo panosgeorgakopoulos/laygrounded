@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ClaimsIcon, PlusCircleIcon, SettingsIcon } from "@/components/laygrounded/nav-icons";
+import { Ship, FileText, PlusCircle, Settings } from "lucide-react";
+import { OfflineIndicator } from "@/components/core/OfflineIndicator";
+import styles from "./Layout.module.css";
 
 export default function AuthenticatedLayout({
   children,
@@ -42,22 +44,18 @@ export default function AuthenticatedLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] text-[#f9fafb] flex items-center justify-center">
-        <div
-          className="text-sm text-[#9ca3af]"
-          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-        >
-          AUTHENTICATING…
-        </div>
+      <div className={styles.loading}>
+        <div className="tnum">AUTHENTICATING...</div>
       </div>
     );
   }
+  
   if (!session?.user) return null;
 
   const navItems = [
-    { href: "/claims", label: "Claims", Icon: ClaimsIcon },
-    { href: "/claims/new", label: "New Claim", Icon: PlusCircleIcon },
-    { href: "/settings", label: "Settings", Icon: SettingsIcon },
+    { href: "/claims", label: "Claims", Icon: FileText },
+    { href: "/claims/new", label: "New Claim", Icon: PlusCircle },
+    { href: "/settings", label: "Settings", Icon: Settings },
   ];
 
   const isActive = (href: string) => {
@@ -67,111 +65,55 @@ export default function AuthenticatedLayout({
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-[#f9fafb] flex">
-      {/* Desktop sidebar — hidden on mobile/tablet */}
-      <aside
-        className="hidden lg:flex fixed inset-y-0 left-0 w-60 border-r border-[#1f2937] bg-[#0a0f1e] flex-col"
-        style={{ zIndex: 30 }}
-      >
-        <div className="h-14 flex items-center px-5 border-b border-[#1f2937]">
-          <Link href="/" className="flex items-center gap-2">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: "#f59e0b" }}
-            />
-            <span
-              className="font-semibold tracking-tight"
-              style={{ fontFamily: "var(--font-space-grotesk)" }}
-            >
-              LayGrounded
-            </span>
-          </Link>
+    <div className={styles.container}>
+      {/* Sidebar Navigation */}
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          <div className={styles.brandIcon}>
+            <Ship size={18} strokeWidth={2.5} />
+          </div>
+          <div className={styles.brandText}>
+            <span className={styles.brandName}>LayGrounded</span>
+            <span className={styles.companyName}>{companyName || "SaaS"}</span>
+          </div>
         </div>
 
-        <nav className="flex-1 py-4">
+        <nav className={styles.nav}>
+          <div className={styles.navGroup}>MAIN MENU</div>
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block px-5 py-2.5 text-sm transition ${
-                  active
-                    ? "sidebar-item-active text-[#f9fafb]"
-                    : "sidebar-item text-[#9ca3af] hover:text-[#f9fafb] hover:bg-[#111827]"
-                }`}
+              <Link 
+                key={item.href} 
+                href={item.href} 
+                className={`${styles.navLink} ${active ? styles.navLinkActive : ""}`}
               >
-                {item.label}
+                <item.Icon className={styles.navIcon} size={20} strokeWidth={active ? 2.5 : 2} />
+                <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-[#1f2937] p-4">
-          <div
-            className="text-xs text-[#6b7280] uppercase tracking-wider"
-            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-          >
-            Company
-          </div>
-          <div className="mt-1 text-sm text-[#f9fafb] truncate">
-            {companyName || "—"}
-          </div>
-          <div
-            className="mt-3 text-xs text-[#6b7280] uppercase tracking-wider"
-            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-          >
-            User
-          </div>
-          <div className="mt-1 text-sm text-[#f9fafb] truncate">
+        <div className={styles.footer}>
+          <div className={styles.userLabel}>Logged in as</div>
+          <div className={styles.userEmail} title={userEmailFromSession}>
             {userEmailFromSession}
           </div>
         </div>
       </aside>
 
-      {/* Main content area */}
-      <div className="flex-1 min-w-0 w-full lg:ml-60 pb-16 lg:pb-0">
-        {children}
-      </div>
+      {/* Main Content Area */}
+      <main className={styles.main}>
+        <header className={styles.header}>
+          {/* Top header can be expanded later for breadcrumbs or actions */}
+        </header>
+        <div className={styles.content}>
+          {children}
+        </div>
+      </main>
 
-      {/* Mobile bottom nav — hidden on desktop */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-[#1f2937] bg-[#0a0f1e] flex"
-        style={{ zIndex: 50 }}
-        aria-label="Mobile navigation"
-      >
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          const { Icon } = item;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] relative ${
-                active ? "bg-[#111827]" : ""
-              }`}
-              aria-current={active ? "page" : undefined}
-            >
-              {active && (
-                <span
-                  className="absolute top-1.5 h-1.5 w-1.5 rounded-full"
-                  style={{ background: "#f59e0b" }}
-                  aria-hidden="true"
-                />
-              )}
-              <Icon active={active} />
-              <span
-                className={`mt-1 text-[10px] uppercase tracking-wider ${
-                  active ? "text-[#f9fafb]" : "text-[#9ca3af]"
-                }`}
-                style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-              >
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+      <OfflineIndicator />
     </div>
   );
 }

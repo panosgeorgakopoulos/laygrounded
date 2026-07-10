@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/core/Button";
+import { Card } from "@/components/core/Card";
+import { PlusCircle, Anchor } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import styles from "./Claims.module.css";
 
-interface Claim {
+export interface Claim {
   id: string;
   vessel: string;
   voyageRef: string;
@@ -24,205 +29,155 @@ interface Claim {
   } | null;
 }
 
-export default function ClaimsRegisterPage() {
+export default function ClaimsDashboard() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
+  const fetchClaims = () => {
+    setLoading(true);
     fetch("/api/claims")
       .then((r) => r.json())
       .then((d) => setClaims(d.claims || []))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchClaims();
   }, []);
 
   async function seedDemo() {
     if (!confirm("Seed 3 demo SoF scenarios? This adds 3 sample claims to your workspace.")) return;
+    setLoading(true);
     await fetch("/api/seed", { method: "POST" });
-    const r = await fetch("/api/claims");
-    const d = await r.json();
-    setClaims(d.claims || []);
+    fetchClaims();
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-[#1f2937] bg-[#0a0f1e] sticky top-0" style={{ zIndex: 20 }}>
-        <div className="px-4 sm:px-8 h-14 flex items-center justify-between gap-2">
-          <h1
-            className="text-base sm:text-lg font-medium truncate"
-            style={{ fontFamily: "var(--font-space-grotesk)" }}
-          >
-            Claims Register
-          </h1>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={seedDemo}
-              className="hidden sm:inline-block px-3 py-2 text-xs border border-[#1f2937] bg-[#111827] text-[#9ca3af] hover:text-[#f9fafb] hover:border-[#f59e0b] min-h-[36px]"
-              style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
-            >
-              SEED DEMO
-            </button>
-            <Link
-              href="/claims/new"
-              className="px-3 py-2 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90 min-h-[36px] flex items-center"
-              style={{ background: "#f59e0b", borderRadius: 2 }}
-            >
-              New Claim
-            </Link>
-          </div>
+    <div>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.title}>Claims Register</h1>
+          <p className={styles.subtitle}>Manage and track your Laytime & Demurrage statements.</p>
         </div>
-      </header>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Button variant="secondary" onClick={seedDemo} className="tnum">
+            SEED DEMO
+          </Button>
+          <Button onClick={() => router.push("/claims/new")}>
+            <PlusCircle size={16} />
+            New Claim
+          </Button>
+        </div>
+      </div>
 
-      <div className="p-4 sm:p-8">
-        {loading ? (
-          <div className="text-sm text-[#9ca3af]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-            LOADING CLAIMS…
-          </div>
-        ) : claims.length === 0 ? (
-          <div className="border border-[#1f2937] bg-[#111827] p-8 sm:p-12 text-center" style={{ borderRadius: 2 }}>
-            <div
-              className="text-xs uppercase tracking-wider text-[#6b7280] mb-4"
-              style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-            >
-              NO CLAIMS YET
-            </div>
-            <div className="text-[#f9fafb] mb-6">
-              No claims yet — initialize your first claim workspace
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-              <Link
-                href="/claims/new"
-                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2 flex items-center justify-center text-sm text-[#0a0f1e] font-medium transition hover:opacity-90"
-                style={{ background: "#f59e0b", borderRadius: 2 }}
-              >
-                Initialize Claim Workspace
-              </Link>
-              <button
-                onClick={seedDemo}
-                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2 text-sm border border-[#1f2937] bg-[#111827] text-[#f9fafb] hover:border-[#f59e0b]"
-                style={{ borderRadius: 2 }}
-              >
-                Seed demo scenarios
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Mobile: card list */}
-            <div className="md:hidden space-y-3">
-              {claims.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => router.push(`/claims/${c.id}/workspace`)}
-                  className="block w-full text-left border border-[#1f2937] bg-[#111827] p-4 transition hover:border-[#f59e0b] min-h-[44px]"
-                  style={{ borderRadius: 2 }}
-                >
-                  <div className="text-sm font-medium text-[#f9fafb] truncate">
-                    {c.vessel}
-                  </div>
-                  <div className="mt-1 text-xs text-[#9ca3af] flex items-center gap-2 truncate">
-                    <span className="tnum" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>{c.voyageRef}</span>
-                    <span className="text-[#6b7280]">·</span>
-                    <span className="truncate">{c.port}</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <StatusBadge status={c.status} />
-                    <div className="text-sm tnum">
-                      <ExposureCell exposure={c.exposure} />
-                    </div>
-                  </div>
-                </button>
+      <Card>
+        <div className={styles.tableWrapper}>
+          {loading ? (
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className={styles.skeleton} style={{ height: "2.5rem", width: "100%" }} />
               ))}
             </div>
-
-            {/* Desktop: full table */}
-            <div className="hidden md:block border border-[#1f2937] bg-[#111827]" style={{ borderRadius: 2 }}>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#1f2937]">
-                    {["Vessel", "Voyage Ref", "Port", "Status", "Exposure"].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left px-4 py-3 text-xs uppercase tracking-wider text-[#9ca3af] font-medium"
-                        style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {claims.map((c) => (
-                    <tr
-                      key={c.id}
-                      onClick={() => router.push(`/claims/${c.id}/workspace`)}
-                      className="border-b border-[#1f2937] last:border-b-0 cursor-pointer hover:bg-[#1f2937] transition"
-                    >
-                      <td className="px-4 py-3 text-sm text-[#f9fafb]">{c.vessel}</td>
-                      <td className="px-4 py-3 text-sm text-[#9ca3af] tnum">{c.voyageRef}</td>
-                      <td className="px-4 py-3 text-sm text-[#9ca3af]">{c.port}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={c.status} />
-                      </td>
-                      <td className="px-4 py-3 text-sm tnum">
-                        <ExposureCell exposure={c.exposure} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          ) : claims.length === 0 ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>
+                <Anchor size={32} />
+              </div>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "0.5rem" }}>No claims found</h2>
+              <p style={{ color: "var(--color-text-secondary)", maxWidth: "400px", marginBottom: "1.5rem" }}>
+                You haven't initialized any claim workspaces yet. Create a new claim or seed some demo scenarios to get started.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <Button onClick={() => router.push("/claims/new")}>Create Claim Workspace</Button>
+                <Button variant="secondary" onClick={seedDemo}>Seed Demo Scenarios</Button>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Vessel & Cargo</th>
+                  <th>Voyage Ref</th>
+                  <th>Port</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th style={{ textAlign: "right" }}>Exposure</th>
+                </tr>
+              </thead>
+              <tbody>
+                {claims.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/claims/${c.id}/workspace`)}
+                    className={styles.tableRow}
+                  >
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>{c.vessel}</span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-tertiary)" }}>{c.cargo}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="tnum" style={{ color: "var(--color-text-secondary)" }}>{c.voyageRef}</span>
+                    </td>
+                    <td>
+                      <span>{c.port}</span>
+                    </td>
+                    <td>
+                      <StatusBadge status={c.status} />
+                    </td>
+                    <td>
+                      <span className="tnum" style={{ color: "var(--color-text-secondary)" }}>
+                        {format(parseISO(c.updatedAt), "dd MMM yyyy")}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <ExposureCell exposure={c.exposure} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  let color = "#6b7280";
-  let bg = "transparent";
-  if (status === "demurrage") {
-    color = "#f59e0b";
-    bg = "rgba(245,158,11,0.08)";
-  } else if (status === "despatch") {
-    color = "#14b8a6";
-    bg = "rgba(20,184,166,0.08)";
-  } else if (status === "in_progress") {
-    color = "#9ca3af";
-    bg = "rgba(156,163,175,0.08)";
-  } else if (status === "draft") {
-    color = "#6b7280";
-  }
+  let badgeClass = styles.badgeMuted;
+  
+  if (status === "demurrage") badgeClass = styles.badgeWarning;
+  else if (status === "despatch") badgeClass = styles.badgeSuccess;
+  else if (status === "in_progress") badgeClass = styles.badgeInfo;
+
   return (
-    <span
-      className="status-badge inline-block px-2 py-0.5"
-      style={{ color, background: bg, border: `1px solid ${color}40`, borderRadius: 2 }}
-    >
-      {status.replace(/_/g, " ")}
+    <span className={`${styles.badge} ${badgeClass}`}>
+      {status.replace(/_/g, " ").toUpperCase()}
     </span>
   );
 }
 
-function ExposureCell({
-  exposure,
-}: {
-  exposure: Claim["exposure"];
-}) {
-  if (!exposure) return <span className="text-[#6b7280]">—</span>;
+function ExposureCell({ exposure }: { exposure: Claim["exposure"] }) {
+  if (!exposure) return <span className="tnum" style={{ color: "var(--color-text-tertiary)" }}>—</span>;
+  
   if (exposure.demurrageAmount && exposure.demurrageAmount > 0) {
     return (
-      <span style={{ color: "#f59e0b" }}>
+      <span className="tnum" style={{ color: "#ca8a04", fontWeight: 500 }}>
         {exposure.currency} {exposure.demurrageAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     );
   }
+  
   if (exposure.despatchAmount && exposure.despatchAmount > 0) {
     return (
-      <span style={{ color: "#14b8a6" }}>
+      <span className="tnum" style={{ color: "#16a34a", fontWeight: 500 }}>
         ↓ {exposure.currency} {exposure.despatchAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     );
   }
-  return <span className="text-[#6b7280]">—</span>;
+  
+  return <span className="tnum" style={{ color: "var(--color-text-tertiary)" }}>—</span>;
 }

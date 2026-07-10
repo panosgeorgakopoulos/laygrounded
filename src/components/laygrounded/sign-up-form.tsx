@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import styles from "@/app/Auth.module.css";
 
 export function SignUpForm() {
   const [email, setEmail] = useState("");
@@ -44,9 +45,9 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+    <form onSubmit={onSubmit} className={styles.form}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Your name
         </label>
         <input
@@ -54,12 +55,11 @@ export function SignUpForm() {
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
         />
       </div>
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Company / Fleet name
         </label>
         <input
@@ -67,12 +67,11 @@ export function SignUpForm() {
           required
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
         />
       </div>
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Email
         </label>
         <input
@@ -80,12 +79,11 @@ export function SignUpForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
         />
       </div>
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Password
         </label>
         <input
@@ -94,20 +92,18 @@ export function SignUpForm() {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
         />
       </div>
       {error && (
-        <div className="text-xs text-[#ef4444]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+        <div className={styles.errorText}>
           {error}
         </div>
       )}
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-4 py-3 min-h-[48px] text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
-        style={{ background: "#f59e0b", borderRadius: 2 }}
+        className={styles.submitButton}
       >
         {loading ? "Creating workspace…" : "Initialize workspace"}
       </button>

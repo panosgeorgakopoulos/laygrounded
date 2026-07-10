@@ -6,6 +6,8 @@ import { EventTimeline, SofEvent } from "@/components/laygrounded/event-timeline
 import { CalculationPane } from "@/components/laygrounded/calculation-pane";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
+import styles from "./Workspace.module.css";
+import { Button } from "@/components/core/Button";
 
 interface ClauseFlag {
   id: string;
@@ -267,15 +269,15 @@ export default function WorkspacePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[#9ca3af]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-        LOADING WORKSPACE…
+      <div className={styles.centeredState}>
+        <span className="tnum">LOADING WORKSPACE…</span>
       </div>
     );
   }
 
   if (!data || !cpTerms) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[#9ca3af]">
+      <div className={styles.centeredState}>
         Claim not found.
       </div>
     );
@@ -286,73 +288,66 @@ export default function WorkspacePage({
   const extractionPending = doc?.extractionStatus === "extracting";
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className={styles.workspaceContainer}>
       {/* Header */}
-      <header className="border-b border-[#1f2937] bg-[#0a0f1e]">
-        {/* Desktop header — single row */}
-        <div className="hidden lg:flex px-6 h-14 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#9ca3af]">Vessel:</span>
-              <span className="text-sm text-[#f9fafb] font-medium">{data.claim.vessel}</span>
+      <header className={styles.header}>
+        {/* Desktop header */}
+        <div className={styles.headerDesktop}>
+          <div className={styles.headerInfo}>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Vessel:</span>
+              <span className={styles.infoValue}>{data.claim.vessel}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#9ca3af]">Voyage:</span>
-              <span className="text-sm text-[#f9fafb] tnum" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Voyage:</span>
+              <span className={`${styles.infoValueTnum} tnum`}>
                 {data.claim.voyageRef}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#9ca3af]">Port:</span>
-              <span className="text-sm text-[#f9fafb]">{data.claim.port}</span>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Port:</span>
+              <span className={styles.infoValue}>{data.claim.port}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className={styles.infoItem}>
               <span
-                className="status-badge px-2 py-0.5"
-                style={{
-                  color: data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af",
-                  border: `1px solid ${data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af"}40`,
-                  borderRadius: 2,
-                }}
+                className={`${styles.statusBadge} ${
+                  data.claim.status === "demurrage" ? styles.statusDemurrage :
+                  data.claim.status === "despatch" ? styles.statusDespatch :
+                  styles.statusDefault
+                }`}
               >
                 {data.claim.status.replace(/_/g, " ")}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#6b7280]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+            <div className={styles.infoItem}>
+              <span className={`${styles.updatedAt} tnum`}>
                 UPDATED {new Date(data.claim.updatedAt).toISOString().slice(0, 16).replace("T", " ")}
               </span>
             </div>
           </div>
-          <button
-            onClick={onExport}
-            disabled={exporting}
-            className="px-3 py-1.5 text-xs text-[#0a0f1e] font-medium disabled:opacity-50"
-            style={{ background: "#f59e0b", borderRadius: 2 }}
-          >
-            {exporting ? "EXPORTING…" : "EXPORT"}
-          </button>
+          <Button onClick={onExport} disabled={exporting} isLoading={exporting}>
+            EXPORT
+          </Button>
         </div>
 
-        {/* Mobile header — stacked, two rows + export below */}
-        <div className="lg:hidden px-4 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 min-w-0">
-                <span className="text-sm text-[#f9fafb] font-medium truncate">{data.claim.vessel}</span>
-                <span className="text-xs text-[#9ca3af] tnum truncate" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+        {/* Mobile header */}
+        <div className={styles.headerMobile}>
+          <div className={styles.mobileHeaderTop}>
+            <div className={styles.mobileHeaderMain}>
+              <div className={styles.mobileHeaderTitle}>
+                <span className={styles.mobileTitleText}>{data.claim.vessel}</span>
+                <span className={`${styles.mobileTitleVoyage} tnum`}>
                   {data.claim.voyageRef}
                 </span>
               </div>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs text-[#9ca3af]">{data.claim.port}</span>
+              <div className={styles.mobileHeaderSub}>
+                <span className={styles.mobileSubText}>{data.claim.port}</span>
                 <span
-                  className="status-badge px-1.5 py-0.5"
-                  style={{
-                    color: data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af",
-                    border: `1px solid ${data.claim.status === "demurrage" ? "#f59e0b" : data.claim.status === "despatch" ? "#14b8a6" : "#9ca3af"}40`,
-                    borderRadius: 2,
-                  }}
+                  className={`${styles.statusBadge} ${
+                    data.claim.status === "demurrage" ? styles.statusDemurrage :
+                    data.claim.status === "despatch" ? styles.statusDespatch :
+                    styles.statusDefault
+                  }`}
                 >
                   {data.claim.status.replace(/_/g, " ")}
                 </span>
@@ -361,8 +356,7 @@ export default function WorkspacePage({
             <button
               onClick={onExport}
               disabled={exporting}
-              className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] px-3 text-[#0a0f1e] font-medium disabled:opacity-50"
-              style={{ background: "#f59e0b", borderRadius: 2 }}
+              className={styles.exportBtnMobile}
               aria-label={exporting ? "Exporting claim pack" : "Export claim pack"}
             >
               <DownloadIcon />
@@ -372,48 +366,26 @@ export default function WorkspacePage({
       </header>
 
       {/* Mobile tab bar */}
-      <div
-        className="lg:hidden flex border-b border-[#1f2937] bg-[#111827]"
-        role="tablist"
-        aria-label="Workspace panes"
-      >
-        {([
-          { key: "document", label: "Document" },
-          { key: "events", label: "Events" },
-          { key: "calculation", label: "Calculation" },
-        ] as const).map((t) => {
-          const active = activeTab === t.key;
+      <div className={styles.mobileTabBar} role="tablist" aria-label="Workspace panes">
+        {(["document", "events", "calculation"] as const).map((key) => {
+          const active = activeTab === key;
           return (
             <button
-              key={t.key}
+              key={key}
               role="tab"
               aria-selected={active}
-              onClick={() => setActiveTab(t.key)}
-              className={`flex-1 min-h-[44px] py-3 text-xs uppercase tracking-wider transition ${
-                active
-                  ? "text-[#f9fafb]"
-                  : "text-[#9ca3af]"
-              }`}
-              style={{
-                fontFamily: "var(--font-jetbrains-mono)",
-                borderBottom: active ? "2px solid #f59e0b" : "2px solid transparent",
-                background: active ? "#1f2937" : "transparent",
-              }}
+              onClick={() => setActiveTab(key)}
+              className={`${styles.mobileTab} ${active ? styles.mobileTabActive : ""} tnum`}
             >
-              {t.label}
+              {key}
             </button>
           );
         })}
       </div>
 
-      {/* Desktop: 3-pane layout. Mobile: single tabbed column. */}
       {/* Desktop 3-pane */}
-      <div
-        className="hidden lg:grid flex-1 grid-cols-3"
-        style={{ height: "calc(100vh - 56px)" }}
-      >
-        {/* Left pane — Document viewer */}
-        <div className="border-r border-[#1f2937] bg-[#0a0f1e] overflow-hidden">
+      <div className={styles.mainGrid}>
+        <div className={styles.pane}>
           <DocumentViewer
             documentUrl={docUrl}
             mime={doc?.mime ?? null}
@@ -424,9 +396,7 @@ export default function WorkspacePage({
             onReplace={onReplace}
           />
         </div>
-
-        {/* Middle pane — Event timeline */}
-        <div className="border-r border-[#1f2937] bg-[#0a0f1e] overflow-hidden">
+        <div className={styles.pane}>
           <EventTimeline
             events={data.claim.sofEvents.map((e: any) => ({
               ...e,
@@ -441,9 +411,7 @@ export default function WorkspacePage({
             extractionPending={extractionPending}
           />
         </div>
-
-        {/* Right pane — CP Terms + Calculation */}
-        <div className="bg-[#0a0f1e] overflow-hidden">
+        <div className={styles.pane}>
           <CalculationPane
             key={JSON.stringify(cpTerms)}
             claimId={claimId}
@@ -460,10 +428,7 @@ export default function WorkspacePage({
       </div>
 
       {/* Mobile single-pane by tab */}
-      <div
-        className="lg:hidden flex-1 bg-[#0a0f1e] overflow-hidden"
-        style={{ height: "calc(100vh - 56px - 49px)" }}
-      >
+      <div className={styles.mainMobile}>
         {activeTab === "document" && (
           <DocumentViewer
             documentUrl={docUrl}
@@ -484,7 +449,6 @@ export default function WorkspacePage({
             selectedId={selectedEventId}
             onSelect={(id) => {
               setSelectedEventId(id);
-              // Jump to document tab so the bbox highlight is visible.
               setActiveTab("document");
             }}
             onAccept={onAccept}

@@ -1,0 +1,343 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Story.module.css
+   Cinematic horizontal scrolling scene for LayGrounded landing page.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Pin Master ──────────────────────────────────────────────────────── */
+/*
+   This is the element ScrollTrigger pins to the viewport.
+   It must be exactly one viewport tall and wide — nothing more.
+   overflow:hidden hides the ultra-wide track content that extends to the right.
+*/
+.pinMaster {
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+  background-color: #000;
+}
+
+/* ── 2. Horizontal Track ────────────────────────────────────────────────── */
+/*
+   The track is 5 screens wide (5 × 100vw = 500vw).
+   GSAP will translate it left by -(500vw - 100vw) = -400vw, i.e. xPercent: -80.
+   We use display:flex so each .chapter sits naturally side-by-side.
+*/
+.horizontalTrack {
+  display: flex;
+  height: 100vh;
+  width: 500vw; /* NUM_CHAPTERS × 100vw */
+  position: relative;
+  will-change: transform;
+}
+
+/* ── 3. Panoramic Background ────────────────────────────────────────────── */
+/*
+   Sits behind everything, spans the FULL 500vw track width.
+   background-size: auto 100%  → height always fills viewport,
+                                  width scales proportionally (no crop).
+   This means the 9000px-wide image renders at natural aspect ratio,
+   and GSAP moving the track left reveals new portions of it — exactly
+   like a camera panning through a real environment.
+*/
+.parallaxBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/website_background.png');
+  background-size: auto 100%;
+  background-repeat: no-repeat;
+  background-position: left center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── 4. Chapter Sections ────────────────────────────────────────────────── */
+/*
+   Each chapter occupies exactly one viewport width (100vw).
+   Flex-shrink:0 prevents them from collapsing.
+   The card alignment (left/right) is handled inside ChapterCard.
+*/
+.chapter {
+  width: 100vw;
+  height: 100vh;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  padding: 0 8vw;
+}
+
+/* ── 5. Chapter Card (Glassmorphism) ────────────────────────────────────── */
+.chapterCardWrapper {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  pointer-events: auto;
+}
+
+.alignLeft  { justify-content: flex-start; }
+.alignCenter { justify-content: center; }
+.alignRight { justify-content: flex-end; }
+
+.chapterCard {
+  width: 100%;
+  max-width: 520px;
+  padding: 44px 48px;
+  border-radius: 28px;
+  /* Core glassmorphism */
+  background: rgba(8, 12, 18, 0.45);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  /* Layered shadow for depth */
+  box-shadow:
+    0 2px 0 inset rgba(255, 255, 255, 0.08),
+    0 40px 80px -10px rgba(0, 0, 0, 0.6),
+    0 10px 30px -5px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  will-change: transform, opacity;
+  /* Subtle floating animation */
+  animation: cardFloat 6s ease-in-out infinite;
+}
+
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* Disable float when GSAP is driving y */
+.chapterCard[style*="opacity"] {
+  animation: none;
+}
+
+.cardSubtitle {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #64ffda;
+  margin-bottom: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardSubtitle::before {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 2px;
+  background: #64ffda;
+  border-radius: 1px;
+}
+
+.cardTitle {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 800;
+  margin-bottom: 20px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  background: linear-gradient(145deg, #ffffff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cardContent {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── 6. Particles / Fog Middle Layer ────────────────────────────────────── */
+.particlesLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  filter: blur(1.5px);
+}
+
+.fogOverlay {
+  position: absolute;
+  inset: 0;
+  /* Vignette darkens edges — keeps text readable and adds cinematic depth */
+  background:
+    radial-gradient(
+      ellipse 80% 100% at 50% 50%,
+      transparent 50%,
+      rgba(0, 0, 0, 0.35) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.25) 0%,
+      transparent 20%,
+      transparent 80%,
+      rgba(0, 0, 0, 0.4) 100%
+    );
+  pointer-events: none;
+}
+
+/* ── 7. Progress Navigation ─────────────────────────────────────────────── */
+.progressNav {
+  position: fixed;
+  top: 50%;
+  right: 36px;
+  transform: translateY(-50%);
+  z-index: 100;
+}
+
+.progressList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.progressItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* The connecting line between dots */
+.progressItem:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 100%;
+  width: 2px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
+}
+
+.progressDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  outline: none;
+  position: relative;
+}
+
+.progressDot:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: scale(1.3);
+}
+
+.progressDot:focus-visible {
+  outline: 2px solid #64ffda;
+  outline-offset: 3px;
+}
+
+.progressDotActive {
+  background-color: #64ffda;
+  border-color: #64ffda;
+  transform: scale(1.5);
+  box-shadow: 0 0 12px rgba(100, 255, 218, 0.5);
+}
+
+.progressLabel {
+  position: absolute;
+  right: 22px;
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+.progressDot:hover .progressLabel,
+.progressDotActive .progressLabel {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── 8. Mobile Fallback ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /*
+    On mobile: remove pinning, let the track stack vertically.
+    Each .chapter becomes a full-screen section with background-position
+    set to show the appropriate region of the panorama.
+  */
+  .pinMaster {
+    height: auto;
+    overflow: visible;
+  }
+
+  .horizontalTrack {
+    flex-direction: column;
+    width: 100vw;
+    height: auto;
+  }
+
+  .parallaxBackground {
+    display: none; /* Per-section backgrounds handle this on mobile */
+  }
+
+  .chapter {
+    height: 100svh;
+    padding: 24px 20px;
+    background-image: url('/images/website_background.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  /* Darken each section for readability */
+  .chapter::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+    z-index: 0;
+  }
+
+  .chapterCardWrapper { z-index: 1; }
+
+  /* Show different slice of panorama per chapter */
+  .chapter:nth-child(3)  { background-position: 0%   center; }
+  .chapter:nth-child(4)  { background-position: 25%  center; }
+  .chapter:nth-child(5)  { background-position: 50%  center; }
+  .chapter:nth-child(6)  { background-position: 75%  center; }
+  .chapter:nth-child(7)  { background-position: 100% center; }
+
+  /* Disable floating animation on mobile for perf */
+  .chapterCard { animation: none; }
+
+  .progressNav { display: none; }
+
+  /* Particles too heavy for mobile */
+  .particlesLayer { display: none; }
+}
+
+/* ── 9. Reduced Motion ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .chapterCard { animation: none; }
+}

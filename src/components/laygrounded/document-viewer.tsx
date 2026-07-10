@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import styles from "./DocumentViewer.module.css";
 
 interface Bbox {
   x: number;
@@ -84,10 +85,9 @@ export function DocumentViewer({
 
   if (!documentUrl) {
     return (
-      <div className="h-full flex items-center justify-center p-6">
+      <div className={styles.emptyState}>
         <div
-          className={`dropzone w-full max-w-sm p-12 text-center cursor-pointer ${dragover ? "dragover" : ""}`}
-          style={{ borderRadius: 2 }}
+          className={`${styles.dropzone} ${dragover ? styles.dragover : ""}`}
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault();
@@ -101,14 +101,11 @@ export function DocumentViewer({
             if (f) onUpload(f);
           }}
         >
-          <div
-            className="text-xs uppercase tracking-wider text-[#9ca3af] mb-3"
-            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-          >
+          <div className={`${styles.uploadLabel} tnum`}>
             UPLOAD
           </div>
-          <div className="text-[#f9fafb] mb-2">Upload Statement of Facts</div>
-          <div className="text-xs text-[#6b7280]">
+          <div className={styles.uploadTitle}>Upload Statement of Facts</div>
+          <div className={styles.uploadSubtitle}>
             PDF or image, max 20 MB
           </div>
           <input
@@ -127,12 +124,9 @@ export function DocumentViewer({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b border-[#1f2937] px-4 py-2 flex items-center justify-between">
-        <div
-          className="text-xs uppercase tracking-wider text-[#9ca3af]"
-          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-        >
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={`${styles.statusText} tnum`}>
           {extractionStatus === "extracting" && "EXTRACTING…"}
           {extractionStatus === "extracted" && "DOCUMENT"}
           {extractionStatus === "pending" && "PENDING"}
@@ -140,18 +134,14 @@ export function DocumentViewer({
         </div>
         <button
           onClick={onReplace}
-          className="text-xs text-[#9ca3af] hover:text-[#f59e0b]"
-          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+          className={`${styles.replaceBtn} tnum`}
         >
           REPLACE DOCUMENT
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto bg-[#0a0f1e] p-4">
+      <div className={styles.viewerArea}>
         {loading ? (
-          <div
-            className="text-xs text-[#9ca3af] text-center py-12"
-            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-          >
+          <div className={`${styles.loadingText} tnum`}>
             RENDERING PAGES…
           </div>
         ) : (
@@ -164,18 +154,16 @@ export function DocumentViewer({
                 ref={(el) => {
                   pageRefs.current[idx] = el;
                 }}
-                className="relative mb-4 mx-auto"
-                style={{ maxWidth: "100%" }}
+                className={styles.pageWrapper}
               >
                 <img
                   src={src}
                   alt={`Page ${page}`}
-                  className="block w-full h-auto"
-                  style={{ border: "1px solid #1f2937" }}
+                  className={styles.pageImage}
                 />
                 {isHighlighted && highlightedBbox && (
                   <div
-                    className="bbox-highlight"
+                    className={styles.bboxHighlight}
                     style={{
                       left: `${highlightedBbox.x * 100}%`,
                       top: `${highlightedBbox.y * 100}%`,
@@ -184,13 +172,7 @@ export function DocumentViewer({
                     }}
                   />
                 )}
-                <div
-                  className="absolute top-1 right-1 text-xs text-[#6b7280] px-1.5 py-0.5"
-                  style={{
-                    fontFamily: "var(--font-jetbrains-mono)",
-                    background: "rgba(10,15,30,0.7)",
-                  }}
-                >
+                <div className={`${styles.pageLabel} tnum`}>
                   p.{page}
                 </div>
               </div>

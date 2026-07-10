@@ -1,190 +1,97 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
-
-/* === LayGrounded Design System — Dark Financial Terminal === */
-
-@theme {
-  --color-navy: #0a0f1e;
-  --color-surface: #111827;
-  --color-surface-2: #1f2937;
-  --color-amber-signal: #f59e0b;
-  --color-amber-desaturated: #92691a;
-  --color-signal-red: #ef4444;
-  --color-slate-muted: #6b7280;
-  --color-teal-despatch: #14b8a6;
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
-
-  --color-background: var(--color-navy);
-  --color-foreground: var(--color-text-primary);
-  --color-card: var(--color-surface);
-  --color-card-foreground: var(--color-text-primary);
-  --color-popover: var(--color-surface);
-  --color-popover-foreground: var(--color-text-primary);
-  --color-primary: var(--color-amber-signal);
-  --color-primary-foreground: #0a0f1e;
-  --color-secondary: var(--color-surface-2);
-  --color-secondary-foreground: var(--color-text-primary);
-  --color-muted: var(--color-surface-2);
-  --color-muted-foreground: var(--color-text-secondary);
-  --color-accent: var(--color-surface-2);
-  --color-accent-foreground: var(--color-text-primary);
-  --color-destructive: var(--color-signal-red);
-  --color-destructive-foreground: #ffffff;
-  --color-border: #1f2937;
-  --color-input: var(--color-surface-2);
-  --color-ring: var(--color-amber-signal);
-
-  --font-sans: var(--font-space-grotesk);
-  --font-mono: var(--font-jetbrains-mono);
-
-  --radius: 2px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 2px;
+/* ==========================================================================
+   CSS Reset & Base
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@layer base {
-  * {
-    border-color: var(--color-border);
-  }
-  html {
-    color-scheme: dark;
-  }
-  body {
-    background-color: var(--color-navy);
-    color: var(--color-text-primary);
-    font-family: var(--font-space-grotesk), system-ui, sans-serif;
-    font-feature-settings: 'tnum' 1;
-  }
-  /* Tabular figures on all numeric columns */
-  .tnum {
-    font-feature-settings: 'tnum' 1;
-    font-variant-numeric: tabular-nums;
-  }
+* {
+  margin: 0;
+  padding: 0;
 }
 
-/* === Grid + scanline overlay (landing only) === */
-.bg-grid-overlay {
-  background-image:
-    linear-gradient(to right, rgba(245, 158, 11, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(245, 158, 11, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-.bg-scanlines::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.012) 0px,
-    rgba(255, 255, 255, 0.012) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  mix-blend-mode: overlay;
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
 }
 
-/* Pulsing beacon */
-@keyframes beacon-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
-  50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
-}
-.beacon {
-  animation: beacon-pulse 2.4s ease-in-out infinite;
-}
-
-/* Status badge font — JetBrains Mono always */
-.status-badge {
-  font-family: var(--font-jetbrains-mono), monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-/* Sidebar active indicator — amber 3px left border */
-.sidebar-item-active {
-  border-left: 3px solid var(--color-amber-signal);
-  background-color: var(--color-surface);
-}
-.sidebar-item {
-  border-left: 3px solid transparent;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: var(--color-navy);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-2);
-  border-radius: 0;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-slate-muted);
-}
-
-/* Confidence bar */
-.confidence-bar {
-  background: var(--color-surface-2);
-  height: 4px;
-  width: 60px;
-  position: relative;
-  overflow: hidden;
-}
-.confidence-bar > span {
+img,
+picture,
+video,
+canvas,
+svg {
   display: block;
-  height: 100%;
-  background: var(--color-amber-signal);
-  transition: width 0.3s ease;
+  max-width: 100%;
 }
 
-/* PDF bbox highlight */
-.bbox-highlight {
-  position: absolute;
-  border: 2px solid var(--color-amber-signal);
-  box-shadow: 0 0 0 9999px rgba(10, 15, 30, 0.0);
-  pointer-events: none;
-  z-index: 5;
-}
-.bbox-highlight::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+input,
+button,
+textarea,
+select {
+  font: inherit;
 }
 
-/* Skeleton shimmer */
-@keyframes shimmer {
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-}
-.skeleton-row {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface) 25%,
-    var(--color-surface-2) 50%,
-    var(--color-surface) 75%
-  );
-  background-size: 400px 100%;
-  animation: shimmer 1.4s infinite linear;
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
 }
 
-/* Dropzone */
-.dropzone {
-  border: 2px dashed var(--color-surface-2);
-  background: var(--color-surface);
-  transition: border-color 0.2s, background-color 0.2s;
+#root,
+#__next {
+  isolation: isolate;
 }
-.dropzone:hover, .dropzone.dragover {
-  border-color: var(--color-amber-signal);
-  background: rgba(245, 158, 11, 0.04);
+
+/* ==========================================================================
+   Theme Variables (Light Mode Only)
+   ========================================================================== */
+:root {
+  /* Surface Colors */
+  --color-background: #f8f9fc; /* Very subtle cool gray/blue */
+  --color-surface: #ffffff; /* Crisp white for cards/panels */
+  
+  /* Text Colors */
+  --color-text-primary: #0a192f; /* Deep oceanic blue */
+  --color-text-secondary: #475569; /* Slate 600 */
+  --color-text-tertiary: #94a3b8; /* Slate 400 */
+  
+  /* Accents & Brand */
+  --color-primary: #2563eb; /* Vibrant electric blue */
+  --color-primary-hover: #1d4ed8;
+  --color-primary-subtle: #e0f2fe; /* Icy blue for subtle backgrounds */
+  
+  /* Borders */
+  --color-border: #e2e8f0; /* Slate 200 */
+  --color-border-hover: #cbd5e1; /* Slate 300 */
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(10 25 47 / 0.05), 0 2px 4px -2px rgb(10 25 47 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(10 25 47 / 0.05), 0 4px 6px -4px rgb(10 25 47 / 0.05);
+  
+  /* Radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.tnum {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
 }

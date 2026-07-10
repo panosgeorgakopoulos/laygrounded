@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { EventTypeEnum, EVENT_TYPE_VALUES } from "@/lib/laytime/types";
+import styles from "./EventTimeline.module.css";
+import { Button } from "@/components/core/Button";
 
 export interface SofEvent {
   id: string;
@@ -72,47 +74,39 @@ export function EventTimeline({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="border-b border-[#1f2937] px-4 py-2 flex items-center justify-between">
-        <div
-          className="text-xs uppercase tracking-wider text-[#9ca3af]"
-          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-        >
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={`${styles.headerTitle} tnum`}>
           EVENT TIMELINE
-          <span className="ml-2 text-[#6b7280]">({events.length})</span>
+          <span className={styles.headerCount}>({events.length})</span>
         </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="text-xs text-[#f59e0b] hover:underline"
-          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+          className={`${styles.addBtn} tnum`}
         >
           + ADD EVENT
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className={styles.scrollArea}>
         {extractionPending && events.length === 0 ? (
-          <div className="p-4 space-y-2">
+          <div className={styles.skeletonContainer}>
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="skeleton-row"
-                style={{ height: 56, borderRadius: 2 }}
+                className={styles.skeletonRow}
               />
             ))}
-            <div
-              className="text-xs text-[#9ca3af] text-center pt-4"
-              style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-            >
+            <div className={`${styles.extractionText} tnum`}>
               EXTRACTION IN PROGRESS…
             </div>
           </div>
         ) : events.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[#9ca3af]">
+          <div className={styles.emptyState}>
             No events yet. Upload a document or add events manually.
           </div>
         ) : (
-          <div className="divide-y divide-[#1f2937]">
+          <div className={styles.eventList}>
             {events.map((ev) => {
               const rejected = ev.status === "rejected";
               const selected = ev.id === selectedId;
@@ -120,62 +114,48 @@ export function EventTimeline({
                 <div
                   key={ev.id}
                   onClick={() => onSelect(ev.id)}
-                  className={`p-3 cursor-pointer transition ${
-                    selected ? "bg-[#1f2937]" : "hover:bg-[#111827]"
-                  } ${rejected ? "opacity-40" : ""}`}
+                  className={`${styles.eventItem} ${selected ? styles.eventItemSelect : styles.eventItemHover} ${rejected ? styles.eventItemReject : ""}`}
                 >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span
-                      className="text-xs tnum text-[#f9fafb]"
-                      style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                    >
+                  <div className={styles.eventTopRow}>
+                    <span className={`${styles.eventTime} tnum`}>
                       {new Date(ev.occurredAt).toISOString().slice(0, 16).replace("T", " ")}
                     </span>
                     <span
-                      className="status-badge px-1.5 py-0.5"
+                      className={styles.eventTypeBadge}
                       style={{
                         color: eventTypeColor(ev.eventType),
-                        background: `${eventTypeColor(ev.eventType)}10`,
-                        border: `1px solid ${eventTypeColor(ev.eventType)}40`,
-                        borderRadius: 2,
+                        backgroundColor: `${eventTypeColor(ev.eventType)}15`,
+                        borderColor: `${eventTypeColor(ev.eventType)}40`,
                       }}
                     >
                       {ev.eventType.replace(/_/g, " ")}
                     </span>
                     <span
-                      className="ml-auto text-[10px] uppercase tracking-wider"
-                      style={{
-                        fontFamily: "var(--font-jetbrains-mono)",
-                        color: ev.source === "ai" ? "#9ca3af" : "#14b8a6",
-                      }}
+                      className={styles.eventSource}
+                      style={{ color: ev.source === "ai" ? "var(--color-text-tertiary)" : "var(--color-primary)" }}
                     >
                       {ev.source}
                     </span>
                     <span
-                      className="text-[10px] uppercase tracking-wider"
-                      style={{
-                        fontFamily: "var(--font-jetbrains-mono)",
-                        color: statusColor(ev.status),
-                      }}
+                      className={styles.eventStatus}
+                      style={{ color: statusColor(ev.status) }}
                     >
                       {ev.status}
                     </span>
                   </div>
 
                   {editingId === ev.id ? (
-                    <div className="space-y-2 mb-2">
+                    <div className={styles.editForm}>
                       <input
                         type="datetime-local"
                         value={editOccurredAt}
                         onChange={(e) => setEditOccurredAt(e.target.value)}
-                        className="w-full bg-[#0a0f1e] border border-[#1f2937] px-2 py-1 text-xs text-[#f9fafb]"
-                        style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
+                        className={`${styles.inputField} tnum`}
                       />
                       <select
                         value={editEventType}
                         onChange={(e) => setEditEventType(e.target.value)}
-                        className="w-full bg-[#0a0f1e] border border-[#1f2937] px-2 py-1 text-xs text-[#f9fafb]"
-                        style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
+                        className={`${styles.inputField} tnum`}
                       >
                         {EVENT_TYPE_VALUES.map((t) => (
                           <option key={t} value={t}>
@@ -183,14 +163,13 @@ export function EventTimeline({
                           </option>
                         ))}
                       </select>
-                      <div className="flex gap-2">
+                      <div className={styles.editActions}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             saveEdit();
                           }}
-                          className="px-2 py-0.5 text-[10px] text-[#0a0f1e] font-medium"
-                          style={{ background: "#f59e0b", borderRadius: 2 }}
+                          className={styles.actionBtnPrimary}
                         >
                           SAVE
                         </button>
@@ -199,47 +178,43 @@ export function EventTimeline({
                             e.stopPropagation();
                             setEditingId(null);
                           }}
-                          className="px-2 py-0.5 text-[10px] text-[#9ca3af]"
+                          className={styles.actionBtnSecondary}
                         >
                           CANCEL
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-[#f9fafb] mb-1.5">{ev.rawText}</div>
+                    <div className={styles.eventRawText}>{ev.rawText}</div>
                   )}
 
-                  <div className="flex items-center gap-3">
+                  <div className={styles.eventBottomRow}>
                     {ev.source === "ai" && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="confidence-bar">
-                          <span style={{ width: `${ev.confidence * 100}%` }} />
+                      <div className={styles.confidenceWrapper}>
+                        <div className={styles.confidenceBarBg}>
+                          <div
+                            className={styles.confidenceBarFill}
+                            style={{ width: `${ev.confidence * 100}%` }}
+                          />
                         </div>
-                        <span
-                          className="text-[10px] text-[#6b7280] tnum"
-                          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                        >
+                        <span className={`${styles.confidenceText} tnum`}>
                           {(ev.confidence * 100).toFixed(0)}%
                         </span>
                       </div>
                     )}
-                    <span
-                      className="text-[10px] text-[#6b7280]"
-                      style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                    >
+                    <span className={`${styles.pageText} tnum`}>
                       p.{ev.page}
                     </span>
 
                     {editingId !== ev.id && (
-                      <div className="ml-auto flex items-center gap-1">
+                      <div className={styles.eventItemActions}>
                         {ev.status !== "accepted" && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onAccept(ev.id);
                             }}
-                            className="px-1.5 py-0.5 text-[10px] text-[#14b8a6] hover:underline"
-                            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+                            className={`${styles.actionBtnLink} ${styles.actionBtnAccept} tnum`}
                           >
                             ACCEPT
                           </button>
@@ -249,8 +224,7 @@ export function EventTimeline({
                             e.stopPropagation();
                             startEdit(ev);
                           }}
-                          className="px-1.5 py-0.5 text-[10px] text-[#9ca3af] hover:text-[#f9fafb]"
-                          style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+                          className={`${styles.actionBtnLink} tnum`}
                         >
                           EDIT
                         </button>
@@ -260,8 +234,7 @@ export function EventTimeline({
                               e.stopPropagation();
                               onReject(ev.id);
                             }}
-                            className="px-1.5 py-0.5 text-[10px] text-[#9ca3af] hover:text-[#ef4444]"
-                            style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+                            className={`${styles.actionBtnLink} ${styles.actionBtnReject} tnum`}
                           >
                             REJECT
                           </button>
@@ -271,10 +244,7 @@ export function EventTimeline({
                   </div>
 
                   {ev.aiReasoning && (
-                    <div
-                      className="mt-1.5 text-xs text-[#6b7280] italic"
-                      style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                    >
+                    <div className={`${styles.aiReasoning} tnum`}>
                       → {ev.aiReasoning}
                     </div>
                   )}
@@ -285,25 +255,20 @@ export function EventTimeline({
         )}
 
         {showAdd && (
-          <div className="border-t border-[#1f2937] p-4 bg-[#111827] space-y-2">
-            <div
-              className="text-xs uppercase tracking-wider text-[#f59e0b]"
-              style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-            >
+          <div className={styles.addFormContainer}>
+            <div className={`${styles.addFormTitle} tnum`}>
               ADD EVENT MANUALLY
             </div>
             <input
               type="datetime-local"
               value={newOccurredAt}
               onChange={(e) => setNewOccurredAt(e.target.value)}
-              className="w-full bg-[#0a0f1e] border border-[#1f2937] px-2 py-1.5 text-xs text-[#f9fafb]"
-              style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
+              className={`${styles.inputField} tnum`}
             />
             <select
               value={newEventType}
               onChange={(e) => setNewEventType(e.target.value)}
-              className="w-full bg-[#0a0f1e] border border-[#1f2937] px-2 py-1.5 text-xs text-[#f9fafb]"
-              style={{ borderRadius: 2, fontFamily: "var(--font-jetbrains-mono)" }}
+              className={`${styles.inputField} tnum`}
             >
               {EVENT_TYPE_VALUES.map((t) => (
                 <option key={t} value={t}>
@@ -316,20 +281,18 @@ export function EventTimeline({
               value={newRawText}
               onChange={(e) => setNewRawText(e.target.value)}
               placeholder="Verbatim text (optional)"
-              className="w-full bg-[#0a0f1e] border border-[#1f2937] px-2 py-1.5 text-xs text-[#f9fafb]"
-              style={{ borderRadius: 2 }}
+              className={styles.inputField}
             />
-            <div className="flex gap-2">
+            <div className={styles.addFormActions}>
               <button
                 onClick={submitAdd}
-                className="px-2 py-1 text-[10px] text-[#0a0f1e] font-medium"
-                style={{ background: "#f59e0b", borderRadius: 2 }}
+                className={styles.actionBtnPrimary}
               >
                 SAVE EVENT
               </button>
               <button
                 onClick={() => setShowAdd(false)}
-                className="px-2 py-1 text-[10px] text-[#9ca3af]"
+                className={styles.actionBtnSecondary}
               >
                 CANCEL
               </button>
@@ -342,16 +305,16 @@ export function EventTimeline({
 }
 
 function eventTypeColor(t: string): string {
-  if (t.includes("NOR")) return "#f59e0b";
-  if (t.includes("COMMENCED") || t.includes("COMPLETED")) return "#14b8a6";
-  if (t.includes("WEATHER")) return "#ef4444";
-  if (t.includes("SHIFTING")) return "#92691a";
-  return "#9ca3af";
+  if (t.includes("NOR")) return "#c2410c"; // Darker orange
+  if (t.includes("COMMENCED") || t.includes("COMPLETED")) return "#0f766e"; // Teal
+  if (t.includes("WEATHER")) return "#b91c1c"; // Red
+  if (t.includes("SHIFTING")) return "#854d0e"; // Yellow/Brown
+  return "var(--color-text-tertiary)";
 }
 
 function statusColor(s: string): string {
-  if (s === "accepted") return "#14b8a6";
-  if (s === "edited") return "#f59e0b";
-  if (s === "rejected") return "#ef4444";
-  return "#9ca3af";
+  if (s === "accepted") return "#0f766e";
+  if (s === "edited") return "#c2410c";
+  if (s === "rejected") return "#b91c1c";
+  return "var(--color-text-tertiary)";
 }

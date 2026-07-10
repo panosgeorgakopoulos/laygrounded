@@ -3,154 +3,144 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Input } from "@/components/core/Input";
+import { Button } from "@/components/core/Button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/core/Card";
+import { AlertCircle, ArrowLeft } from "lucide-react";
+import styles from "./NewClaim.module.css";
+
+// Matches the exact API validation schema from POST /api/claims
+const createClaimSchema = z.object({
+  vessel: z.string().min(1, "Vessel name is required"),
+  voyageRef: z.string().min(1, "Voyage reference is required"),
+  port: z.string().min(1, "Port is required"),
+  cargo: z.string().min(1, "Cargo description is required"),
+  cpForm: z.string().min(1),
+});
+
+type CreateClaimFormValues = z.infer<typeof createClaimSchema>;
 
 export default function NewClaimPage() {
-  const [vessel, setVessel] = useState("");
-  const [voyageRef, setVoyageRef] = useState("");
-  const [port, setPort] = useState("");
-  const [cargo, setCargo] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/claims", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vessel, voyageRef, port, cargo, cpForm: "GENCON94" }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setError(d.error || "Failed to create claim");
-      return;
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CreateClaimFormValues>({
+    resolver: zodResolver(createClaimSchema),
+    defaultValues: {
+      vessel: "",
+      voyageRef: "",
+      port: "",
+      cargo: "",
+      cpForm: "GENCON94",
+    },
+  });
+
+  async function onSubmit(data: CreateClaimFormValues) {
+    setGlobalError(null);
+    try {
+      const res = await fetch("/api/claims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setGlobalError(d.error || "Failed to create claim workspace. Please try again.");
+        return;
+      }
+      
+      const { claim } = await res.json();
+      router.push(`/claims/${claim.id}/workspace`);
+    } catch (e) {
+      setGlobalError("A network error occurred. Please try again.");
     }
-    const { claim } = await res.json();
-    router.push(`/claims/${claim.id}/workspace`);
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-[#1f2937] bg-[#0a0f1e] sticky top-0" style={{ zIndex: 20 }}>
-        <div className="px-4 sm:px-8 h-14 flex items-center gap-3 min-w-0">
-          <Link href="/claims" className="text-sm text-[#9ca3af] hover:text-[#f9fafb] shrink-0">
-            ← Claims
-          </Link>
-          <span className="text-[#1f2937] shrink-0">/</span>
-          <h1
-            className="text-base sm:text-lg font-medium truncate"
-            style={{ fontFamily: "var(--font-space-grotesk)" }}
-          >
-            New Claim
-          </h1>
+    <div className={styles.pageContainer}>
+      <div className={styles.header}>
+        <Button variant="ghost" size="icon" onClick={() => router.push("/claims")}>
+          <ArrowLeft size={20} />
+        </Button>
+        <div>
+          <h1 className={styles.title}>Initialize Claim Workspace</h1>
+          <p className={styles.subtitle}>Enter the primary voyage details to begin laytime calculations.</p>
         </div>
-      </header>
+      </div>
 
-      <div className="p-4 sm:p-8 max-w-2xl">
-        <div className="border border-[#1f2937] bg-[#111827] p-6" style={{ borderRadius: 2 }}>
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                Vessel
-              </label>
-              <input
-                type="text"
-                required
-                value={vessel}
-                onChange={(e) => setVessel(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-                style={{ borderRadius: 2 }}
-                placeholder="MV Pacific Trader"
+      <Card>
+        <CardHeader>
+          <CardTitle>Voyage Particulars</CardTitle>
+          <CardDescription>All fields are required unless otherwise noted.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            
+            <div className={styles.formGrid}>
+              <Input
+                label="VESSEL NAME"
+                placeholder="e.g. MV Pacific Trader"
+                {...register("vessel")}
+                disabled={isSubmitting}
+                error={errors.vessel?.message}
+              />
+              
+              <Input
+                label="VOYAGE REFERENCE"
+                placeholder="e.g. VR-2024-0142"
+                {...register("voyageRef")}
+                disabled={isSubmitting}
+                error={errors.voyageRef?.message}
+                className="tnum"
+              />
+
+              <Input
+                label="LOAD / DISCH PORT"
+                placeholder="e.g. Port Hedland, AU"
+                {...register("port")}
+                disabled={isSubmitting}
+                error={errors.port?.message}
+              />
+
+              <Input
+                label="CARGO DETAILS"
+                placeholder="e.g. Iron Ore Fines, 165,000 MT"
+                {...register("cargo")}
+                disabled={isSubmitting}
+                error={errors.cargo?.message}
               />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                Voyage reference
-              </label>
-              <input
-                type="text"
-                required
-                value={voyageRef}
-                onChange={(e) => setVoyageRef(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-                style={{ borderRadius: 2 }}
-                placeholder="VR-2024-0142"
-              />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                Load port
-              </label>
-              <input
-                type="text"
-                required
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-                style={{ borderRadius: 2 }}
-                placeholder="Port Hedland, AU"
-              />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                Cargo type
-              </label>
-              <input
-                type="text"
-                required
-                value={cargo}
-                onChange={(e) => setCargo(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2.5 sm:py-2 min-h-[44px] text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-                style={{ borderRadius: 2 }}
-                placeholder="Iron Ore Fines, 165,000 MT"
-              />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                Charterparty form
-              </label>
-              <div
-                className="w-full bg-[#0a0f1e] border border-[#1f2937] px-3 py-2 text-[#6b7280] flex items-center justify-between"
-                style={{ borderRadius: 2 }}
-              >
-                <span>GENCON 94</span>
-                <span
-                  className="text-xs uppercase tracking-wider"
-                  style={{ fontFamily: "var(--font-jetbrains-mono)" }}
-                >
-                  LOCKED
-                </span>
+
+            <div className={styles.lockedField}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>CHARTERPARTY FORM</span>
+                <span className={styles.lockedText}>GENCON94</span>
               </div>
+              <span className={styles.lockedBadge}>Locked</span>
             </div>
 
-            {error && (
-              <div className="text-xs text-[#ef4444]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
-                {error}
+            {globalError && (
+              <div className={styles.errorBox}>
+                <AlertCircle size={20} color="#ef4444" />
+                <p className={styles.errorText}>{globalError}</p>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 text-sm text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
-                style={{ background: "#f59e0b", borderRadius: 2 }}
-              >
-                {loading ? "Creating…" : "Create claim & open workspace"}
-              </button>
-              <Link
-                href="/claims"
-                className="px-4 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 flex items-center justify-center text-sm text-[#9ca3af] hover:text-[#f9fafb]"
-              >
+            <div className={styles.formActions}>
+              <Button type="submit" isLoading={isSubmitting} size="lg">
+                {isSubmitting ? "Creating Workspace..." : "Create Workspace"}
+              </Button>
+              <Button type="button" variant="secondary" size="lg" disabled={isSubmitting} onClick={() => router.push("/claims")}>
                 Cancel
-              </Link>
+              </Button>
             </div>
           </form>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

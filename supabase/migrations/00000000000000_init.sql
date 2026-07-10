@@ -1,0 +1,169 @@
+-- Extensions
+create extension if not exists "uuid-ossp";
+
+-- Enums
+create type app_role as enum ('admin', 'member');
+
+-- Tables
+
+create table public.companies (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table public.company_members (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  company_id uuid not null references public.companies (id) on delete cascade,
+  role app_role default 'member',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, company_id)
+);
+
+create table public.claims (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references public.companies (id) on delete cascade,
+  vessel text not null,
+  voyage_ref text not null,
+  port text not null,
+  cargo text not null,
+  cp_form text not null,
+  status text not null default 'draft',
+  cp_terms jsonb,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table public.documents (
+  id uuid primary key default gen_random_uuid(),
+  claim_id uuid not null references public.claims (id) on delete cascade,
+  storage_path text not null,
+  mime text not null,
+  original_filename text,
+  extraction_status text not null default 'extracting',
+  page_count integer default 1,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table public.sof_events (
+  id uuid primary key default gen_random_uuid(),
+  claim_id uuid not null references public.claims (id) on delete cascade,
+  document_id uuid not null references public.documents (id) on delete cascade,
+  occurred_at timestamptz not null,
+  event_type text not null,
+  raw_text text not null,
+  page integer not null default 1,
+  bbox jsonb,
+  confidence float8 not null default 1.0,
+  source text not null default 'ai',
+  status text not null default 'suggested',
+  ai_reasoning text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table public.clause_flags (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.sof_events (id) on delete cascade,
+  clause_ref text not null,
+  severity text not null,
+  note text not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table public.laytime_calculations (
+  id uuid primary key default gen_random_uuid(),
+  claim_id uuid not null references public.claims (id) on delete cascade,
+  computed_at timestamptz default now(),
+  breakdown jsonb not null default '[]'::jsonb,
+  allowed_hours float8 not null default 0,
+  used_hours float8 not null default 0,
+  demurrage_amount float8,
+  despatch_amount float8,
+  currency text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- RLS
+alter table public.companies enable row level security;
+alter table public.company_members enable row level security;
+alter table public.claims enable row level security;
+alter table public.documents enable row level security;
+alter table public.sof_events enable row level security;
+alter table public.clause_flags enable row level security;
+alter table public.laytime_calculations enable row level security;
+
+-- Policies for companies
+create policy "Users can view their own companies"
+  on public.companies for select
+  using (exists (
+    select 1 from public.company_members cm
+    where cm.company_id = id and cm.user_id = auth.uid()
+  ));
+
+-- Policies for company_members
+create policy "Users can view members of their company"
+  on public.company_members for select
+  using (company_id in (
+    select company_id from public.company_members cm
+    where cm.user_id = auth.uid()
+  ));
+
+-- Policies for claims
+create policy "Users can perform all actions on claims of their company"
+  on public.claims for all
+  using (company_id in (
+    select company_id from public.company_members cm
+    where cm.user_id = auth.uid()
+  ));
+
+-- Policies for documents
+create policy "Users can perform all actions on documents of their company claims"
+  on public.documents for all
+  using (claim_id in (
+    select c.id from public.claims c
+    join public.company_members cm on c.company_id = cm.company_id
+    where cm.user_id = auth.uid()
+  ));
+
+-- Policies for sof_events
+create policy "Users can perform all actions on sof_events of their company claims"
+  on public.sof_events for all
+  using (claim_id in (
+    select c.id from public.claims c
+    join public.company_members cm on c.company_id = cm.company_id
+    where cm.user_id = auth.uid()
+  ));
+
+-- Policies for clause_flags
+create policy "Users can perform all actions on clause_flags of their company claims"
+  on public.clause_flags for all
+  using (event_id in (
+    select e.id from public.sof_events e
+    join public.claims c on e.claim_id = c.id
+    join public.company_members cm on c.company_id = cm.company_id
+    where cm.user_id = auth.uid()
+  ));
+
+-- Policies for laytime_calculations
+create policy "Users can perform all actions on laytime_calculations of their company claims"
+  on public.laytime_calculations for all
+  using (claim_id in (
+    select c.id from public.claims c
+    join public.company_members cm on c.company_id = cm.company_id
+    where cm.user_id = auth.uid()
+  ));
+
+-- Storage Bucket Setup
+insert into storage.buckets (id, name, public) values ('sofs', 'sofs', false) on conflict do nothing;
+
+create policy "Authenticated users can access sofs"
+  on storage.objects for all
+  using (bucket_id = 'sofs' and auth.role() = 'authenticated');

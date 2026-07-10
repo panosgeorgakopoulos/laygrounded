@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import styles from "@/app/Auth.module.css";
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
@@ -35,9 +36,9 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+    <form onSubmit={onSubmit} className={styles.form}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Email
         </label>
         <input
@@ -45,13 +46,12 @@ export function SignInForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
           placeholder="captain@fleet.com"
         />
       </div>
-      <div>
-        <label className="block text-xs uppercase tracking-wider text-[#9ca3af] mb-2" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+      <div className={styles.inputGroup}>
+        <label className={styles.label}>
           Password
         </label>
         <input
@@ -59,30 +59,28 @@ export function SignInForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-[#111827] border border-[#1f2937] px-3 py-2 text-[#f9fafb] focus:outline-none focus:border-[#f59e0b]"
-          style={{ borderRadius: 2 }}
+          className={styles.input}
         />
       </div>
       {error && (
-        <div className="text-xs text-[#ef4444]" style={{ fontFamily: "var(--font-jetbrains-mono)" }}>
+        <div className={styles.errorText}>
           {error}
         </div>
       )}
       <button
         type="submit"
         disabled={loading}
-        className="w-full px-4 py-3 min-h-[48px] text-[#0a0f1e] font-medium transition hover:opacity-90 disabled:opacity-50"
-        style={{ background: "#f59e0b", borderRadius: 2 }}
+        className={styles.submitButton}
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
 
-      <div className="relative py-2">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#1f2937]" />
+      <div className={styles.divider}>
+        <div className={styles.dividerLine}>
+          <div className={styles.dividerLineInner} />
         </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-[#0a0f1e] px-3 text-[#6b7280]">or</span>
+        <div className={styles.dividerContent}>
+          <span className={styles.dividerText}>or</span>
         </div>
       </div>
 
@@ -92,8 +90,7 @@ export function SignInForm() {
           setEmail("demo@laygrounded.io");
           setPassword("demo1234");
         }}
-        className="w-full px-4 py-3 min-h-[48px] border border-[#1f2937] bg-[#111827] text-[#f9fafb] transition hover:border-[#f59e0b]"
-        style={{ borderRadius: 2 }}
+        className={styles.secondaryButton}
       >
         Use demo credentials
       </button>
