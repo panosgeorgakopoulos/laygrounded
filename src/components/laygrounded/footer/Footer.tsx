@@ -23,8 +23,8 @@ export function Footer() {
           </div>
           <div className={styles.linkGroup}>
             <h4>Legal</h4>
-            <Link href="/privacy">Privacy Policy</Link>
-            <Link href="/terms">Terms of Service</Link>
+            <Link href="/legal/privacy">Privacy Policy</Link>
+            <Link href="/legal/terms">Terms of Service</Link>
           </div>
           <div className={styles.linkGroup}>
             <h4>Company</h4>

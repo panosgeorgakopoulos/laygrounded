@@ -62,16 +62,6 @@ export default function NewClaimPage() {
 
   return (
     <div className={styles.pageContainer}>
-      <div className={styles.header}>
-        <Button variant="ghost" size="icon" onClick={() => router.push("/claims")}>
-          <ArrowLeft size={20} />
-        </Button>
-        <div>
-          <h1 className={styles.title}>Initialize Claim Workspace</h1>
-          <p className={styles.subtitle}>Enter the primary voyage details to begin laytime calculations.</p>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Voyage Particulars</CardTitle>

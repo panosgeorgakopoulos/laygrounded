@@ -55,22 +55,6 @@ export default function ClaimsDashboard() {
 
   return (
     <div>
-      <div className={styles.pageHeader}>
-        <div>
-          <h1 className={styles.title}>Claims Register</h1>
-          <p className={styles.subtitle}>Manage and track your Laytime & Demurrage statements.</p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button variant="secondary" onClick={seedDemo} className="tnum">
-            SEED DEMO
-          </Button>
-          <Button onClick={() => router.push("/claims/new")}>
-            <PlusCircle size={16} />
-            New Claim
-          </Button>
-        </div>
-      </div>
-
       <Card>
         <div className={styles.tableWrapper}>
           {loading ? (

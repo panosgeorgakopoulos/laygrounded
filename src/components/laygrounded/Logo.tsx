@@ -16,8 +16,8 @@ export function Logo({ className = "", theme = "light", variant = "default" }: L
   let height = 104;
 
   if (variant === "navbar") {
-    width = 72;
-    height = 54;
+    width = 32;
+    height = 24;
   } else if (variant === "auth") {
     width = 180;
     height = 133;

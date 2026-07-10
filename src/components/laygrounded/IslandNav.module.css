@@ -67,7 +67,7 @@
 .row {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1.75rem;
+  padding: 0.5rem 1.5rem;
   gap: 0;
   white-space: nowrap;
 }
@@ -232,4 +232,65 @@
   .island {
     animation: none;
   }
+}
+
+/* ── 15. Light Theme (Internal App) ─────────────────────────────────────── */
+.island.light {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.island.light:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.island.light .sep,
+.island.light .linkSep {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.island.light .navLink {
+  color: rgba(15, 23, 42, 0.5); /* slate-500 */
+}
+
+.island.light .navLink:hover {
+  color: rgba(15, 23, 42, 0.9); /* slate-900 */
+}
+
+.island.light .navLink.active {
+  color: rgba(15, 23, 42, 1); /* slate-900 */
+  font-weight: 700;
+}
+
+.island.light .navLink:hover::before,
+.island.light .navLink.active::before {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.island.light .ghostBtn {
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.island.light .ghostBtn:hover {
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.island.light .ctaBtn {
+  color: #fff;
+  background: rgba(15, 23, 42, 1);
+}
+
+.island.light .ctaBtn:hover {
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+}
+
+.island.light .glow {
+  background: radial-gradient(
+    circle,
+    rgba(45, 212, 191, 0.12) 0%,
+    transparent 70%
+  );
 }

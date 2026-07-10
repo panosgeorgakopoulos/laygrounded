@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import { useAuth } from "@/components/providers";
 import { Logo } from "@/components/laygrounded/Logo";
@@ -13,8 +14,9 @@ const NAV_ITEMS = [
   { label: "Settings",  href: "/settings" },
 ];
 
-export function LandingNav() {
+export function LandingNav({ theme = "dark" }: { theme?: "dark" | "light" }) {
   const { data: session } = useAuth();
+  const pathname = usePathname();
 
   const pillRef        = useRef<HTMLDivElement>(null);
   const labelsRef      = useRef<HTMLDivElement>(null);
@@ -22,6 +24,13 @@ export function LandingNav() {
   const glowRef        = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const tlRef          = useRef<gsap.core.Timeline | null>(null);
+
+  const isActive = (href: string) => {
+    if (href === "/claims") {
+      return pathname === "/claims" || pathname.startsWith("/claims/");
+    }
+    return pathname === href;
+  };
 
   /* ── Build the expand / collapse timeline once ──────────────────────── */
   useEffect(() => {
@@ -104,11 +113,13 @@ export function LandingNav() {
     });
   };
 
+  const islandClass = `${styles.island} ${expanded ? styles.islandExpanded : ""} ${theme === "light" ? styles.light : ""}`;
+
   return (
     /* Outer row: centres the pill */
     <header className={styles.header}>
       <div
-        className={`${styles.island} ${expanded ? styles.islandExpanded : ""}`}
+        className={islandClass}
         ref={pillRef}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
@@ -124,7 +135,7 @@ export function LandingNav() {
 
           {/* Brand — always visible */}
           <Link href="/" className={`${styles.brand} flex items-center`} style={{ textDecoration: 'none' }}>
-            <Logo theme="dark" variant="navbar" />
+            <Logo theme={theme} variant="navbar" />
           </Link>
 
           {/* Separator */}
@@ -132,16 +143,19 @@ export function LandingNav() {
 
           {/* Nav links — revealed on expand */}
           <div className={styles.links} ref={linksRef} aria-hidden={!expanded}>
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={styles.navLink}
-                tabIndex={expanded ? 0 : -1}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navLink} ${active ? styles.active : ""}`}
+                  tabIndex={expanded ? 0 : -1}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             <span className={styles.linkSep} aria-hidden="true" />
           </div>
 

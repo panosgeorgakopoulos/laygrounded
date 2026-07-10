@@ -126,11 +126,6 @@ export default function SettingsPage() {
 
   return (
     <div className={styles.pageContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Settings</h1>
-        <p className={styles.subtitle}>Manage your workspace preferences, team members, and subscription.</p>
-      </div>
-
       <div className={styles.tabsList}>
         <button 
           className={`${styles.tabTrigger} ${activeTab === "profile" ? styles.tabActive : ""}`}

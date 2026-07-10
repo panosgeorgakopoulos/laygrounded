@@ -1,7 +1,7 @@
 .container {
   display: flex;
   min-height: 100vh;
-  background-color: var(--color-background);
+  /* background-color removed to let global gradient show through */
 }
 
 .main {
@@ -10,7 +10,7 @@
   flex-direction: column;
   min-width: 0;
   /* Add padding to account for the global fixed IslandNav */
-  padding-top: 100px;
+  padding-top: 6.5rem;
 }
 
 .header {

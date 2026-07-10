@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignInForm } from "@/components/laygrounded/sign-in-form";
 import { Logo } from "@/components/laygrounded/Logo";
+import { LandingNav } from "@/components/laygrounded/landing-nav";
 import styles from "@/app/Auth.module.css";
 
 export const metadata = { title: "Sign In — LayGrounded" };
@@ -8,7 +9,7 @@ export const metadata = { title: "Sign In — LayGrounded" };
 export default function SignInPage() {
   return (
     <main className={styles.pageContainer}>
-
+      <LandingNav theme="light" />
       <div className={styles.mainContent}>
         <div className={styles.formContainer}>
           <div className="flex justify-center mb-8">
