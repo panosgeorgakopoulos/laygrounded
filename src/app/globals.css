@@ -12,12 +12,14 @@
   padding: 0;
 }
 
+/* Base Body Styles */
 body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   background-color: var(--color-background);
   color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 img,
@@ -52,26 +54,23 @@ h6 {
 }
 
 /* ==========================================================================
-   Theme Variables (Light Mode Only)
+   Theme Variables
    ========================================================================== */
 :root {
-  /* Surface Colors */
-  --color-background: #f8f9fc; /* Very subtle cool gray/blue */
-  --color-surface: #ffffff; /* Crisp white for cards/panels */
+  /* Default Light Theme (For Dashboard / Authenticated App) */
+  --color-background: #f8f9fc; 
+  --color-surface: #ffffff; 
   
-  /* Text Colors */
-  --color-text-primary: #0a192f; /* Deep oceanic blue */
-  --color-text-secondary: #475569; /* Slate 600 */
-  --color-text-tertiary: #94a3b8; /* Slate 400 */
+  --color-text-primary: #0a192f; 
+  --color-text-secondary: #475569; 
+  --color-text-tertiary: #94a3b8; 
   
-  /* Accents & Brand */
-  --color-primary: #2563eb; /* Vibrant electric blue */
+  --color-primary: #2563eb; 
   --color-primary-hover: #1d4ed8;
-  --color-primary-subtle: #e0f2fe; /* Icy blue for subtle backgrounds */
+  --color-primary-subtle: #e0f2fe; 
   
-  /* Borders */
-  --color-border: #e2e8f0; /* Slate 200 */
-  --color-border-hover: #cbd5e1; /* Slate 300 */
+  --color-border: #e2e8f0; 
+  --color-border-hover: #cbd5e1; 
   
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -86,6 +85,23 @@ h6 {
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme Overrides (For Cinematic Landing Page) */
+[data-theme="dark"] {
+  --color-background: #000000;
+  --color-surface: #111111;
+  
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-subtle: rgba(37, 99, 235, 0.1);
+  
+  --color-border: #27272a;
+  --color-border-hover: #3f3f46;
 }
 
 /* ==========================================================================
