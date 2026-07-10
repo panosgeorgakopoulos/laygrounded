@@ -17,21 +17,15 @@
   background-color: #000;
 }
 
-/* ── 2. Horizontal Track ────────────────────────────────────────────────── */
-/*
-   The track is 5 screens wide (5 × 100vw = 500vw).
-   GSAP translates it left by exactly -(scrollWidth - innerWidth) pixels.
-   We use display:flex so each .chapter sits naturally side-by-side.
-*/
-.horizontalTrack {
-  display: flex;
-  height: 100vh;
-  width: 500vw; /* NUM_CHAPTERS × 100vw */
-  position: relative;
-  will-change: transform;
-  /* Prevent sub-pixel gaps that can cause black flashes */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+/* ── 2. Fixed UI Layer ────────────────────────────────────────────────── */
+.uiLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none; /* Let clicks pass through to background if needed */
 }
 
 /* ── 3. Parallax Background Layers ────────────────────────────────────────── */
@@ -65,21 +59,31 @@
   -webkit-backface-visibility: hidden;
 }
 
-/* ── 4. Chapter Sections ────────────────────────────────────────────────── */
+/* ── 4. Crossfading Cards ───────────────────────────────────────────────── */
 /*
-   Each chapter occupies exactly one viewport width (100vw).
-   Flex-shrink:0 prevents them from collapsing.
-   The card alignment (left/right) is handled inside ChapterCard.
+   Instead of physically spacing cards out across a track, they are all
+   stacked in the center and we fade between them.
 */
-.chapter {
-  width: 100vw;
-  height: 100vh;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
+.fixedCardContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   padding: 0 8vw;
+  opacity: 0;
+  transform: translateY(30px) scale(0.98);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+  pointer-events: none; /* Inherits from uiLayer, but let's be explicit */
+}
+
+.fixedCardContainer[data-active="true"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto; /* Active card is clickable */
 }
 
 /* ── 5. Chapter Card (Glassmorphism) ────────────────────────────────────── */
@@ -303,26 +307,32 @@
     overflow: visible;
   }
 
-  .horizontalTrack {
+  .uiLayer {
+    position: relative;
+    display: flex;
     flex-direction: column;
-    width: 100vw;
     height: auto;
+    pointer-events: auto;
   }
 
   .fixedLayer {
     display: none; /* Mobile fallback handled by background images */
   }
 
-  .chapter {
+  .fixedCardContainer {
+    position: relative;
     height: 100svh;
     padding: 24px 20px;
     background-image: url('/images/scroll2.png');
     background-size: cover;
     background-repeat: no-repeat;
+    opacity: 1 !important; /* Force visible */
+    transform: none !important;
+    pointer-events: auto;
   }
 
   /* Darken each section for readability */
-  .chapter::before {
+  .fixedCardContainer::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -333,11 +343,11 @@
   .chapterCardWrapper { z-index: 1; }
 
   /* Show different slice of panorama per chapter */
-  .chapter:nth-child(3)  { background-position: 0%   center; }
-  .chapter:nth-child(4)  { background-position: 25%  center; }
-  .chapter:nth-child(5)  { background-position: 50%  center; }
-  .chapter:nth-child(6)  { background-position: 75%  center; }
-  .chapter:nth-child(7)  { background-position: 100% center; }
+  .fixedCardContainer:nth-child(2)  { background-position: 0%   center; }
+  .fixedCardContainer:nth-child(3)  { background-position: 25%  center; }
+  .fixedCardContainer:nth-child(4)  { background-position: 50%  center; }
+  .fixedCardContainer:nth-child(5)  { background-position: 75%  center; }
+  .fixedCardContainer:nth-child(6)  { background-position: 100% center; }
 
   /* Disable floating animation on mobile for perf */
   .chapterCard { animation: none; }

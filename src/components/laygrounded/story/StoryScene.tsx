@@ -9,7 +9,6 @@ import { useGSAP } from "@gsap/react";
 import { ChapterCard } from "./ChapterCard";
 import { ProgressNavigation } from "./ProgressNavigation";
 import { ParticlesLayer } from "./ParticlesLayer";
-import Lenis from "lenis";
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
@@ -59,73 +58,49 @@ const NUM_CHAPTERS = CHAPTERS.length;
 // ─── Component ───────────────────────────────────────────────────────────────
 export function StoryScene() {
   const masterRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
   const img1Ref = useRef<HTMLImageElement>(null);
   const img2Ref = useRef<HTMLImageElement>(null);
   const [activeChapter, setActiveChapter] = useState(0);
 
   useGSAP(() => {
-    if (!masterRef.current || !trackRef.current) return;
+    if (!masterRef.current) return;
 
     const mm = gsap.matchMedia();
 
     // ══ DESKTOP ════════════════════════════════════════════════════════════
     mm.add("(min-width: 768px)", () => {
-      // ── Lenis smooth scroll ──────────────────────────────────────────
-      const lenis = new Lenis({
-        duration: 1.4,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        orientation: "vertical",
-        gestureOrientation: "vertical",
-        smoothWheel: true,
-        wheelMultiplier: 0.8,
-        touchMultiplier: 1.5,
-      });
+      const scrollDuration = () => "+=" + (window.innerWidth * 3.5); // 3.5 viewports of scrolling
 
-      lenis.on("scroll", ScrollTrigger.update);
-      gsap.ticker.add((time) => lenis.raf(time * 1000));
-      gsap.ticker.lagSmoothing(0, 0);
-
-      const track = trackRef.current!;
-
-      // ── Scroll distance ────────────────────────────────────────────────
-      // Dynamic: exactly how much the track overflows the viewport.
-      const getScrollDistance = () => -(track.scrollWidth - window.innerWidth);
-
-      // ── Main horizontal tween (Foreground track) ──────────────────────
-      const scrollDuration = () => "+=" + (window.innerWidth * 3); // 3 viewports of scrolling (faster, smoother)
-
-      const horizontalTween = gsap.to(track, {
-        x: getScrollDistance,
-        ease: "none",
-        scrollTrigger: {
-          trigger: masterRef.current,
-          pin: true,
-          scrub: true, /* MUST be true (not a number) for containerAnimation to work properly with Lenis */
-          end: scrollDuration,
-          invalidateOnRefresh: true,
-          anticipatePin: 1,
-          onUpdate(self) {
-            setActiveChapter(
-              Math.round(self.progress * (NUM_CHAPTERS - 1))
-            );
-          },
+      // ── Main Scene Pin & Progress Tracker ──────────────────────────────
+      ScrollTrigger.create({
+        trigger: masterRef.current,
+        pin: true,
+        scrub: 1, // 1-second smoothing (replaces Lenis)
+        end: scrollDuration,
+        invalidateOnRefresh: true,
+        anticipatePin: 1,
+        onUpdate(self) {
+          setActiveChapter(
+            Math.round(self.progress * (NUM_CHAPTERS - 1))
+          );
         },
       });
 
       // ── Perfect aspect-ratio background panning ───────────────────────
-      // Instead of relying on background-size: cover (which zooms aggressively),
-      // we use 100vh images. We calculate exactly how much overflow they have,
+      // We calculate exactly how much overflow the images have,
       // and translate them by precisely that amount.
 
       // Layer 1: Furthest background (pans slower for depth)
       if (img1Ref.current) {
         gsap.to(img1Ref.current, {
-          x: () => -(img1Ref.current!.offsetWidth - window.innerWidth) * 0.7, 
+          x: () => {
+            const overflow = img1Ref.current!.offsetWidth - window.innerWidth;
+            return overflow > 0 ? -(overflow * 0.7) : 0;
+          }, 
           ease: "none",
           scrollTrigger: {
             trigger: masterRef.current,
-            scrub: true,
+            scrub: 1,
             end: scrollDuration,
             invalidateOnRefresh: true,
           },
@@ -135,91 +110,32 @@ export function StoryScene() {
       // Layer 2: Midground (pans full distance to exact right edge)
       if (img2Ref.current) {
         gsap.to(img2Ref.current, {
-          x: () => -(img2Ref.current!.offsetWidth - window.innerWidth), // Capped at exactly 1.0 so it never leaves a gap
+          x: () => {
+            const overflow = img2Ref.current!.offsetWidth - window.innerWidth;
+            return overflow > 0 ? -overflow : 0;
+          }, 
           ease: "none",
           scrollTrigger: {
             trigger: masterRef.current,
-            scrub: true,
+            scrub: 1,
             end: scrollDuration,
             invalidateOnRefresh: true,
           },
         });
       }
 
-      // ── Per-card animations via containerAnimation ──────────────────
-      const cards = gsap.utils.toArray<HTMLElement>(".chapter-card");
-
-      cards.forEach((card) => {
-        gsap.set(card, { opacity: 0, y: 50, scale: 0.97 });
-
-        const section = card.closest("section")!;
-
-        ScrollTrigger.create({
-          trigger: section,
-          containerAnimation: horizontalTween,
-          start: "left 85%",
-          end: "left 15%",
-          onEnter() {
-            gsap.to(card, {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.7,
-              ease: "power3.out",
-            });
-          },
-          onLeave() {
-            gsap.to(card, {
-              opacity: 0,
-              y: -40,
-              scale: 0.97,
-              duration: 0.5,
-              ease: "power2.in",
-            });
-          },
-          onEnterBack() {
-            gsap.to(card, {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.7,
-              ease: "power3.out",
-            });
-          },
-          onLeaveBack() {
-            gsap.to(card, {
-              opacity: 0,
-              y: 50,
-              scale: 0.97,
-              duration: 0.5,
-              ease: "power2.in",
-            });
-          },
-        });
-      });
-
-      return () => {
-        lenis.destroy();
-      };
+      // Per-card animations are now handled by CSS and activeChapter state!
     });
 
     // ══ MOBILE — stacked vertical fallback ════════════════════════════════
     mm.add("(max-width: 767px)", () => {
-      const cards = gsap.utils.toArray<HTMLElement>(".chapter-card");
-      cards.forEach((card, i) => {
-        gsap.set(card, { opacity: 0, y: 40 });
+      // For mobile, we just rely on simple scroll triggers to update the active chapter
+      const sections = gsap.utils.toArray<HTMLElement>(".mobile-chapter-section");
+      sections.forEach((section, i) => {
         ScrollTrigger.create({
-          trigger: card,
-          start: "top 82%",
-          onEnter: () => {
-            gsap.to(card, {
-              opacity: 1,
-              y: 0,
-              duration: 0.8,
-              ease: "power3.out",
-            });
-            setActiveChapter(i);
-          },
+          trigger: section,
+          start: "top 50%",
+          onEnter: () => setActiveChapter(i),
           onEnterBack: () => setActiveChapter(i),
         });
       });
@@ -245,7 +161,8 @@ export function StoryScene() {
             src="/images/scroll1.png" 
             alt="" 
             className={styles.parallaxImg}
-            aria-hidden="true" 
+            aria-hidden="true"
+            onLoad={() => ScrollTrigger.refresh()}
           />
         </div>
         
@@ -256,19 +173,20 @@ export function StoryScene() {
             alt="" 
             className={styles.parallaxImg}
             aria-hidden="true" 
+            onLoad={() => ScrollTrigger.refresh()}
           />
         </div>
 
-        {/* ── The ultra-wide horizontal track (Cards) ───────────────────── */}
-        <div className={styles.horizontalTrack} ref={trackRef}>
-          {/* Layer 2: Floating particles / fog */}
+        {/* ── Fixed UI Layer (Crossfading Cards) ─────────────────────────── */}
+        <div className={styles.uiLayer}>
           <ParticlesLayer />
 
-          {/* Layer 2: Chapter sections with glassmorphic cards */}
+          {/* Cards render on top of the panning background */}
           {CHAPTERS.map((chapter, i) => (
-            <section
+            <div
               key={i}
-              className={styles.chapter}
+              className={`${styles.fixedCardContainer} mobile-chapter-section`}
+              data-active={activeChapter === i}
               aria-label={`Chapter ${i + 1}: ${chapter.title}`}
             >
               <ChapterCard
@@ -278,7 +196,7 @@ export function StoryScene() {
               >
                 <p>{chapter.content}</p>
               </ChapterCard>
-            </section>
+            </div>
           ))}
         </div>
       </div>
