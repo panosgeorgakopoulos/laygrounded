@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { useAuth } from "@/components/providers";
+import { Logo } from "@/components/laygrounded/Logo";
 import styles from "./IslandNav.module.css";
 
 const NAV_ITEMS = [
@@ -122,8 +123,8 @@ export function LandingNav() {
         <div className={styles.row}>
 
           {/* Brand — always visible */}
-          <Link href="/" className={styles.brand}>
-            <span className={styles.brandText}>LayGrounded</span>
+          <Link href="/" className={styles.brand} style={{ textDecoration: 'none' }}>
+            <Logo />
           </Link>
 
           {/* Separator */}

@@ -1,13 +1,14 @@
 import React from "react";
 import styles from "./Footer.module.css";
 import Link from "next/link";
+import { Logo } from "@/components/laygrounded/Logo";
 
 export function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.container}>
         <div className={styles.brand}>
-          <span className={styles.brandName}>LayGrounded</span>
+          <Logo />
           <p className={styles.brandDesc}>
             The intelligent engine for shipping demurrage claims.
           </p>

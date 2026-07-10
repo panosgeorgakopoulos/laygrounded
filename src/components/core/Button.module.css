@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  border-radius: var(--radius-md);
+  border-radius: 0.5rem; /* rounded-lg */
   font-size: 0.875rem;
   font-weight: 500;
   transition: all var(--transition-fast);
@@ -23,15 +23,15 @@
 
 /* Primary Variant */
 .primary {
-  background-color: var(--color-primary);
+  background-color: #0f172a; /* dark navy */
   color: #ffffff;
   box-shadow: var(--shadow-sm);
 }
 
 .primary:hover {
-  background-color: var(--color-primary-hover);
+  background-color: #1e293b; /* slightly lighter navy */
   transform: translateY(-1px);
-  box-shadow: 0 6px 12px -2px rgba(37, 99, 235, 0.25), 0 3px 6px -3px rgba(37, 99, 235, 0.15);
+  box-shadow: inset 0 0 10px rgba(45, 212, 191, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* mint green inner glow */
 }
 
 .primary:active {

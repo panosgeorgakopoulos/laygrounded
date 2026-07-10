@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignInForm } from "@/components/laygrounded/sign-in-form";
+import { Logo } from "@/components/laygrounded/Logo";
 import styles from "@/app/Auth.module.css";
 
 export const metadata = { title: "Sign In — LayGrounded" };
@@ -9,9 +10,8 @@ export default function SignInPage() {
     <main className={styles.pageContainer}>
       <header className={styles.header}>
         <div className={styles.headerContainer}>
-          <Link href="/" className={styles.brandLink}>
-            <span className={styles.brandIcon} />
-            <span className={styles.brandText}>LayGrounded</span>
+          <Link href="/" className={styles.brandLink} style={{ textDecoration: 'none' }}>
+            <Logo />
           </Link>
         </div>
       </header>

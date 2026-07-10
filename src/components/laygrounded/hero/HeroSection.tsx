@@ -1,10 +1,12 @@
 import React from "react";
 import styles from "./Hero.module.css";
 import Link from "next/link";
+import { CargoShipsBackground } from "./CargoShipsBackground";
 
 export function HeroSection() {
   return (
     <section className={styles.heroSection}>
+      <CargoShipsBackground />
       <div className={styles.content}>
         <h1 className={styles.title}>
           Automate Demurrage Workflows

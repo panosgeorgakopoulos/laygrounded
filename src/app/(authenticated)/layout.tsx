@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Ship, FileText, PlusCircle, Settings } from "lucide-react";
+import { FileText, PlusCircle, Settings } from "lucide-react";
 import { OfflineIndicator } from "@/components/core/OfflineIndicator";
+import { Logo } from "@/components/laygrounded/Logo";
 import styles from "./Layout.module.css";
 
 export default function AuthenticatedLayout({
@@ -69,13 +70,10 @@ export default function AuthenticatedLayout({
       {/* Sidebar Navigation */}
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <div className={styles.brandIcon}>
-            <Ship size={18} strokeWidth={2.5} />
-          </div>
-          <div className={styles.brandText}>
-            <span className={styles.brandName}>LayGrounded</span>
-            <span className={styles.companyName}>{companyName || "SaaS"}</span>
-          </div>
+          <Logo />
+          {companyName && (
+            <div className={styles.companyName} style={{ marginTop: '0.25rem' }}>{companyName}</div>
+          )}
         </div>
 
         <nav className={styles.nav}>
