@@ -1,19 +1,38 @@
 import Image from "next/image";
+import styles from "./Logo.module.css";
 
-export function Logo({ className = "" }: { className?: string }) {
+interface LogoProps {
+  className?: string;
+  theme?: "light" | "dark";
+  variant?: "navbar" | "default" | "auth";
+}
+
+export function Logo({ className = "", theme = "light", variant = "default" }: LogoProps) {
+  const containerClass = `${styles.container} ${styles[variant]} ${theme === "dark" ? styles.themeDark : ""} ${className}`;
+
+  // Image is 1440 x 1069 (approx 4:3)
+  // We use CSS to drive the exact width/height in the module to avoid inline style clashing
+  let width = 140;
+  let height = 104;
+
+  if (variant === "navbar") {
+    width = 72;
+    height = 54;
+  } else if (variant === "auth") {
+    width = 180;
+    height = 133;
+  }
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={containerClass}>
       <Image 
-        src="/images/logo.png" 
-        alt="LayGrounded Logo" 
-        width={32} 
-        height={32} 
-        className="object-contain"
+        src="/images/logo_no_background.png" 
+        alt="LayGrounded Logo"
+        width={width} 
+        height={height} 
+        className={styles.image} 
+        priority
       />
-      <span className="text-xl tracking-tight">
-        <span className="font-bold text-slate-900">Lay</span>
-        <span className="font-medium text-slate-500">Grounded</span>
-      </span>
     </div>
   );
 }

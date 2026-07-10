@@ -123,8 +123,8 @@ export function LandingNav() {
         <div className={styles.row}>
 
           {/* Brand — always visible */}
-          <Link href="/" className={styles.brand} style={{ textDecoration: 'none' }}>
-            <Logo />
+          <Link href="/" className={`${styles.brand} flex items-center`} style={{ textDecoration: 'none' }}>
+            <Logo theme="dark" variant="navbar" />
           </Link>
 
           {/* Separator */}

@@ -8,17 +8,12 @@ export const metadata = { title: "Initialize Workspace — LayGrounded" };
 export default function SignUpPage() {
   return (
     <main className={styles.pageContainer}>
-      <header className={styles.header}>
-        <div className={styles.headerContainer}>
-          <Link href="/" className={styles.brandLink} style={{ textDecoration: 'none' }}>
-            <Logo />
-          </Link>
-        </div>
-      </header>
-
       <div className={styles.mainContent}>
         <div className={styles.formContainer}>
-          <h1 className={styles.title}>Initialize Workspace</h1>
+          <div className="flex justify-center mb-8">
+            <Logo variant="auth" />
+          </div>
+          <h1 className={styles.title}>Create your workspace</h1>
           <p className={styles.subtitle}>
             Create your account and initialize a new fleet workspace.
           </p>

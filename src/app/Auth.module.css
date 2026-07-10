@@ -6,46 +6,7 @@
   flex-direction: column;
 }
 
-.header {
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-}
 
-.headerContainer {
-  max-width: 1280px;
-  margin: 0 auto;
-  height: 3.5rem;
-  display: flex;
-  align-items: center;
-  padding: 0 1rem;
-}
-
-@media (min-width: 640px) {
-  .headerContainer {
-    padding: 0 1.5rem;
-  }
-}
-
-.brandLink {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: var(--color-text-primary);
-}
-
-.brandIcon {
-  display: inline-block;
-  height: 0.5rem;
-  width: 0.5rem;
-  border-radius: 9999px;
-  background-color: var(--color-primary);
-  flex-shrink: 0;
-}
-
-.brandText {
-  font-weight: 600;
-}
 
 .mainContent {
   flex: 1;

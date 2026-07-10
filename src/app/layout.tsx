@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { LandingNav } from "@/components/laygrounded/landing-nav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -61,7 +62,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <LandingNav />
+          {children}
+        </Providers>
       </body>
     </html>
   );
