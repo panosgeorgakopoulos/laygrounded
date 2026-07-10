@@ -1,8 +1,8 @@
 .footer {
-  background-color: rgba(8, 12, 18, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #f8fafc;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
   padding: 4rem 5vw 2rem 5vw;
-  color: rgba(255, 255, 255, 0.7);
+  color: #475569;
   font-size: 0.9rem;
 }
 
@@ -24,7 +24,7 @@
   font-family: var(--font-space-grotesk), sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #0f172a;
   display: block;
   margin-bottom: 1rem;
 }
@@ -46,30 +46,30 @@
 }
 
 .linkGroup h4 {
-  color: #ffffff;
+  color: #0f172a;
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 1rem;
 }
 
 .linkGroup a {
-  color: rgba(255, 255, 255, 0.6);
+  color: #475569;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .linkGroup a:hover {
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .bottomBar {
   max-width: 1200px;
   margin: 0 auto;
   padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
   text-align: center;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: #64748b;
 }
 
 @media (max-width: 768px) {

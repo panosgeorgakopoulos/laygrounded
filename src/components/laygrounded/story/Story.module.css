@@ -12,7 +12,7 @@
 .pinMaster {
   overflow: hidden;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
   position: relative;
   background-color: #000;
 }
@@ -213,6 +213,7 @@
   right: 36px;
   transform: translateY(-50%);
   z-index: 100;
+  mix-blend-mode: difference;
 }
 
 .progressList {

@@ -1,13 +1,13 @@
 .pageContainer {
   min-height: 100vh;
-  overflow-x: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .mainContent {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  display: block; /* MUST be block for GSAP pinning to work correctly! */
+  width: 100%;
 }
