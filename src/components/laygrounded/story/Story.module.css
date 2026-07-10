@@ -20,7 +20,7 @@
 /* ── 2. Horizontal Track ────────────────────────────────────────────────── */
 /*
    The track is 5 screens wide (5 × 100vw = 500vw).
-   GSAP will translate it left by -(500vw - 100vw) = -400vw, i.e. xPercent: -80.
+   GSAP translates it left by exactly -(scrollWidth - innerWidth) pixels.
    We use display:flex so each .chapter sits naturally side-by-side.
 */
 .horizontalTrack {
@@ -29,29 +29,40 @@
   width: 500vw; /* NUM_CHAPTERS × 100vw */
   position: relative;
   will-change: transform;
+  /* Prevent sub-pixel gaps that can cause black flashes */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-/* ── 3. Panoramic Background ────────────────────────────────────────────── */
+/* ── 3. Parallax Background Layers ────────────────────────────────────────── */
 /*
-   Sits behind everything, spans the FULL 500vw track width.
-   background-size: auto 100%  → height always fills viewport,
-                                  width scales proportionally (no crop).
-   This means the 9000px-wide image renders at natural aspect ratio,
-   and GSAP moving the track left reveals new portions of it — exactly
-   like a camera panning through a real environment.
+   Instead of using background-size: cover (which aggressively zooms into
+   the image vertically), we use fixed layers holding standard <img> tags.
+   The images are set to exactly 100vh tall and their natural aspect-ratio width.
+   GSAP translates them horizontally so they pan perfectly from start to finish.
 */
-.parallaxBackground {
+.fixedLayer {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('/images/website_background.png');
-  background-size: auto 100%;
-  background-repeat: no-repeat;
-  background-position: left center;
+  width: 100vw;
+  height: 100vh;
   z-index: 0;
   pointer-events: none;
+}
+
+.fixedLayer:nth-of-type(2) {
+  z-index: 1; /* Midground */
+}
+
+.parallaxImg {
+  display: block;
+  height: 100vh;
+  width: auto;
+  max-width: none; /* Override any global max-width: 100% */
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* ── 4. Chapter Sections ────────────────────────────────────────────────── */
@@ -298,14 +309,14 @@
     height: auto;
   }
 
-  .parallaxBackground {
-    display: none; /* Per-section backgrounds handle this on mobile */
+  .fixedLayer {
+    display: none; /* Mobile fallback handled by background images */
   }
 
   .chapter {
     height: 100svh;
     padding: 24px 20px;
-    background-image: url('/images/website_background.png');
+    background-image: url('/images/scroll2.png');
     background-size: cover;
     background-repeat: no-repeat;
   }

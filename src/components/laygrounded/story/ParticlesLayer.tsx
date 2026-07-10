@@ -8,52 +8,55 @@ export function ParticlesLayer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Create random particles
-    const particlesCount = 40;
     const container = containerRef.current;
-    
-    for (let i = 0; i < particlesCount; i++) {
-      const particle = document.createElement("div");
-      particle.className = styles.particle;
-      
-      // Random properties
-      const size = Math.random() * 4 + 2; // 2px to 6px
-      const x = Math.random() * 100; // 0 to 100vw
-      const y = Math.random() * 100; // 0 to 100vh
-      const opacity = Math.random() * 0.4 + 0.1;
-      
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-      particle.style.left = `${x}vw`;
-      particle.style.top = `${y}vh`;
-      particle.style.opacity = opacity.toString();
-      
-      container.appendChild(particle);
-      
-      // Slow float animation independent of scroll
-      gsap.to(particle, {
-        y: `+=${Math.random() * 100 - 50}`,
-        x: `+=${Math.random() * 50 - 25}`,
-        rotation: Math.random() * 360,
-        duration: Math.random() * 10 + 10,
+    if (!container) return;
+
+    const particles: HTMLDivElement[] = [];
+    const PARTICLE_COUNT = 35;
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const el = document.createElement("div");
+      el.className = styles.particle;
+
+      // Randomise size, position, opacity
+      const size    = Math.random() * 3 + 1.5; // 1.5 – 4.5px
+      const x       = Math.random() * 100;      // spread across full 500vw track
+      const y       = Math.random() * 100;
+      const opacity = Math.random() * 0.35 + 0.08;
+
+      el.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        left: ${x}%;
+        top: ${y}%;
+        opacity: ${opacity};
+      `;
+
+      container.appendChild(el);
+      particles.push(el);
+
+      // Each particle drifts independently — slower than any scroll effect
+      gsap.to(el, {
+        x: `+=${(Math.random() - 0.5) * 80}`,
+        y: `+=${(Math.random() - 0.5) * 60}`,
+        opacity: `+=${(Math.random() - 0.5) * 0.15}`,
+        duration: Math.random() * 12 + 10,
         repeat: -1,
         yoyo: true,
-        ease: "sine.inOut"
+        ease: "sine.inOut",
+        delay: Math.random() * 8,
       });
     }
 
     return () => {
-      if (container) {
-        container.innerHTML = "";
-      }
+      particles.forEach((p) => p.remove());
     };
   }, []);
 
   return (
     <div className={styles.particlesLayer} ref={containerRef} aria-hidden="true">
-      <div className={styles.fogOverlay}></div>
+      {/* Cinematic vignette + fog gradient lives here */}
+      <div className={styles.fogOverlay} />
     </div>
   );
 }
