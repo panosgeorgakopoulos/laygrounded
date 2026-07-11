@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const EXTRACTION_MODEL_ID = process.env.CLAUDE_MODEL_ID || "claude-sonnet-4-6";
 export const EXTRACTION_MODEL_FALLBACK_ID =
@@ -14,7 +14,18 @@ const BboxSchema = z.object({
 });
 
 const SofEventSchema = z.object({
-  occurred_at: z.string(), 
+  occurred_at: z.string().transform((s, ctx) => {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid datetime" });
+      return z.NEVER;
+    }
+    if (!s.includes("Z") && !/[+-]\d{2}:\d{2}$/.test(s) && !/[+-]\d{4}$/.test(s)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Missing timezone" });
+      return z.NEVER;
+    }
+    return d.toISOString();
+  }),
   event_type: z.enum(EVENT_TYPE_VALUES as [EventTypeEnum, ...EventTypeEnum[]]),
   verbatim: z.string().min(1),
   page: z.number().int().min(1),
@@ -89,7 +100,9 @@ async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
     isEvalSupported: false,
   }).promise;
   const pages: Buffer[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
+  // AI-5: Enforce token budget by capping pages
+  const maxPages = Math.min(doc.numPages, 20);
+  for (let i = 1; i <= maxPages; i++) {
     const page = await doc.getPage(i);
     const viewport = page.getViewport({ scale: 1.5 });
     const { CanvasRenderingContext2D, Canvas } = await import("canvas") as any;
@@ -105,7 +118,8 @@ async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
 async function extractFromImage(
   imageBuffer: Buffer,
   mime: string,
-  pageNumber: number
+  pageNumber: number,
+  retries = 3
 ): Promise<ExtractedEvent[]> {
   let zai: any;
   try {
@@ -118,33 +132,43 @@ async function extractFromImage(
   const base64 = imageBuffer.toString("base64");
   const mediaType = mime === "image/png" ? "image/png" : mime === "image/jpeg" ? "image/jpeg" : "image/webp";
 
-  const response = await zai.messages.create({
-    model: EXTRACTION_MODEL_ID,
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await zai.messages.create({
+        model: EXTRACTION_MODEL_ID,
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [
           {
-            type: "text",
-            text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
+              },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
+                  data: base64,
+                }
+              }
+            ],
           },
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
-              data: base64,
-            }
-          }
         ],
-      },
-    ],
-  });
+      });
 
-  const raw = (response.content[0] as any).text ?? "";
-  return parseExtractionResponse(raw, pageNumber);
+      const raw = (response.content[0] as any).text ?? "";
+      return parseExtractionResponse(raw, pageNumber);
+    } catch (e: any) {
+      if (attempt === retries - 1 || (e.status && e.status < 500 && e.status !== 429)) {
+        throw e;
+      }
+      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+    }
+  }
+  return [];
 }
 
 function parseExtractionResponse(
@@ -201,7 +225,7 @@ function computeQualityScore(events: ExtractedEvent[]): number {
 export async function uploadSofAndExtract(
   input: ExtractionInput
 ): Promise<ExtractionResult> {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
   try {
     const { data: fileData, error: downloadErr } = await supabase.storage
       .from("sofs")
@@ -246,11 +270,28 @@ export async function uploadSofAndExtract(
     }
 
     if (allEvents.length === 0) {
-      const pageCount = Math.max(input.pageCount, 1);
-      for (let i = 1; i <= pageCount; i++) {
-        allEvents.push(...deterministicFallback(i));
+      throw new Error("No events extracted from document");
+    }
+
+    // AI-2: Deduplicate across pages
+    const uniqueEvents = new Map<string, ExtractedEvent>();
+    for (const e of allEvents) {
+      const key = `${e.event_type}_${e.occurred_at}`;
+      if (!uniqueEvents.has(key)) {
+        uniqueEvents.set(key, e);
+      } else {
+        const existing = uniqueEvents.get(key)!;
+        if (e.confidence > existing.confidence) uniqueEvents.set(key, e);
       }
     }
+    allEvents = Array.from(uniqueEvents.values());
+
+    // SEC-H3: Prompt Injection mitigation (heuristic)
+    allEvents = allEvents.filter(e => {
+      const suspicious = ["ignore", "override", "system prompt", "bypass"];
+      const verbatimLower = e.verbatim.toLowerCase();
+      return !suspicious.some(s => verbatimLower.includes(s));
+    });
 
     const qualityScore = computeQualityScore(allEvents);
     const passesGate = qualityScore >= 0.6 && allEvents.length > 0;
@@ -299,81 +340,5 @@ export async function uploadSofAndExtract(
 }
 
 function deterministicFallback(page: number): ExtractedEvent[] {
-  if (page !== 1) return [];
-  const baseDate = new Date("2024-03-04T08:00:00Z");
-  const addHours = (h: number) => new Date(baseDate.getTime() + h * 3600_000).toISOString();
-  return [
-    {
-      occurred_at: addHours(0),
-      event_type: "NOR_TENDERED",
-      verbatim: "Notice of Readiness tendered at anchorage 04/03/2024 08:00 LT.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.18, width: 0.9, height: 0.04 },
-      confidence: 0.94,
-      reasoning: "NOR tendered at anchorage before berthing — WIBON applicable.",
-    },
-    {
-      occurred_at: addHours(6),
-      event_type: "ALL_FAST",
-      verbatim: "Vessel arrived at berth and all fast at 14:00 LT.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.28, width: 0.9, height: 0.04 },
-      confidence: 0.91,
-      reasoning: "All-fast marks berthing complete.",
-    },
-    {
-      occurred_at: addHours(7),
-      event_type: "HATCH_OPEN",
-      verbatim: "Hatch covers opened, ready to load at 15:00 LT.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.36, width: 0.9, height: 0.04 },
-      confidence: 0.89,
-      reasoning: "Hatch open precedes loading — relevant for SHEX-UU Sunday counting.",
-    },
-    {
-      occurred_at: addHours(8),
-      event_type: "COMMENCED_LOADING",
-      verbatim: "Loading commenced at 16:00 LT.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.44, width: 0.9, height: 0.04 },
-      confidence: 0.96,
-      reasoning: "Loading commenced after hatch open.",
-    },
-    {
-      occurred_at: addHours(28),
-      event_type: "WEATHER_DELAY",
-      verbatim: "Loading suspended 12:00-14:00 due to heavy rain.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.54, width: 0.9, height: 0.04 },
-      confidence: 0.72,
-      reasoning: "Weather delay — excluded under WWDSHEX-EIU basis.",
-    },
-    {
-      occurred_at: addHours(30),
-      event_type: "COMMENCED_LOADING",
-      verbatim: "Loading resumed at 14:00 LT after rain cleared.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.62, width: 0.9, height: 0.04 },
-      confidence: 0.88,
-      reasoning: "Resumption of loading after weather.",
-    },
-    {
-      occurred_at: addHours(56),
-      event_type: "COMPLETED_LOADING",
-      verbatim: "Loading completed at 16:00 LT next day.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.72, width: 0.9, height: 0.04 },
-      confidence: 0.93,
-      reasoning: "Loading completed; laytime window ends.",
-    },
-    {
-      occurred_at: addHours(57),
-      event_type: "HATCH_CLOSE",
-      verbatim: "Hatch covers closed at 17:00 LT.",
-      page: 1,
-      bbox: { x: 0.05, y: 0.80, width: 0.9, height: 0.04 },
-      confidence: 0.90,
-      reasoning: "Hatch close after loading complete.",
-    },
-  ];
+  return [];
 }

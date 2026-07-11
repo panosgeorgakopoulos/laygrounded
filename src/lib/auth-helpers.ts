@@ -1,11 +1,11 @@
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function bootstrapUserCompany(
   userId: string,
   userEmail: string,
   companyName?: string
 ): Promise<{ companyId: string; companyName: string }> {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
   
   const { data: existing } = await supabase
     .from("company_members")
@@ -44,7 +44,7 @@ export async function bootstrapUserCompany(
 }
 
 export async function ensureDemoUser() {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
   const email = "demo@laygrounded.io";
   const password = "demo1234";
 

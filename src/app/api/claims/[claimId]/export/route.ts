@@ -18,8 +18,6 @@ export async function POST(
     return NextResponse.json(result);
   } catch (e) {
     console.error("[export] failed:", e);
-    const msg = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? e.stack : "";
-    return NextResponse.json({ error: msg, stack }, { status: 500 });
+    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

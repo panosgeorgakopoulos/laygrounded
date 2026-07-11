@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
+import { fileTypeFromBuffer } from "file-type";
 
 export async function POST(
   req: NextRequest,
@@ -10,13 +11,13 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     
     const { data: claim } = await supabase
       .from("claims")
       .select("company_id")
       .eq("id", claimId)
-      .single();
+      .maybeSingle();
       
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
@@ -34,9 +35,16 @@ export async function POST(
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const fname = `${Date.now()}-${safeName}`;
     const storagePath = `${auth.companyId}/${claimId}/${fname}`;
-    const mime = file.type || "application/octet-stream";
-
     const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    const detected = await fileTypeFromBuffer(buffer);
+    const allowedMimes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!detected || !allowedMimes.includes(detected.mime)) {
+      return NextResponse.json({ error: "INVALID_FILE_TYPE" }, { status: 415 });
+    }
+    const mime = detected.mime;
+
     const { error: uploadErr } = await supabase.storage
       .from("sofs")
       .upload(storagePath, arrayBuffer, {
@@ -57,7 +65,7 @@ export async function POST(
         page_count: 1, 
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (docErr || !doc) {
       throw new Error("Failed to insert document record");
@@ -75,7 +83,7 @@ export async function POST(
 
     const { data: signedUrlData } = await supabase.storage
       .from("sofs")
-      .createSignedUrl(storagePath, 3600);
+      .createSignedUrl(storagePath, 300);
 
     return NextResponse.json({
       document: {

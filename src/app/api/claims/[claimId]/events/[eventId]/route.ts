@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
@@ -19,7 +19,7 @@ export async function PATCH(
   try {
     const auth = await requireAuth();
     const { claimId, eventId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     
     const { data: claim } = await supabase
       .from("claims")
@@ -74,9 +74,13 @@ export async function PATCH(
     if (error) throw error;
 
     let calc;
+    let calcError: string | null = null;
     try {
       calc = await recomputeLaytimeServerFn(claimId);
-    } catch {}
+    } catch (e) {
+      calcError = (e as Error).message;
+      console.error("[events/PATCH] recompute failed:", e);
+    }
 
     return NextResponse.json({ 
       event: {
@@ -90,9 +94,12 @@ export async function PATCH(
         createdAt: updated.created_at,
         updatedAt: updated.updated_at,
       }, 
-      calc 
+      calc,
+      calcError
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }

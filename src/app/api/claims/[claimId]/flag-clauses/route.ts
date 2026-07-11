@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/server-auth";
 import { flagClauses } from "@/lib/clause-flagging";
 import { CpTerms } from "@/lib/laytime/types";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(
   _req: NextRequest,
@@ -11,7 +11,7 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     
     const { data: claim } = await supabase
       .from("claims")

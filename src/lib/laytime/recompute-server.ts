@@ -1,11 +1,25 @@
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
+import { z } from "zod";
+
+const CpTermsSchema = z.object({
+  laytime_allowed_hours: z.number().min(0),
+  load_rate: z.number().min(0).optional(),
+  discharge_rate: z.number().min(0).optional(),
+  turn_time_hours: z.number().min(0),
+  nor_variant: z.enum(["WIBON", "WIPON", "WICCON", "WIFPON"]),
+  days_basis: z.enum(["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU", "SSHEX", "SSHEX-UU", "WWDSSHEX-EIU"]),
+  demurrage_rate: z.number().min(0),
+  despatch_rate: z.number().min(0),
+  currency: z.string().length(3),
+  port_timezone: z.string().optional()
+});
 
 export async function recomputeLaytimeServerFn(
   claimId: string
 ): Promise<LaytimeResult> {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
   
   const { data: claim, error: claimErr } = await supabase
     .from("claims")
@@ -15,8 +29,9 @@ export async function recomputeLaytimeServerFn(
     
   if (claimErr || !claim) throw new Error("CLAIM_NOT_FOUND");
 
-  const cpTerms: CpTerms | null = claim.cp_terms as any;
-  if (!cpTerms) throw new Error("NO_CP_TERMS");
+  const parsedCpTerms = CpTermsSchema.safeParse(claim.cp_terms);
+  if (!parsedCpTerms.success) throw new Error("INVALID_CP_TERMS");
+  const cpTerms: CpTerms = parsedCpTerms.data;
 
   const { data: events } = await supabase
     .from("sof_events")
@@ -31,10 +46,17 @@ export async function recomputeLaytimeServerFn(
     event_type: e.event_type as any,
   }));
 
+  // DEM-8: Validate chronological order of critical events
+  const nor = sofInputs.find(e => e.event_type === "NOR_TENDERED");
+  const allFast = sofInputs.find(e => e.event_type === "ALL_FAST");
+  if (nor && allFast && new Date(allFast.occurred_at) < new Date(nor.occurred_at)) {
+    throw new Error("CHRONOLOGY_ERROR: ALL_FAST cannot precede NOR_TENDERED");
+  }
+
   const result = recomputeLaytime(sofInputs, cpTerms);
 
-  await supabase.from("laytime_calculations").delete().eq("claim_id", claimId);
-  await supabase.from("laytime_calculations").insert({
+  // BL-1: Upsert instead of delete + insert
+  await supabase.from("laytime_calculations").upsert({
     claim_id: claimId,
     inputs: { cpTerms, events: sofInputs },
     breakdown: result.breakdown,
@@ -43,7 +65,7 @@ export async function recomputeLaytimeServerFn(
     demurrage_amount: result.totals.demurrage_amount,
     despatch_amount: result.totals.despatch_amount,
     currency: result.totals.currency,
-  });
+  }, { onConflict: "claim_id" });
 
   let newStatus = claim.status;
   if (result.totals.demurrage_amount > 0) newStatus = "demurrage";

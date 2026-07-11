@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
 
@@ -12,66 +12,91 @@ const CreateClaimSchema = z.object({
   cpForm: z.string().default("GENCON94"),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
+    
+    const url = new URL(req.url);
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100);
+    const offset = (Math.max(1, page) - 1) * limit;
 
-    const { data: claims, error } = await supabase
+    const { data: claims, count, error } = await supabase
       .from("claims")
       .select(`
         *,
         sof_events (id),
         documents (id)
-      `)
+      `, { count: "exact" })
       .eq("company_id", auth.companyId)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
       
     if (error) throw error;
 
-    const withExposure = await Promise.all(
-      claims.map(async (c: any) => {
-        const { data: calc } = await supabase
-          .from("laytime_calculations")
-          .select("demurrage_amount, despatch_amount, currency, used_hours, allowed_hours")
-          .eq("claim_id", c.id)
-          .order("computed_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+    const claimIds = claims.map((c: any) => c.id);
+    let calculationsMap: Record<string, any> = {};
+    
+    if (claimIds.length > 0) {
+      const { data: calculations } = await supabase
+        .from("laytime_calculations")
+        .select("claim_id, demurrage_amount, despatch_amount, currency, used_hours, allowed_hours, computed_at")
+        .in("claim_id", claimIds)
+        .order("computed_at", { ascending: false });
+        
+      if (calculations) {
+        for (const calc of calculations) {
+          if (!calculationsMap[calc.claim_id]) {
+            calculationsMap[calc.claim_id] = calc;
+          }
+        }
+      }
+    }
 
-        return {
-          id: c.id,
-          vessel: c.vessel,
-          voyageRef: c.voyage_ref,
-          port: c.port,
-          cargo: c.cargo,
-          status: c.status,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at,
-          eventCount: c.sof_events?.length || 0,
-          documentCount: c.documents?.length || 0,
-          exposure: calc
-            ? {
-                demurrageAmount: calc.demurrage_amount,
-                despatchAmount: calc.despatch_amount,
-                currency: calc.currency,
-                usedHours: calc.used_hours,
-                allowedHours: calc.allowed_hours,
-              }
-            : null,
-        };
-      })
-    );
-    return NextResponse.json({ claims: withExposure });
+    const withExposure = claims.map((c: any) => {
+      const calc = calculationsMap[c.id];
+      return {
+        id: c.id,
+        vessel: c.vessel,
+        voyageRef: c.voyage_ref,
+        port: c.port,
+        cargo: c.cargo,
+        status: c.status,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        eventCount: c.sof_events?.length || 0,
+        documentCount: c.documents?.length || 0,
+        exposure: calc
+          ? {
+              demurrageAmount: calc.demurrage_amount,
+              despatchAmount: calc.despatch_amount,
+              currency: calc.currency,
+              usedHours: calc.used_hours,
+              allowedHours: calc.allowed_hours,
+            }
+          : null,
+      };
+    });
+    return NextResponse.json({ 
+      claims: withExposure,
+      pagination: {
+        page,
+        limit,
+        total: count || 0
+      }
+    });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     const body = await req.json();
     const parsed = CreateClaimSchema.safeParse(body);
     if (!parsed.success) {
@@ -115,6 +140,8 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }

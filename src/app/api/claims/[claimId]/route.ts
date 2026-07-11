@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
+
+const CpTermsSchema = z.object({
+  laytime_allowed_hours: z.number().min(0),
+  load_rate: z.number().min(0).optional(),
+  discharge_rate: z.number().min(0).optional(),
+  turn_time_hours: z.number().min(0),
+  nor_variant: z.enum(["WIBON", "WIPON", "WICCON", "WIFPON"]),
+  days_basis: z.enum(["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU", "SSHEX", "SSHEX-UU", "WWDSSHEX-EIU"]),
+  demurrage_rate: z.number().min(0),
+  despatch_rate: z.number().min(0),
+  currency: z.string().length(3),
+  port_timezone: z.string().optional()
+});
 
 const UpdateClaimSchema = z.object({
   vessel: z.string().min(1).optional(),
   voyageRef: z.string().min(1).optional(),
   port: z.string().min(1).optional(),
   cargo: z.string().min(1).optional(),
-  cpTerms: z.any().optional(),
-  status: z.string().optional(),
+  cpTerms: CpTermsSchema.optional(),
+  status: z.enum(["draft", "processing", "completed", "failed"]).optional(),
 });
 
 export async function GET(
@@ -19,7 +32,7 @@ export async function GET(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
 
     const { data: claim, error } = await supabase
       .from("claims")
@@ -103,7 +116,9 @@ export async function GET(
       })) 
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }
 
@@ -114,7 +129,7 @@ export async function PATCH(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
 
     const { data: claim } = await supabase
       .from("claims")
@@ -162,6 +177,8 @@ export async function PATCH(
       updatedAt: updated.updated_at
     } });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }

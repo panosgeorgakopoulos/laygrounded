@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
@@ -19,7 +19,7 @@ export async function GET(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     
     const { data: claim } = await supabase
       .from("claims")
@@ -60,7 +60,9 @@ export async function GET(
       }))
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }
 
@@ -71,7 +73,7 @@ export async function POST(
   try {
     const auth = await requireAuth();
     const { claimId } = await params;
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     
     const { data: claim } = await supabase
       .from("claims")
@@ -134,9 +136,13 @@ export async function POST(
     if (error) throw error;
 
     let calc;
+    let calcError: string | null = null;
     try {
       calc = await recomputeLaytimeServerFn(claimId);
-    } catch (e) {}
+    } catch (e) {
+      calcError = (e as Error).message;
+      console.error("[events/POST] recompute failed:", e);
+    }
 
     return NextResponse.json({ 
       event: {
@@ -150,9 +156,12 @@ export async function POST(
         createdAt: event.created_at,
         updatedAt: event.updated_at,
       }, 
-      calc 
+      calc,
+      calcError
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
+    console.error(e);
+    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, SofEventInput } from "@/lib/laytime/types";
 
@@ -156,7 +156,7 @@ function detectWeatherHatchConflict(
 }
 
 export async function flagClauses(claimId: string, cpTerms: CpTerms) {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
   const { data: events } = await supabase
     .from("sof_events")
     .select("*")

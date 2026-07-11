@@ -20,14 +20,14 @@
   position: relative;
   overflow: hidden;               /* clips the glow blob */
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 10, 16, 0.72);
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(18, 24, 38, 0.52);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 8px 32px rgba(0, 0, 0, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.4);
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.22);
   cursor: default;
   /* Smooth width transition — CSS handles layout, GSAP handles the spring */
   transition:
@@ -40,8 +40,8 @@
   border-color: rgba(255, 255, 255, 0.22);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-    0 12px 48px rgba(0, 0, 0, 0.7),
-    0 4px 16px rgba(0, 0, 0, 0.5);
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 /* ── 3. Cursor-tracking glow blob ──────────────────────────────────────── */
@@ -234,63 +234,72 @@
   }
 }
 
-/* ── 15. Light Theme (Internal App) ─────────────────────────────────────── */
+/* ── 15. Light Theme (Internal App + Static Pages) ──────────────────────── */
 .island.light {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  background: rgba(220, 226, 236, 0.52);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.40) inset,
+    0 4px 20px rgba(0, 0, 0, 0.07),
+    0 1px 5px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
 }
 
 .island.light:hover {
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.50) inset,
+    0 8px 30px rgba(0, 0, 0, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .island.light .sep,
 .island.light .linkSep {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(15, 23, 42, 0.1);
 }
 
 .island.light .navLink {
-  color: rgba(15, 23, 42, 0.5); /* slate-500 */
+  color: rgba(15, 23, 42, 0.48);
 }
 
 .island.light .navLink:hover {
-  color: rgba(15, 23, 42, 0.9); /* slate-900 */
+  color: rgba(15, 23, 42, 0.88);
 }
 
 .island.light .navLink.active {
-  color: rgba(15, 23, 42, 1); /* slate-900 */
+  color: rgba(15, 23, 42, 0.95);
   font-weight: 700;
 }
 
 .island.light .navLink:hover::before,
 .island.light .navLink.active::before {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .island.light .ghostBtn {
-  color: rgba(15, 23, 42, 0.5);
+  color: rgba(15, 23, 42, 0.48);
 }
 
 .island.light .ghostBtn:hover {
-  color: rgba(15, 23, 42, 0.9);
+  color: rgba(15, 23, 42, 0.88);
 }
 
 .island.light .ctaBtn {
   color: #fff;
-  background: rgba(15, 23, 42, 1);
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .island.light .ctaBtn:hover {
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+  background: rgba(15, 23, 42, 1);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.18);
 }
 
 .island.light .glow {
   background: radial-gradient(
     circle,
-    rgba(45, 212, 191, 0.12) 0%,
+    rgba(45, 212, 191, 0.08) 0%,
     transparent 70%
   );
 }
+

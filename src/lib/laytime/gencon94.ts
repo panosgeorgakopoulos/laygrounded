@@ -1,6 +1,9 @@
 // GENCON 94 laytime rules engine.
 // Pure TypeScript, no I/O, no AI. Every branch cites its clause in clause_ref.
 
+import { toZonedTime } from 'date-fns-tz';
+import { Decimal } from 'decimal.js';
+
 import {
   BreakdownRow,
   BreakdownStatus,
@@ -20,7 +23,11 @@ export class NoNorError extends Error {
 // === Helpers ===
 
 function parseISO(s: string): Date {
-  return new Date(s);
+  const d = new Date(s);
+  if (isNaN(d.getTime())) {
+    throw new Error(`Invalid ISO timestamp: "${s}"`);
+  }
+  return d;
 }
 
 function addHours(d: Date, h: number): Date {
@@ -35,109 +42,105 @@ function toISO(d: Date): string {
   return d.toISOString();
 }
 
-// Sunday = 0, Saturday = 6
-function isSunday(d: Date): boolean {
-  return d.getUTCDay() === 0;
+function isSundayLocal(d: Date, tz: string): boolean {
+  return toZonedTime(d, tz).getDay() === 0;
+}
+
+function isSaturdayLocal(d: Date, tz: string): boolean {
+  return toZonedTime(d, tz).getDay() === 6;
 }
 
 // A holiday is approximated as Sunday for the engine's deterministic logic.
-// GENCON 94 treats Sundays and holidays equivalently for excepted-period purposes.
-function isExceptedDay(d: Date): boolean {
-  return isSunday(d);
+function isExceptedDay(d: Date, daysBasis: string, tz: string): boolean {
+  if (daysBasis.includes("SSHEX")) {
+    return isSundayLocal(d, tz) || isSaturdayLocal(d, tz);
+  }
+  return isSundayLocal(d, tz);
 }
 
 // Determine if a Date lies inside an excepted period (Sunday or holiday).
-// EXCEPTED_PERIOD_START / EXCEPTED_PERIOD_END events override this.
 function isExceptedHour(
   hour: Date,
-  exceptedPeriods: Array<{ start: Date; end: Date }>
+  exceptedPeriods: Array<{ start: Date; end: Date }>,
+  daysBasis: string,
+  tz: string
 ): boolean {
   for (const p of exceptedPeriods) {
     if (hour >= p.start && hour < p.end) return true;
   }
-  return isExceptedDay(hour);
+  return isExceptedDay(hour, daysBasis, tz);
 }
 
-// Find all active events of a given type that contain `hour`.
-// An event is "active" from its occurred_at until the next event of any type
-// in the same operational sequence, or until end of iteration.
-function isEventActiveAt(
-  events: SofEventInput[],
-  type: EventTypeEnum,
-  hour: Date,
-  windowEnd: Date
-): boolean {
+// Pre-compute intervals for O(n) checking
+type Interval = { start: Date; end: Date };
+function getActiveIntervals(events: SofEventInput[], type: EventTypeEnum, windowEnd: Date): Interval[] {
   const matching = events
     .filter((e) => e.event_type === type)
     .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
+  
+  const intervals: Interval[] = [];
   for (const ev of matching) {
     const start = parseISO(ev.occurred_at);
-    if (start > hour) continue;
-    // find next event of any type after this one
     const nextEvent = events
       .map((e) => parseISO(e.occurred_at))
       .filter((t) => t > start && t <= windowEnd)
       .sort((a, b) => a.getTime() - b.getTime())[0];
     const end = nextEvent ?? windowEnd;
-    if (hour >= start && hour < end) return true;
+    intervals.push({ start, end });
   }
-  return false;
+  return intervals;
 }
 
-// Determine if cargo operations are ongoing at `hour`.
-function operationsOngoingAt(
-  events: SofEventInput[],
-  hour: Date,
-  windowEnd: Date
-): boolean {
-  const commencedL = events.find((e) => e.event_type === "COMMENCED_LOADING");
-  const completedL = events.find((e) => e.event_type === "COMPLETED_LOADING");
-  const commencedD = events.find((e) => e.event_type === "COMMENCED_DISCHARGE");
-  const completedD = events.find((e) => e.event_type === "COMPLETED_DISCHARGE");
-
-  if (
-    commencedL &&
-    parseISO(commencedL.occurred_at) <= hour &&
-    (!completedL || parseISO(completedL.occurred_at) > hour)
-  ) {
-    return true;
-  }
-  if (
-    commencedD &&
-    parseISO(commencedD.occurred_at) <= hour &&
-    (!completedD || parseISO(completedD.occurred_at) > hour)
-  ) {
-    return true;
-  }
-  return false;
+function isActiveAt(intervals: Interval[], hour: Date): boolean {
+  return intervals.some(i => hour >= i.start && hour < i.end);
 }
 
-// Determine whether hatch is open at `hour`.
-function hatchOpenAt(
-  events: SofEventInput[],
-  hour: Date,
-  windowEnd: Date
-): boolean {
-  const open = events.find((e) => e.event_type === "HATCH_OPEN");
-  const close = events.find((e) => e.event_type === "HATCH_CLOSE");
-  if (!open) return false;
-  const openT = parseISO(open.occurred_at);
-  const closeT = close ? parseISO(close.occurred_at) : windowEnd;
-  return hour >= openT && hour < closeT;
+// Operations ongoing logic
+function getOperationsIntervals(events: SofEventInput[], windowEnd: Date): Interval[] {
+  const intervals: Interval[] = [];
+  let currentStart: Date | null = null;
+
+  const opsEvents = events
+    .filter(e => ["COMMENCED_LOADING", "COMPLETED_LOADING", "COMMENCED_DISCHARGE", "COMPLETED_DISCHARGE"].includes(e.event_type))
+    .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
+
+  for (const ev of opsEvents) {
+    if (ev.event_type === "COMMENCED_LOADING" || ev.event_type === "COMMENCED_DISCHARGE") {
+      if (!currentStart) currentStart = parseISO(ev.occurred_at);
+    } else if (ev.event_type === "COMPLETED_LOADING" || ev.event_type === "COMPLETED_DISCHARGE") {
+      if (currentStart) {
+        intervals.push({ start: currentStart, end: parseISO(ev.occurred_at) });
+        currentStart = null;
+      }
+    }
+  }
+  if (currentStart) {
+    intervals.push({ start: currentStart, end: windowEnd });
+  }
+  return intervals;
 }
 
-// If laytime_commences_at falls on a non-working period under SHEX rules,
-// advance to next working hour (Monday 08:00 UTC by convention).
-function advanceToWorkingHour(commencesAt: Date, daysBasis: string): Date {
-  if (daysBasis === "SHINC") return commencesAt;
-  // For SHEX / SHEX-UU / WWDSHEX-EIU, skip Sundays entirely.
-  let result = new Date(commencesAt);
-  while (isSunday(result)) {
-    result = addHours(result, 24);
-    // snap to 08:00 UTC Monday
-    result.setUTCHours(8, 0, 0, 0);
+function getHatchIntervals(events: SofEventInput[], windowEnd: Date): Interval[] {
+  const intervals: Interval[] = [];
+  let currentStart: Date | null = null;
+  const hatchEvents = events
+    .filter(e => ["HATCH_OPEN", "HATCH_CLOSE"].includes(e.event_type))
+    .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
+
+  for (const ev of hatchEvents) {
+    if (ev.event_type === "HATCH_OPEN") {
+      if (!currentStart) currentStart = parseISO(ev.occurred_at);
+    } else if (ev.event_type === "HATCH_CLOSE") {
+      if (currentStart) {
+        intervals.push({ start: currentStart, end: parseISO(ev.occurred_at) });
+        currentStart = null;
+      }
+    }
   }
-  return result;
+  if (currentStart) {
+    intervals.push({ start: currentStart, end: windowEnd });
+  }
+  return intervals;
 }
 
 // === Main entrypoint ===
@@ -146,44 +149,60 @@ export function recomputeLaytime(
   cpTerms: CpTerms
 ): LaytimeResult {
   // Step 1: NOR validation
-  const norEvent = events.find((e) => e.event_type === "NOR_TENDERED");
+  const norEvents = events.filter((e) => e.event_type === "NOR_TENDERED");
+  if (norEvents.length > 1) {
+    throw new Error("MULTIPLE_NOR: Multiple NOR_TENDERED events found");
+  }
+  const norEvent = norEvents[0];
   if (!norEvent) throw new NoNorError();
 
   const norTime = parseISO(norEvent.occurred_at);
-  let laytimeCommencesAt = addHours(norTime, cpTerms.turn_time_hours);
-  laytimeCommencesAt = advanceToWorkingHour(laytimeCommencesAt, cpTerms.days_basis);
+  const tz = cpTerms.port_timezone || "UTC";
 
-  // Step 2: operational window end = last of COMPLETED_LOADING / COMPLETED_DISCHARGE
+  let laytimeCommencesAt = addHours(norTime, cpTerms.turn_time_hours);
+  
+  if (cpTerms.days_basis !== "SHINC") {
+     let guard = 0;
+     while(isExceptedDay(laytimeCommencesAt, cpTerms.days_basis, tz) && guard < 168) {
+        laytimeCommencesAt = addHours(laytimeCommencesAt, 1);
+        guard++;
+     }
+  }
+
+  // Step 2: operational window end
   const completedEvents = events
-    .filter(
-      (e) =>
-        e.event_type === "COMPLETED_LOADING" ||
-        e.event_type === "COMPLETED_DISCHARGE"
-    )
+    .filter((e) => e.event_type === "COMPLETED_LOADING" || e.event_type === "COMPLETED_DISCHARGE")
     .map((e) => parseISO(e.occurred_at))
     .sort((a, b) => a.getTime() - b.getTime());
-  if (completedEvents.length === 0) {
-    // No completion event — iterate from commencement to NARROW window of NOR + 24h
-    // to avoid runaway loops; the spec implies a completed event.
-    // We'll iterate up to 720 hours (30 days) as a safety bound.
-  }
-  // If no completion event exists, iterate from commencement to a reasonable bound
-  // (the spec implies a completed event). 72h default matches a typical laytime allowance.
+  
   const windowEnd = completedEvents[completedEvents.length - 1] ?? addHours(laytimeCommencesAt, 72);
 
   // Pre-compute excepted periods from explicit events
   const exceptedPeriods: Array<{ start: Date; end: Date }> = [];
-  const eps = events
-    .filter((e) => e.event_type === "EXCEPTED_PERIOD_START")
+  const epEvents = events
+    .filter((e) => e.event_type === "EXCEPTED_PERIOD_START" || e.event_type === "EXCEPTED_PERIOD_END")
     .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
-  const epe = events
-    .filter((e) => e.event_type === "EXCEPTED_PERIOD_END")
-    .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
-  for (let i = 0; i < eps.length; i++) {
-    const start = parseISO(eps[i].occurred_at);
-    const end = epe[i] ? parseISO(epe[i].occurred_at) : windowEnd;
-    exceptedPeriods.push({ start, end });
+  
+  let currentEPStart: Date | null = null;
+  for (const ev of epEvents) {
+    if (ev.event_type === "EXCEPTED_PERIOD_START") {
+      if (!currentEPStart) currentEPStart = parseISO(ev.occurred_at);
+    } else if (ev.event_type === "EXCEPTED_PERIOD_END") {
+      if (currentEPStart) {
+        exceptedPeriods.push({ start: currentEPStart, end: parseISO(ev.occurred_at) });
+        currentEPStart = null;
+      }
+    }
   }
+  if (currentEPStart) {
+    exceptedPeriods.push({ start: currentEPStart, end: windowEnd });
+  }
+
+  // Precompute intervals
+  const weatherIntervals = getActiveIntervals(events, "WEATHER_DELAY", windowEnd);
+  const shiftingIntervals = getActiveIntervals(events, "SHIFTING", windowEnd);
+  const opsIntervals = getOperationsIntervals(events, windowEnd);
+  const hatchIntervals = getHatchIntervals(events, windowEnd);
 
   // Step 3: hour-by-hour iteration
   const breakdown: BreakdownRow[] = [];
@@ -191,7 +210,6 @@ export function recomputeLaytime(
   const allowedHours = cpTerms.laytime_allowed_hours;
 
   let cursor = new Date(laytimeCommencesAt);
-  // Iterate hour-by-hour; we'll coalesce contiguous blocks at the end.
   const hourly: Array<{
     hour: Date;
     status: BreakdownStatus;
@@ -200,7 +218,11 @@ export function recomputeLaytime(
     reasoning: string;
   }> = [];
 
-  while (cursor < windowEnd) {
+  let iterations = 0;
+  const MAX_HOURS = 1440; // 60 days
+
+  while (cursor < windowEnd && iterations < MAX_HOURS) {
+    iterations++;
     const hourStart = new Date(cursor);
     const hourEnd = addHours(hourStart, 1);
     let status: BreakdownStatus = "laytime";
@@ -208,53 +230,49 @@ export function recomputeLaytime(
     let clause_ref = "GENCON94-6";
     let reasoning = "Default laytime — operations counting.";
 
-    // 1. Once on demurrage
     if (usedHours >= allowedHours) {
       status = "demurrage";
       counts = true;
       clause_ref = "GENCON94-8";
       reasoning = "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting.";
     } else {
-      // 2. Weather delay (only if days_basis includes WWD)
-      const weatherActive = isEventActiveAt(events, "WEATHER_DELAY", hourStart, windowEnd);
-      const daysBasisIncludesWWD = cpTerms.days_basis === "WWDSHEX-EIU";
+      const weatherActive = isActiveAt(weatherIntervals, hourStart);
+      const daysBasisIncludesWWD = cpTerms.days_basis.includes("WWD");
       if (weatherActive && daysBasisIncludesWWD) {
         status = "weather_delay";
         counts = false;
         clause_ref = "GENCON94-6c";
-        reasoning = "Weather working day excluded — WWDSHEX-EIU excludes weather delays from laytime.";
+        reasoning = "Weather working day excluded — weather delays excluded from laytime.";
       } else {
-        // 3. Excepted period (Sunday/Holiday)
-        const excepted = isExceptedHour(hourStart, exceptedPeriods);
+        const excepted = isExceptedHour(hourStart, exceptedPeriods, cpTerms.days_basis, tz);
         if (excepted) {
           if (cpTerms.days_basis === "SHINC") {
             status = "excepted";
             counts = true;
             clause_ref = "GENCON94-7(b)";
             reasoning = "Sunday/holiday counts under SHINC.";
-          } else if (cpTerms.days_basis === "SHEX" || cpTerms.days_basis === "WWDSHEX-EIU") {
-            status = "excepted";
-            counts = false;
-            clause_ref = "GENCON94-7(c)";
-            reasoning = "Sunday/holiday excepted under SHEX.";
-          } else if (cpTerms.days_basis === "SHEX-UU") {
-            const hatchOpen = hatchOpenAt(events, hourStart, windowEnd);
-            const opsOngoing = operationsOngoingAt(events, hourStart, windowEnd);
+          } else if (cpTerms.days_basis.includes("-UU")) {
+            const hatchOpen = isActiveAt(hatchIntervals, hourStart);
+            const opsOngoing = isActiveAt(opsIntervals, hourStart);
             if (hatchOpen && opsOngoing) {
               status = "excepted";
               counts = true;
               clause_ref = "GENCON94-7(d)";
-              reasoning = "SHEX-UU: Sunday counts when hatch open and operations ongoing.";
+              reasoning = "SHEX-UU: Excepted period counts when hatch open and operations ongoing.";
             } else {
               status = "excepted";
               counts = false;
               clause_ref = "GENCON94-7(c)";
-              reasoning = "SHEX-UU: Sunday excepted without operations.";
+              reasoning = "SHEX-UU: Excepted period excluded without operations.";
             }
+          } else {
+            status = "excepted";
+            counts = false;
+            clause_ref = "GENCON94-7(c)";
+            reasoning = "Excepted period excluded.";
           }
         } else {
-          // 4. Shifting
-          const shiftingActive = isEventActiveAt(events, "SHIFTING", hourStart, windowEnd);
+          const shiftingActive = isActiveAt(shiftingIntervals, hourStart);
           if (shiftingActive) {
             if (cpTerms.nor_variant === "WIBON") {
               status = "shifting";
@@ -268,7 +286,6 @@ export function recomputeLaytime(
               reasoning = "Non-WIBON: shifting does not count as laytime.";
             }
           } else {
-            // 5. Default
             status = "laytime";
             counts = true;
             clause_ref = "GENCON94-6";
@@ -283,7 +300,10 @@ export function recomputeLaytime(
     cursor = hourEnd;
   }
 
-  // Coalesce contiguous blocks with same status / counts / clause_ref / reasoning.
+  if (iterations >= MAX_HOURS) {
+    throw new Error(`CALCULATION_TIMEOUT: exceeded ${MAX_HOURS} hour iterations`);
+  }
+
   for (const h of hourly) {
     const last = breakdown[breakdown.length - 1];
     if (
@@ -308,11 +328,11 @@ export function recomputeLaytime(
     }
   }
 
-  // Step 4: totals
   const time_on_demurrage_hours = Math.max(0, usedHours - allowedHours);
   const time_saved_hours = Math.max(0, allowedHours - usedHours);
-  const demurrage_amount = (time_on_demurrage_hours / 24) * cpTerms.demurrage_rate;
-  const despatch_amount = (time_saved_hours / 24) * cpTerms.despatch_rate;
+  
+  const demurrage_amount = new Decimal(time_on_demurrage_hours).div(24).mul(cpTerms.demurrage_rate).toDecimalPlaces(2).toNumber();
+  const despatch_amount = new Decimal(time_saved_hours).div(24).mul(cpTerms.despatch_rate).toDecimalPlaces(2).toNumber();
 
   return {
     breakdown,

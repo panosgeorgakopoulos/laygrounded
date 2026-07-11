@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
 import { LaytimeResult, CpTerms } from "@/lib/laytime/types";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 function sanitizeForPdf(s: string): string {
   return s
@@ -26,7 +26,7 @@ interface ExportPayload {
 }
 
 export async function exportClaimPack(payload: ExportPayload) {
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
 
   const { data: claim, error: claimErr } = await supabase
     .from("claims")

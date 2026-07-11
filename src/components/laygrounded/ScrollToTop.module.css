@@ -1,0 +1,127 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   ScrollToTop.module.css
+   Premium yacht-silhouette scroll progress indicator.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Fixed anchor ─────────────────────────────────────────────────────── */
+.wrapper {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 9999;
+  /* GSAP drives opacity / translateY / filter (blur) */
+  will-change: transform, opacity, filter;
+}
+
+/* ── 2. Button reset ─────────────────────────────────────────────────────── */
+.button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: block;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keyboard focus ring */
+.button:focus-visible {
+  outline: 2px solid rgba(91, 200, 255, 0.75);
+  outline-offset: 7px;
+  border-radius: 8px;
+}
+
+/* ── 3. SVG element ──────────────────────────────────────────────────────── */
+.yachtSvg {
+  width: 94px;
+  height: auto;
+  display: block;
+  /* GPU-composited transforms only */
+  will-change: transform;
+  /* Ambient resting shadow */
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.08))
+          drop-shadow(0 1px 3px rgba(0, 0, 0, 0.05));
+  transition: filter 0.35s ease;
+}
+
+/* Hover: glow intensifies */
+.button:hover .yachtSvg {
+  filter:
+    drop-shadow(0 5px 18px rgba(79, 227, 210, 0.28))
+    drop-shadow(0 2px 8px rgba(91, 200, 255, 0.18))
+    drop-shadow(0 1px 4px rgba(0, 0, 0, 0.08));
+}
+
+/* ── 4. Background track stroke (always-on faint silhouette) ─────────────── */
+.trackPath {
+  fill: none;
+  stroke: #5f6b7a;
+  stroke-opacity: 0.15;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── 5. Progress stroke (JS animates stroke-dashoffset) ─────────────────── */
+.progressPath {
+  fill: none;
+  /* stroke set inline via `stroke="url(#yachtProgressGrad)"` */
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* JS sets strokeDasharray / strokeDashoffset on mount and each RAF tick */
+  will-change: stroke-dashoffset;
+}
+
+/* ── 6. Cabin windows ────────────────────────────────────────────────────── */
+.window {
+  fill: transparent;
+  stroke: rgba(15, 23, 42, 0.16);
+  stroke-width: 1.2;
+  transition:
+    stroke 0.3s ease,
+    fill 0.3s ease,
+    stroke-opacity 0.3s ease;
+}
+
+/* Windows illuminate on hover */
+.button:hover .window {
+  stroke: rgba(91, 200, 255, 0.65);
+  fill: rgba(91, 200, 255, 0.07);
+}
+
+/* ── 7. Wake lines (opacity driven by JS based on scroll velocity) ────────── */
+.wake {
+  fill: none;
+  stroke: #5f6b7a;
+  stroke-width: 1;
+  stroke-linecap: round;
+  /* Initial opacity overridden by inline style; JS drives GSAP from there */
+  will-change: opacity;
+}
+
+/* ── 8. Mobile ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .wrapper {
+    bottom: 20px;
+    right: 16px;
+  }
+
+  .yachtSvg {
+    width: 70px;
+  }
+}
+
+/* ── 9. Reduced-motion: skip animations, keep static progress ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .yachtSvg {
+    transition: none;
+  }
+  .window {
+    transition: none;
+  }
+  .wake {
+    opacity: 0.04 !important;
+  }
+}

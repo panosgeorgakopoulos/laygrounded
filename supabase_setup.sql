@@ -13,6 +13,16 @@ create table public.companies (
   updated_at timestamptz default now()
 );
 
+-- RPC for securely resolving emails to user IDs without listing all users
+create or replace function get_user_id_by_email(email_addr text)
+returns uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select id from auth.users where email = email_addr limit 1;
+$$;
+
 create table public.company_members (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -164,9 +174,17 @@ create policy "Users can perform all actions on laytime_calculations of their co
 -- Storage Bucket Setup
 insert into storage.buckets (id, name, public) values ('sofs', 'sofs', false) on conflict do nothing;
 
-create policy "Authenticated users can access sofs"
+create policy "Users can only access their company's files"
   on storage.objects for all
-  using (bucket_id = 'sofs' and auth.role() = 'authenticated');
+  using (
+    bucket_id = 'sofs' and
+    auth.role() = 'authenticated' and
+    (storage.foldername(name))[1] in (
+      select cm.company_id::text
+      from public.company_members cm
+      where cm.user_id = auth.uid()
+    )
+  );
 -- Insert demo user (demo@laygrounded.com / password123)
 insert into auth.users (
   id,
@@ -217,3 +235,17 @@ on conflict do nothing;
 insert into public.company_members (user_id, company_id, role)
 values ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'admin')
 on conflict do nothing;
+
+-- Database optimization and integrity (Phase 3 fixes)
+ALTER TABLE public.laytime_calculations ADD CONSTRAINT laytime_calculations_claim_id_key UNIQUE (claim_id);
+CREATE INDEX idx_company_members_company_id ON public.company_members(company_id);
+CREATE INDEX idx_claims_company_id ON public.claims(company_id);
+CREATE INDEX idx_claims_created_by ON public.claims(created_by);
+CREATE INDEX idx_documents_claim_id ON public.documents(claim_id);
+CREATE INDEX idx_sof_events_claim_id ON public.sof_events(claim_id);
+CREATE INDEX idx_sof_events_document_id ON public.sof_events(document_id);
+CREATE INDEX idx_laytime_calculations_claim_id ON public.laytime_calculations(claim_id);
+
+ALTER TABLE public.claims ADD CONSTRAINT check_claims_status CHECK (status IN ('draft', 'processing', 'completed', 'failed'));
+ALTER TABLE public.sof_events ADD CONSTRAINT check_sof_events_event_type CHECK (event_type IN ('NOR_TENDERED', 'ALL_FAST', 'HATCH_OPEN', 'HATCH_CLOSE', 'COMMENCED_LOADING', 'COMPLETED_LOADING', 'COMMENCED_DISCHARGE', 'COMPLETED_DISCHARGE', 'WEATHER_DELAY', 'SHIFTING', 'BERTHED', 'EXCEPTED_PERIOD_START', 'EXCEPTED_PERIOD_END'));
+ALTER TABLE public.sof_events ADD CONSTRAINT check_sof_events_status CHECK (status IN ('pending', 'accepted', 'rejected'));

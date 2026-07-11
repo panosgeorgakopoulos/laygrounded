@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 
 const UpdateCompanySchema = z.object({
@@ -10,7 +10,7 @@ const UpdateCompanySchema = z.object({
 export async function GET() {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
 
     const { data: company, error: companyErr } = await supabase
       .from("companies")
@@ -27,18 +27,19 @@ export async function GET() {
       .select("user_id, role")
       .eq("company_id", auth.companyId);
 
-    // Fetch emails for these user IDs
-    const { data: usersData } = await supabase.auth.admin.listUsers();
-    
-    const members = (membersData || []).map((m) => {
-      const user = usersData?.users.find((u) => u.id === m.user_id);
-      return {
-        id: m.user_id,
-        email: user?.email || "Unknown",
-        role: m.role,
-        createdAt: user?.created_at || company.created_at,
-      };
-    });
+    const adminClient = createServiceRoleClient();
+    const members = await Promise.all(
+      (membersData || []).map(async (m) => {
+        const { data: userData } = await adminClient.auth.admin.getUserById(m.user_id);
+        const user = userData?.user;
+        return {
+          id: m.user_id,
+          email: user?.email || "Unknown",
+          role: m.role,
+          createdAt: user?.created_at || company.created_at,
+        };
+      })
+    );
 
     return NextResponse.json({
       company: {
@@ -49,14 +50,15 @@ export async function GET() {
       members,
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 });
+    const isAuth = e instanceof Error && e.message === "UNAUTHORIZED";
+    return NextResponse.json({ error: (e as Error).message }, { status: isAuth ? 401 : 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
 
     const { data: membership } = await supabase
       .from("company_members")

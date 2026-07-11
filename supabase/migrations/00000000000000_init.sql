@@ -13,6 +13,16 @@ create table public.companies (
   updated_at timestamptz default now()
 );
 
+-- RPC for securely resolving emails to user IDs without listing all users
+create or replace function get_user_id_by_email(email_addr text)
+returns uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select id from auth.users where email = email_addr limit 1;
+$$;
+
 create table public.company_members (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -164,6 +174,14 @@ create policy "Users can perform all actions on laytime_calculations of their co
 -- Storage Bucket Setup
 insert into storage.buckets (id, name, public) values ('sofs', 'sofs', false) on conflict do nothing;
 
-create policy "Authenticated users can access sofs"
+create policy "Users can only access their company's files"
   on storage.objects for all
-  using (bucket_id = 'sofs' and auth.role() = 'authenticated');
+  using (
+    bucket_id = 'sofs' and
+    auth.role() = 'authenticated' and
+    (storage.foldername(name))[1] in (
+      select cm.company_id::text
+      from public.company_members cm
+      where cm.user_id = auth.uid()
+    )
+  );

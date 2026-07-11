@@ -4,7 +4,12 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { seedScenarios } from "@/lib/seed-data";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const secret = req.headers.get("x-init-secret");
+  if (secret !== process.env.INIT_DEMO_SECRET) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceRoleClient();
   const user = await ensureDemoUser();
   const { data: membership } = await supabase

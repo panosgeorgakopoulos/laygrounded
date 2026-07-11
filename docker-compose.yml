@@ -10,7 +10,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/laygrounded?schema=public
       - SEED_DEMO=true
-      - NEXTAUTH_SECRET=laygrounded-dev-secret-change-in-production-7f4a9c1e
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?Please set NEXTAUTH_SECRET in .env}
       - NEXTAUTH_URL=http://localhost:3000
     depends_on:
       db:

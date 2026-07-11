@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 
 const InviteSchema = z.object({
@@ -11,7 +11,7 @@ const InviteSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
 
     const body = await req.json();
     const parsed = InviteSchema.safeParse(body);
@@ -34,17 +34,17 @@ export async function POST(req: NextRequest) {
     }
 
     const email = parsed.data.email.toLowerCase().trim();
+    const adminClient = createServiceRoleClient();
 
     // Look for existing user
-    let { data: usersData } = await supabase.auth.admin.listUsers();
-    let user = usersData?.users.find((u) => u.email === email);
+    const { data: userId } = await adminClient.rpc("get_user_id_by_email", { email_addr: email });
 
-    if (user) {
+    if (userId) {
       const { data: existing } = await supabase
         .from("company_members")
         .select("*")
         .eq("company_id", auth.companyId)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
       if (existing) {
@@ -53,17 +53,17 @@ export async function POST(req: NextRequest) {
 
       await supabase.from("company_members").insert({
         company_id: auth.companyId,
-        user_id: user.id,
+        user_id: userId,
         role: parsed.data.role,
       });
 
       return NextResponse.json({ 
-        member: { id: user.id, email, role: parsed.data.role } 
+        member: { id: userId, email, role: parsed.data.role } 
       });
     }
 
     // User does not exist, invite them
-    const { data: invitedUser, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email);
+    const { data: invitedUser, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email);
     
     if (inviteErr || !invitedUser?.user) {
       return NextResponse.json({ error: inviteErr?.message || "Failed to invite user" }, { status: 500 });
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       pending: true 
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    const isAuth = e instanceof Error && e.message === "UNAUTHORIZED";
+    return NextResponse.json({ error: (e as Error).message }, { status: isAuth ? 401 : 500 });
   }
 }

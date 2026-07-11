@@ -16,7 +16,7 @@ export type EventTypeEnum =
   | "EXCEPTED_PERIOD_END";
 
 export type NorVariant = "WIBON" | "WIPON" | "WICCON" | "WIFPON";
-export type DaysBasis = "SHINC" | "SHEX" | "SHEX-UU" | "WWDSHEX-EIU";
+export type DaysBasis = "SHINC" | "SHEX" | "SHEX-UU" | "WWDSHEX-EIU" | "SSHEX" | "SSHEX-UU" | "WWDSSHEX-EIU";
 
 export interface CpTerms {
   laytime_allowed_hours: number;
@@ -28,6 +28,7 @@ export interface CpTerms {
   demurrage_rate: number; // per day
   despatch_rate: number; // per day
   currency: string; // ISO 4217
+  port_timezone?: string; // IANA timezone, e.g. "Asia/Singapore"
 }
 
 export interface SofEventInput {
@@ -86,7 +87,7 @@ export const EVENT_TYPE_VALUES: EventTypeEnum[] = [
 ];
 
 export const NOR_VARIANTS: NorVariant[] = ["WIBON", "WIPON", "WICCON", "WIFPON"];
-export const DAYS_BASES: DaysBasis[] = ["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU"];
+export const DAYS_BASES: DaysBasis[] = ["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU", "SSHEX", "SSHEX-UU", "WWDSSHEX-EIU"];
 
 // === Default CP terms for new claims ===
 export const DEFAULT_CP_TERMS: CpTerms = {

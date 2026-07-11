@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { seedScenarios } from "@/lib/seed-data";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
@@ -7,7 +7,7 @@ import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 export async function POST() {
   try {
     const auth = await requireAuth();
-    const supabase = createServiceRoleClient();
+    const supabase = await createClient();
     const created: string[] = [];
     
     for (const scenario of seedScenarios) {
