@@ -35,6 +35,7 @@ export async function GET() {
         return {
           id: m.user_id,
           email: user?.email || "Unknown",
+          displayName: user?.user_metadata?.display_name || null,
           role: m.role,
           createdAt: user?.created_at || company.created_at,
         };

@@ -25,7 +25,7 @@ export async function POST() {
           status: "draft",
         })
         .select("id")
-        .single();
+        .maybeSingle();
         
       if (!claim) continue;
 
@@ -39,7 +39,7 @@ export async function POST() {
           page_count: 1,
         })
         .select("id")
-        .single();
+        .maybeSingle();
         
       if (!doc) continue;
 

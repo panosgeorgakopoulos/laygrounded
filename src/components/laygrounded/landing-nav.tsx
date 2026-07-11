@@ -162,13 +162,26 @@ export function LandingNav({ theme = "dark" }: { theme?: "dark" | "light" }) {
           {/* CTA — revealed on expand */}
           <div className={styles.ctas} ref={labelsRef} aria-hidden={!expanded}>
             {session?.user ? (
-              <Link
-                href="/claims"
-                className={styles.ctaBtn}
-                tabIndex={expanded ? 0 : -1}
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  href="/claims"
+                  className={styles.ghostBtn}
+                  tabIndex={expanded ? 0 : -1}
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={async () => {
+                    const { createClient } = await import("@/lib/supabase/client");
+                    await createClient().auth.signOut();
+                    window.location.href = "/sign-in";
+                  }}
+                  className={styles.ctaBtn}
+                  tabIndex={expanded ? 0 : -1}
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <>
                 <Link

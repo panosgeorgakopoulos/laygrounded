@@ -87,7 +87,7 @@ export function SignInForm() {
       <button
         type="button"
         onClick={() => {
-          setEmail("demo@laygrounded.io");
+          setEmail("demo2@laygrounded.com");
           setPassword("demo1234");
         }}
         className={styles.secondaryButton}

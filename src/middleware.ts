@@ -40,6 +40,16 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Authentication Redirect Logic
+  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
+  
+  if (hasAuthCookie) {
+    const path = request.nextUrl.pathname;
+    if (path === '/' || path === '/sign-in' || path === '/sign-up') {
+      return NextResponse.redirect(new URL('/claims', request.url));
+    }
+  }
+
   // Next.js Response with CORS headers
   const response = NextResponse.next();
   
@@ -54,5 +64,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/', '/sign-in', '/sign-up', '/api/:path*'],
 };

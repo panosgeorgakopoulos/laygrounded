@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function bootstrapUserCompany(
   userId: string,
   userEmail: string,
   companyName?: string
 ): Promise<{ companyId: string; companyName: string }> {
-  const supabase = await createClient();
+  const supabase = createServiceRoleClient();
   
   const { data: existing } = await supabase
     .from("company_members")
@@ -44,11 +44,12 @@ export async function bootstrapUserCompany(
 }
 
 export async function ensureDemoUser() {
-  const supabase = await createClient();
-  const email = "demo@laygrounded.io";
+  const supabase = createServiceRoleClient();
+  const email = "demo2@laygrounded.com";
   const password = "demo1234";
 
-  let { data: usersData } = await supabase.auth.admin.listUsers();
+  let { data: usersData, error: listError } = await supabase.auth.admin.listUsers();
+  if (listError) throw new Error("LIST USERS ERR: " + JSON.stringify(listError));
   let user = usersData?.users.find((u) => u.email === email);
 
   if (!user) {
@@ -58,8 +59,13 @@ export async function ensureDemoUser() {
       email_confirm: true,
       user_metadata: { name: "Demo Captain" }
     });
-    if (error || !newUser.user) throw new Error("Could not create demo user");
+    if (error || !newUser.user) {
+      console.error("CREATE USER ERR:", error);
+      throw new Error("Could not create demo user: " + JSON.stringify(error));
+    }
     user = newUser.user;
+  } else {
+    await supabase.auth.admin.updateUserById(user.id, { password });
   }
 
   await bootstrapUserCompany(user.id, user.email!, "LayGrounded Demo Fleet");
