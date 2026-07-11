@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as XLSX from "xlsx";
 import { LaytimeResult, CpTerms } from "@/lib/laytime/types";
 import { createClient } from "@/lib/supabase/server";
+import { ClaimWithRelations, SofEventRow, LaytimeCalculationRow, ClauseFlagRow } from "@/lib/database-types";
 
 // Common typographic characters transliterated to ASCII so they read well even
 // in the WinAnsi fallback path.
@@ -86,7 +87,7 @@ interface ExportPayload {
 export async function exportClaimPack(payload: ExportPayload) {
   const supabase = await createClient();
 
-  const { data: claim, error: claimErr } = await supabase
+  const { data: claimData, error: claimErr } = await supabase
     .from("claims")
     .select(`
       *,
@@ -98,25 +99,27 @@ export async function exportClaimPack(payload: ExportPayload) {
     .eq("id", payload.claimId)
     .single();
 
+  const claim = claimData as unknown as ClaimWithRelations;
+
   if (claimErr || !claim || claim.company_id !== payload.companyId) {
     throw new Error("CLAIM_NOT_FOUND");
   }
 
   // laytime_calculations has a UNIQUE(claim_id) constraint, so PostgREST embeds
   // it as a single object (to-one), not an array. Normalize before sorting.
-  const rawCalcs = Array.isArray(claim.laytime_calculations)
+  const rawCalcs: LaytimeCalculationRow[] = Array.isArray(claim.laytime_calculations)
     ? claim.laytime_calculations
     : claim.laytime_calculations
       ? [claim.laytime_calculations]
       : [];
 
-  const sofEvents = (claim.sof_events || []).sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
-  const calculations = rawCalcs.sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+  const sofEvents = (claim.sof_events || []).sort((a: SofEventRow, b: SofEventRow) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+  const calculations = rawCalcs.sort((a: LaytimeCalculationRow, b: LaytimeCalculationRow) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
   const company = claim.companies;
   const latestCalc = calculations[0];
 
-  const cpTerms: CpTerms | null = claim.cp_terms as any;
-  const breakdown: LaytimeResult["breakdown"] = latestCalc?.breakdown as any || [];
+  const cpTerms: CpTerms | null = claim.cp_terms;
+  const breakdown: LaytimeResult["breakdown"] = latestCalc?.breakdown || [];
   const totals: LaytimeResult["totals"] | null = latestCalc
     ? {
         allowed_hours: latestCalc.allowed_hours,
@@ -129,15 +132,15 @@ export async function exportClaimPack(payload: ExportPayload) {
       }
     : null;
 
-  const eventIds = sofEvents.map((e: any) => e.id);
+  const eventIds = sofEvents.map((e: SofEventRow) => e.id);
   
-  let clauseFlags: any[] = [];
+  let clauseFlags: ClauseFlagRow[] = [];
   if (eventIds.length > 0) {
     const { data: flags } = await supabase
       .from("clause_flags")
       .select("*")
       .in("event_id", eventIds);
-    clauseFlags = flags || [];
+    clauseFlags = (flags || []) as unknown as ClauseFlagRow[];
   }
 
   const claimObj = {
@@ -151,7 +154,7 @@ export async function exportClaimPack(payload: ExportPayload) {
     company: { name: company?.name || "" }
   };
   
-  const eventsObj = sofEvents.map((e: any) => ({
+  const eventsObj = sofEvents.map((e: SofEventRow) => ({
     id: e.id,
     occurredAt: e.occurred_at,
     eventType: e.event_type,
@@ -163,7 +166,7 @@ export async function exportClaimPack(payload: ExportPayload) {
     aiReasoning: e.ai_reasoning
   }));
   
-  const flagsObj = clauseFlags.map((f: any) => ({
+  const flagsObj = clauseFlags.map((f: ClauseFlagRow) => ({
     eventId: f.event_id,
     severity: f.severity,
     clauseRef: f.clause_ref,
@@ -205,13 +208,43 @@ export async function exportClaimPack(payload: ExportPayload) {
   };
 }
 
+export interface ExportClaim {
+  id: string;
+  vessel: string;
+  voyageRef: string;
+  port: string;
+  cargo: string;
+  cpForm: string;
+  status: string;
+  company: { name: string };
+}
+
+export interface ExportEvent {
+  id: string;
+  occurredAt: string;
+  eventType: string;
+  page: number;
+  confidence: number;
+  rawText: string;
+  source: string;
+  status: string;
+  aiReasoning: string | null;
+}
+
+export interface ExportClauseFlag {
+  eventId: string;
+  severity: "info" | "warning" | "critical" | string;
+  clauseRef: string;
+  note: string;
+}
+
 async function generatePDF(
-  claim: any,
+  claim: ExportClaim,
   cpTerms: CpTerms | null,
-  events: any[],
+  events: ExportEvent[],
   breakdown: LaytimeResult["breakdown"],
   totals: LaytimeResult["totals"] | null,
-  clauseFlags: any[]
+  clauseFlags: ExportClauseFlag[]
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const { regular: font, bold, mono, sanitize } = await loadPdfFonts(pdf);
@@ -227,7 +260,7 @@ async function generatePDF(
   };
   const writeLine = (
     text: string,
-    opts: { font?: any; size?: number; color?: any; indent?: number } = {}
+    opts: { font?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; indent?: number } = {}
   ) => {
     const f = opts.font ?? font;
     const sz = opts.size ?? 10;
@@ -339,7 +372,7 @@ async function generatePDF(
   if (clauseFlags.length > 0) {
     writeLine("Clause Flags", { font: bold, size: 12 });
     for (const f of clauseFlags) {
-      const ev = events.find((e: any) => e.id === f.eventId);
+      const ev = events.find((e: ExportEvent) => e.id === f.eventId);
       writeLine(`[${f.severity.toUpperCase()}] ${f.clauseRef}`, {
         font: mono,
         size: 9,
@@ -371,16 +404,16 @@ async function generatePDF(
 }
 
 async function generateXLSX(
-  claim: any,
+  claim: ExportClaim,
   cpTerms: CpTerms | null,
-  events: any[],
+  events: ExportEvent[],
   breakdown: LaytimeResult["breakdown"],
   totals: LaytimeResult["totals"] | null,
-  clauseFlags: any[]
+  clauseFlags: ExportClauseFlag[]
 ): Promise<Buffer> {
   const wb = XLSX.utils.book_new();
 
-  const headerAoa: any[][] = [
+  const headerAoa: (string | number)[][] = [
     ["LAYGROUNDED — CLAIM PACK"],
     [""],
     ["Field", "Value"],
@@ -405,7 +438,7 @@ async function generateXLSX(
   const ws1 = XLSX.utils.aoa_to_sheet(headerAoa);
   XLSX.utils.book_append_sheet(wb, ws1, "Claim");
 
-  const eventAoa: any[][] = [
+  const eventAoa: (string | number)[][] = [
     [
       "Timestamp",
       "Event Type",
@@ -433,7 +466,7 @@ async function generateXLSX(
   XLSX.utils.book_append_sheet(wb, ws2, "Events");
 
   if (breakdown.length > 0) {
-    const bdAoa: any[][] = [
+    const bdAoa: (string | number)[][] = [
       ["Start", "End", "Duration (hrs)", "Status", "Counts", "Clause Ref", "Reasoning"],
       ...breakdown.map((r) => [
         r.start_time,
@@ -450,7 +483,7 @@ async function generateXLSX(
   }
 
   if (totals) {
-    const totAoa: any[][] = [
+    const totAoa: (string | number)[][] = [
       ["Totals"],
       [""],
       ["Allowed hours", totals.allowed_hours],
@@ -467,10 +500,10 @@ async function generateXLSX(
   }
 
   if (clauseFlags.length > 0) {
-    const cfAoa: any[][] = [
+    const cfAoa: (string | number)[][] = [
       ["Severity", "Clause Ref", "Event Type", "Event Timestamp", "Note"],
       ...clauseFlags.map((f) => {
-        const ev = events.find((e: any) => e.id === f.eventId);
+        const ev = events.find((e: ExportEvent) => e.id === f.eventId);
         return [
           f.severity,
           f.clauseRef,

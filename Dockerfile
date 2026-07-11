@@ -13,15 +13,17 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 
-FROM base AS runner
+# Next.js standalone output is heavily optimized for Node.js
+# We switch to a minimal node alpine image for the final runtime
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user (Debian base image: groupadd/useradd, not Alpine's addgroup/adduser)
-RUN groupadd --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 --gid 1001 --no-create-home nextjs
+# Create non-root user (Alpine uses addgroup/adduser)
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
 # Copy static assets and optimized images
 COPY --from=builder /app/public ./public
@@ -37,4 +39,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["bun", "run", "server.js"]
+# Execute via Node instead of Bun for standalone optimizations
+CMD ["node", "server.js"]

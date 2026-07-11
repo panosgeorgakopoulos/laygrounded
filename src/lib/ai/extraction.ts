@@ -6,6 +6,41 @@ export const EXTRACTION_MODEL_ID = process.env.CLAUDE_MODEL_ID || "claude-sonnet
 export const EXTRACTION_MODEL_FALLBACK_ID =
   process.env.CLAUDE_FALLBACK_MODEL_ID || "claude-haiku-4-5-20251001";
 
+export class ExtractionError extends Error {
+  constructor(message: string, public readonly cause?: any) {
+    super(message);
+    this.name = "ExtractionError";
+  }
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  retries: number = 3
+): Promise<T> {
+  let attempt = 0;
+  while (attempt < retries) {
+    try {
+      return await operation();
+    } catch (e: any) {
+      if (e.status === 400 || e.status === 401) {
+        throw new ExtractionError(`Non-retriable error: ${e.status} ${e.message}`, e);
+      }
+      
+      const isRetriable = !e.status || e.status === 429 || e.status >= 500;
+      
+      if (!isRetriable || attempt === retries - 1) {
+        throw new ExtractionError(`Extraction failed after ${attempt + 1} attempts`, e);
+      }
+      
+      const baseMs = 1000;
+      const delay = (baseMs * Math.pow(2, attempt)) + (Math.random() * baseMs);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempt++;
+    }
+  }
+  throw new ExtractionError("Extraction failed");
+}
+
 const BboxSchema = z.object({
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
@@ -141,43 +176,35 @@ async function extractFromImage(
   const base64 = imageBuffer.toString("base64");
   const mediaType = mime === "image/png" ? "image/png" : mime === "image/jpeg" ? "image/jpeg" : "image/webp";
 
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const response = await zai.messages.create({
-        model: EXTRACTION_MODEL_ID,
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
-              },
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
-                  data: base64,
-                }
+  return withRetry(async () => {
+    const response = await zai.messages.create({
+      model: EXTRACTION_MODEL_ID,
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
+            },
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
+                data: base64,
               }
-            ],
-          },
-        ],
-      });
+            }
+          ],
+        },
+      ],
+    });
 
-      const raw = (response.content[0] as any).text ?? "";
-      return parseExtractionResponse(raw, pageNumber);
-    } catch (e: any) {
-      if (attempt === retries - 1 || (e.status && e.status < 500 && e.status !== 429)) {
-        throw e;
-      }
-      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
-    }
-  }
-  return [];
+    const raw = (response.content[0] as any).text ?? "";
+    return parseExtractionResponse(raw, pageNumber);
+  }, retries);
 }
 
 function parseExtractionResponse(

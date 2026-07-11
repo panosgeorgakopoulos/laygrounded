@@ -2,8 +2,24 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/core/Button";
-import styles from "./Error.module.css";
+import { AlertOctagon, RefreshCw } from "lucide-react";
 import "./globals.css";
+
+const logger = {
+  error: (payload: { error: Error; digest?: string; context: string }) => {
+    const logEntry = {
+      level: "critical",
+      timestamp: new Date().toISOString(),
+      context: payload.context,
+      digest: payload.digest,
+      errorName: payload.error?.name,
+      errorMessage: payload.error?.message,
+      stack: payload.error?.stack,
+    };
+    // Outputs strict JSON for Datadog/Sentry sink simulation
+    console.error(JSON.stringify(logEntry));
+  }
+};
 
 export default function GlobalError({
   error,
@@ -13,32 +29,35 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    logger.error({ error, digest: error.digest, context: "GlobalErrorBoundary" });
   }, [error]);
 
   return (
     <html lang="en">
-      <body>
-        <div className={styles.container}>
-          <div className={styles.card}>
-            <div className={styles.icon}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
+      <body style={{ margin: 0, padding: 0 }}>
+        <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a" }}>
+          <div style={{ maxWidth: "480px", width: "100%", padding: "2.5rem", backgroundColor: "#1e293b", borderRadius: "12px", border: "1px solid #334155", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem", color: "#ef4444" }}>
+              <AlertOctagon size={56} />
             </div>
-            <h2 className={styles.title}>Something went wrong!</h2>
-            <p className={styles.message}>
-              A critical error occurred. Please try again.
+            <h2 style={{ fontSize: "1.5rem", fontWeight: 600, textAlign: "center", marginBottom: "0.75rem", color: "#f8fafc" }}>
+              Critical System Failure
+            </h2>
+            <p style={{ color: "#94a3b8", textAlign: "center", marginBottom: "2rem", lineHeight: 1.6 }}>
+              A fatal error occurred at the root layout level. Telemetry has been dispatched to engineering.
             </p>
-            <Button onClick={() => reset()} variant="primary">
-              Try again
-            </Button>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <Button onClick={() => reset()} variant="primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", width: "100%", padding: "0.75rem" }}>
+                <RefreshCw size={18} />
+                Hard Reset
+              </Button>
+            </div>
+
             {error.digest && (
-              <p className={styles.digest}>
-                Error ID: {error.digest}
-              </p>
+              <div style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid #334155", fontSize: "0.75rem", color: "#64748b", textAlign: "center", fontFamily: "monospace", opacity: 0.8 }}>
+                Reference ID: {error.digest}
+              </div>
             )}
           </div>
         </div>

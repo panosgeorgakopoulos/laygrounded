@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, SofEventInput } from "@/lib/laytime/types";
+import { SofEventRow, ClauseFlagRow } from "@/lib/database-types";
 
 export const GENCON94_REFERENCE: Record<string, string> = {
   "GENCON94-6":
@@ -102,7 +103,7 @@ function detectOnDemurrage(
   const sofInputs: SofEventInput[] = events.map((e) => ({
     id: e.id,
     occurred_at: e.occurredAt.toISOString(),
-    event_type: e.eventType as any,
+    event_type: e.eventType as SofEventInput["event_type"],
   }));
   try {
     const result = recomputeLaytime(sofInputs, cpTerms);
@@ -169,7 +170,7 @@ export async function flagClauses(claimId: string, cpTerms: CpTerms) {
   const eventIds = events.map(e => e.id);
   await supabase.from("clause_flags").delete().in("event_id", eventIds);
 
-  const typedEvents = events.map((e: any) => ({
+  const typedEvents = (events as unknown as SofEventRow[]).map((e) => ({
     id: e.id,
     eventType: e.event_type,
     occurredAt: new Date(e.occurred_at),
@@ -183,7 +184,7 @@ export async function flagClauses(claimId: string, cpTerms: CpTerms) {
     ...detectWeatherHatchConflict(typedEvents),
   ];
 
-  const created: any[] = [];
+  const created: ClauseFlagRow[] = [];
   for (const r of rules) {
     const { data: flag } = await supabase
       .from("clause_flags")
