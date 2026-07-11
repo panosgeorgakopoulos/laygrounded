@@ -1,23 +1,81 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as XLSX from "xlsx";
 import { LaytimeResult, CpTerms } from "@/lib/laytime/types";
 import { createClient } from "@/lib/supabase/server";
 
-function sanitizeForPdf(s: string): string {
+// Common typographic characters transliterated to ASCII so they read well even
+// in the WinAnsi fallback path.
+function transliterate(s: string): string {
   return s
     .replace(/→/g, "->")
     .replace(/↓/g, "v")
-    .replace(/–/g, "-")
-    .replace(/—/g, "--")
-    .replace(/'/g, "'")
-    .replace(/'/g, "'")
-    .replace(/"/g, '"')
-    .replace(/"/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/['']/g, "'")
+    .replace(/[""]/g, '"')
     .replace(/…/g, "...")
     .replace(/•/g, "*")
     .replace(/©/g, "(c)")
     .replace(/®/g, "(R)")
     .replace(/™/g, "(TM)");
+}
+
+interface PdfFontSet {
+  regular: PDFFont;
+  bold: PDFFont;
+  mono: PDFFont;
+  // Maps arbitrary input text to something the chosen fonts can actually
+  // render, so drawText never throws (F13). With the embedded Unicode font
+  // this preserves Latin/Greek/Cyrillic; unsupported glyphs become "?".
+  sanitize: (s: string) => string;
+}
+
+// Load a Unicode-capable font (Roboto: Latin, Latin-Extended, Greek, Cyrillic)
+// so international vessel/port names and OCR'd text don't crash the exporter.
+// Falls back to the standard WinAnsi fonts (with transliteration + stripping)
+// if the font assets aren't available, guaranteeing the export still succeeds.
+async function loadPdfFonts(pdf: PDFDocument): Promise<PdfFontSet> {
+  try {
+    const dir = path.join(process.cwd(), "public", "fonts");
+    const regularBytes = fs.readFileSync(path.join(dir, "Roboto-Regular.ttf"));
+    const boldBytes = fs.readFileSync(path.join(dir, "Roboto-Bold.ttf"));
+
+    pdf.registerFontkit(fontkit);
+    const regular = await pdf.embedFont(regularBytes, { subset: true });
+    const bold = await pdf.embedFont(boldBytes, { subset: true });
+
+    // Filter to codepoints the embedded font can actually render.
+    const fk = (regular as unknown as { embedder?: { font?: { hasGlyphForCodePoint?: (cp: number) => boolean } } })
+      .embedder?.font;
+    const canRender = (cp: number): boolean => {
+      try {
+        return fk?.hasGlyphForCodePoint ? fk.hasGlyphForCodePoint(cp) : true;
+      } catch {
+        return true;
+      }
+    };
+    const sanitize = (s: string): string =>
+      Array.from(transliterate(s))
+        .map((ch) => {
+          if (ch === "\n" || ch === "\t") return ch;
+          const cp = ch.codePointAt(0);
+          return cp !== undefined && canRender(cp) ? ch : "?";
+        })
+        .join("");
+
+    return { regular, bold, mono: regular, sanitize };
+  } catch {
+    // Fallback: standard fonts only encode WinAnsi. Transliterate what we can
+    // and replace anything else with "?" so drawText can never throw.
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const mono = await pdf.embedFont(StandardFonts.Courier);
+    const sanitize = (s: string): string =>
+      transliterate(s).replace(/[^\x20-\x7E\n\t]/g, "?");
+    return { regular, bold, mono, sanitize };
+  }
 }
 
 interface ExportPayload {
@@ -44,8 +102,16 @@ export async function exportClaimPack(payload: ExportPayload) {
     throw new Error("CLAIM_NOT_FOUND");
   }
 
+  // laytime_calculations has a UNIQUE(claim_id) constraint, so PostgREST embeds
+  // it as a single object (to-one), not an array. Normalize before sorting.
+  const rawCalcs = Array.isArray(claim.laytime_calculations)
+    ? claim.laytime_calculations
+    : claim.laytime_calculations
+      ? [claim.laytime_calculations]
+      : [];
+
   const sofEvents = (claim.sof_events || []).sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
-  const calculations = (claim.laytime_calculations || []).sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+  const calculations = rawCalcs.sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
   const company = claim.companies;
   const latestCalc = calculations[0];
 
@@ -148,11 +214,9 @@ async function generatePDF(
   clauseFlags: any[]
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const mono = await pdf.embedFont(StandardFonts.Courier);
+  const { regular: font, bold, mono, sanitize } = await loadPdfFonts(pdf);
 
-  const page = pdf.addPage([595.28, 841.89]); 
+  const page = pdf.addPage([595.28, 841.89]);
   const { width, height } = page.getSize();
   const margin = 40;
   let y = height - margin;
@@ -169,7 +233,7 @@ async function generatePDF(
     const sz = opts.size ?? 10;
     const col = opts.color ?? rgb(0.1, 0.1, 0.1);
     const indent = opts.indent ?? 0;
-    const safeText = sanitizeForPdf(text);
+    const safeText = sanitize(text);
     const maxWidth = width - margin * 2 - indent;
     const words = safeText.split(" ");
     let line = "";
@@ -294,7 +358,7 @@ async function generatePDF(
     }
   }
 
-  page.drawText(`Generated by LayGrounded — ${new Date().toISOString()}`, {
+  page.drawText(sanitize(`Generated by LayGrounded - ${new Date().toISOString()}`), {
     x: margin,
     y: 30,
     size: 8,

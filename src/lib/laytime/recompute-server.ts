@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
@@ -17,10 +18,15 @@ const CpTermsSchema = z.object({
 });
 
 export async function recomputeLaytimeServerFn(
-  claimId: string
+  claimId: string,
+  // Callers that run outside a user request (e.g. the demo seeder using the
+  // service-role client) must pass their own client — the default cookie-based
+  // RLS client has no authenticated user in that context and every query is
+  // blocked by row-level security.
+  client?: SupabaseClient
 ): Promise<LaytimeResult> {
-  const supabase = await createClient();
-  
+  const supabase = client ?? (await createClient());
+
   const { data: claim, error: claimErr } = await supabase
     .from("claims")
     .select("*")
@@ -55,10 +61,11 @@ export async function recomputeLaytimeServerFn(
 
   const result = recomputeLaytime(sofInputs, cpTerms);
 
-  // BL-1: Upsert instead of delete + insert
-  await supabase.from("laytime_calculations").upsert({
+  // BL-1: Upsert instead of delete + insert. The persisted calculation is the
+  // product's authoritative financial output, so a failed write must surface
+  // loudly rather than being swallowed and leaving stale/absent totals.
+  const { error: persistErr } = await supabase.from("laytime_calculations").upsert({
     claim_id: claimId,
-    inputs: { cpTerms, events: sofInputs },
     breakdown: result.breakdown,
     used_hours: result.totals.used_hours,
     allowed_hours: result.totals.allowed_hours,
@@ -66,17 +73,23 @@ export async function recomputeLaytimeServerFn(
     despatch_amount: result.totals.despatch_amount,
     currency: result.totals.currency,
   }, { onConflict: "claim_id" });
+  if (persistErr) {
+    throw new Error(`PERSIST_FAILED: ${persistErr.message}`);
+  }
 
   let newStatus = claim.status;
   if (result.totals.demurrage_amount > 0) newStatus = "demurrage";
   else if (result.totals.despatch_amount > 0) newStatus = "despatch";
   else if (events && events.length > 0) newStatus = "in_progress";
-  
+
   if (newStatus !== claim.status) {
-    await supabase
+    const { error: statusErr } = await supabase
       .from("claims")
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq("id", claimId);
+    if (statusErr) {
+      throw new Error(`STATUS_UPDATE_FAILED: ${statusErr.message}`);
+    }
   }
 
   return result;

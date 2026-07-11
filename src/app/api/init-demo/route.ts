@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { ensureDemoUser } from "@/lib/auth-helpers";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { seedScenarios } from "@/lib/seed-data";
-import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
+import { seedScenario } from "@/lib/seed-claims";
+import { apiError } from "@/lib/api-errors";
 
 export async function POST(req: Request) {
   const expectedSecret = process.env.INIT_DEMO_SECRET;
@@ -31,65 +32,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, alreadySeeded: true, demoEmail: user.email });
     }
 
+    let seeded = 0;
     for (const scenario of seedScenarios) {
-      const { data: claim } = await supabase
-        .from("claims")
-        .insert({
-          company_id: membership.company_id,
-          vessel: scenario.vessel,
-          voyage_ref: scenario.voyageRef,
-          port: scenario.port,
-          cargo: scenario.cargo,
-          cp_form: "GENCON94",
-          cp_terms: scenario.cpTerms,
-          created_by: user.id,
-          status: "draft",
-        })
-        .select("id")
-        .maybeSingle();
-
-      if (!claim) continue;
-
-      const { data: doc } = await supabase
-        .from("documents")
-        .insert({
-          claim_id: claim.id,
-          storage_path: `seed/${claim.id}`,
-          mime: "application/pdf",
-          extraction_status: "extracted",
-          page_count: 1,
-        })
-        .select("id")
-        .maybeSingle();
-
-      if (!doc) continue;
-
-      for (const ev of scenario.events) {
-        await supabase.from("sof_events").insert({
-          claim_id: claim.id,
-          document_id: doc.id,
-          occurred_at: new Date(ev.occurred_at).toISOString(),
-          event_type: ev.event_type,
-          raw_text: ev.verbatim,
-          page: ev.page,
-          bbox: ev.bbox,
-          confidence: ev.confidence,
-          source: "ai",
-          status: "accepted",
-          ai_reasoning: ev.reasoning,
-        });
-      }
-      try {
-        await recomputeLaytimeServerFn(claim.id);
-      } catch {}
+      const claimId = await seedScenario(supabase, {
+        companyId: membership.company_id,
+        userId: user.id,
+        scenario,
+      });
+      if (claimId) seeded += 1;
     }
     return NextResponse.json({
       ok: true,
-      seeded: seedScenarios.length,
+      seeded,
       demoEmail: user.email,
     });
-  } catch (e: any) {
-    console.error("[init-demo] failed:", e);
-    return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
+  } catch (e) {
+    return apiError(e, "init-demo/POST");
   }
 }

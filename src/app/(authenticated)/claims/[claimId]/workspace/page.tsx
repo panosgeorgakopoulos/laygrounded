@@ -26,12 +26,18 @@ interface ClaimData {
     port: string;
     cargo: string;
     cpForm: string;
-    cpTerms: string | null;
+    // Supabase serves jsonb columns as native objects; legacy rows or other
+    // callers may still hand back a stringified payload. Accept either.
+    cpTerms: CpTerms | string | null;
     status: string;
     updatedAt: string;
     documents: Array<{
       id: string;
       storagePath: string;
+      // Signed Supabase Storage URL, valid for 5 minutes; null if the
+      // underlying object doesn't exist (e.g. a seed/demo row with no
+      // real upload).
+      url: string | null;
       mime: string;
       originalFilename: string;
       extractionStatus: string;
@@ -39,7 +45,7 @@ interface ClaimData {
     }>;
     sofEvents: SofEvent[];
     calculations: Array<{
-      breakdown: string;
+      breakdown: LaytimeResult["breakdown"] | string;
       usedHours: number;
       allowedHours: number;
       demurrageAmount: number | null;
@@ -48,6 +54,27 @@ interface ClaimData {
     }>;
   };
   clauseFlags: ClauseFlag[];
+}
+
+/**
+ * Coerces a value that may arrive as native JSON (Supabase jsonb) or as a
+ * stringified payload into a typed object. Objects pass through untouched,
+ * strings are parsed, and anything malformed yields null instead of throwing —
+ * a bad value must never crash the workspace.
+ */
+function coerceJson<T>(value: unknown): T | null {
+  if (value == null) return null;
+  if (typeof value === "object") return value as T;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as T;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export default function WorkspacePage({
@@ -72,13 +99,13 @@ export default function WorkspacePage({
     if (!res.ok) return;
     const d: ClaimData = await res.json();
     setData(d);
-    const cp = d.claim.cpTerms ? JSON.parse(d.claim.cpTerms) : null;
+    const cp = coerceJson<CpTerms>(d.claim.cpTerms);
     setCpTerms(cp);
     setClauseFlags(d.clauseFlags);
     // Build result from latest calculation.
     if (d.claim.calculations[0]) {
       const calc = d.claim.calculations[0];
-      const breakdown = JSON.parse(calc.breakdown);
+      const breakdown = coerceJson<LaytimeResult["breakdown"]>(calc.breakdown) ?? [];
       setResult({
         breakdown,
         totals: {
@@ -284,7 +311,7 @@ export default function WorkspacePage({
   }
 
   const doc = data.claim.documents[0];
-  const docUrl = doc ? `/uploads/${doc.storagePath}` : null;
+  const docUrl = doc?.url ?? null;
   const extractionPending = doc?.extractionStatus === "extracting";
 
   return (
@@ -388,6 +415,7 @@ export default function WorkspacePage({
         <div className={styles.pane}>
           <DocumentViewer
             documentUrl={docUrl}
+            hasDocument={!!doc}
             mime={doc?.mime ?? null}
             extractionStatus={doc?.extractionStatus ?? "pending"}
             highlightedBbox={highlightedBbox}
@@ -432,6 +460,7 @@ export default function WorkspacePage({
         {activeTab === "document" && (
           <DocumentViewer
             documentUrl={docUrl}
+            hasDocument={!!doc}
             mime={doc?.mime ?? null}
             extractionStatus={doc?.extractionStatus ?? "pending"}
             highlightedBbox={highlightedBbox}

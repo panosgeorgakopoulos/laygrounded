@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { createClient } from "@/lib/supabase/server";
+import { apiError } from "@/lib/api-errors";
 
 export async function POST(
   _req: NextRequest,
@@ -24,9 +25,10 @@ export async function POST(
     const result = await recomputeLaytimeServerFn(claimId);
     return NextResponse.json({ result });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message },
-      { status: e instanceof Error && e.message === "NO_NOR" ? 400 : 500 }
-    );
+    // NO_NOR / CHRONOLOGY / INVALID_CP_TERMS are surfaced as safe client
+    // errors; PERSIST_FAILED and any other fault are masked as a generic 500.
+    return apiError(e, "recompute/POST", {
+      "CHRONOLOGY_ERROR: ALL_FAST cannot precede NOR_TENDERED": 400,
+    });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
+import { apiError } from "@/lib/api-errors";
 
 export async function GET(
   _req: NextRequest,
@@ -33,9 +34,7 @@ export async function GET(
       },
     });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "documents/GET");
   }
 }
 
@@ -69,6 +68,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return apiError(e, "documents/DELETE");
   }
 }

@@ -12,6 +12,10 @@ interface Bbox {
 
 interface DocumentViewerProps {
   documentUrl: string | null;
+  // Whether a document row exists at all, independent of documentUrl. A
+  // document can exist with no usable URL (signing failed, object deleted) —
+  // that must read as an error, not as "nothing uploaded yet".
+  hasDocument: boolean;
   mime: string | null;
   extractionStatus: string;
   highlightedBbox: Bbox | null;
@@ -22,6 +26,7 @@ interface DocumentViewerProps {
 
 export function DocumentViewer({
   documentUrl,
+  hasDocument,
   mime,
   extractionStatus,
   highlightedBbox,
@@ -32,22 +37,42 @@ export function DocumentViewer({
   const [dragover, setDragover] = useState(false);
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // For PDFs, render pages via pdfjs-dist (client-side).
   useEffect(() => {
-    if (!documentUrl) return;
+    setLoadError(null);
+    setPageImages([]);
+    if (!documentUrl) {
+      if (hasDocument) {
+        setLoadError("This document has no accessible file.");
+      }
+      return;
+    }
     if (mime === "application/pdf") {
       setLoading(true);
       (async () => {
         try {
+          // Fetch the PDF as bytes first — a signed URL can be null, expired,
+          // or point at a deleted object, and the server can answer with an
+          // HTML error page instead of a PDF. Validate before handing
+          // anything to pdf.js, which otherwise throws an opaque
+          // InvalidPDFException for all of these cases alike.
+          const res = await fetch(documentUrl);
+          if (!res.ok) {
+            throw new Error(`Document fetch failed (HTTP ${res.status})`);
+          }
+          const data = new Uint8Array(await res.arrayBuffer());
+          const header = String.fromCharCode(...data.slice(0, 5));
+          if (header !== "%PDF-") {
+            throw new Error("Response is not a valid PDF file");
+          }
+
           const pdfjs = await import("pdfjs-dist");
           // Use locally bundled worker (no CDN dependency).
           pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-          // Fetch the PDF as ArrayBuffer first to avoid worker transport issues.
-          const res = await fetch(documentUrl);
-          const data = new Uint8Array(await res.arrayBuffer());
           const loadingTask = pdfjs.getDocument({ data });
           const pdf = await loadingTask.promise;
           const pages: string[] = [];
@@ -64,6 +89,9 @@ export function DocumentViewer({
           setPageImages(pages);
         } catch (e) {
           console.error("PDF render error:", e);
+          setLoadError(
+            e instanceof Error ? e.message : "Unable to load this document"
+          );
         } finally {
           setLoading(false);
         }
@@ -71,7 +99,7 @@ export function DocumentViewer({
     } else {
       setPageImages([documentUrl]);
     }
-  }, [documentUrl, mime]);
+  }, [documentUrl, mime, hasDocument]);
 
   // Scroll to highlighted page.
   useEffect(() => {
@@ -83,7 +111,7 @@ export function DocumentViewer({
     }
   }, [highlightedPage, highlightedBbox]);
 
-  if (!documentUrl) {
+  if (!hasDocument) {
     return (
       <div className={styles.emptyState}>
         <div
@@ -143,6 +171,10 @@ export function DocumentViewer({
         {loading ? (
           <div className={`${styles.loadingText} tnum`}>
             RENDERING PAGES…
+          </div>
+        ) : loadError ? (
+          <div className={`${styles.loadingText} tnum`}>
+            UNABLE TO LOAD DOCUMENT — {loadError}
           </div>
         ) : (
           pageImages.map((src, idx) => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
+import { apiError } from "@/lib/api-errors";
 
 const InviteSchema = z.object({
   email: z.string().email(),
@@ -83,7 +84,8 @@ export async function POST(req: NextRequest) {
     const { data: invitedUser, error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email);
     
     if (inviteErr || !invitedUser?.user) {
-      return NextResponse.json({ error: inviteErr?.message || "Failed to invite user" }, { status: 500 });
+      console.error("[settings/members/POST] invite failed:", inviteErr);
+      return NextResponse.json({ error: "FAILED_TO_INVITE" }, { status: 500 });
     }
 
     await supabase.from("company_members").insert({
@@ -97,8 +99,7 @@ export async function POST(req: NextRequest) {
       pending: true 
     });
   } catch (e) {
-    const isAuth = e instanceof Error && e.message === "UNAUTHORIZED";
-    return NextResponse.json({ error: (e as Error).message }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "settings/members/POST");
   }
 }
 
@@ -146,7 +147,6 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const isAuth = e instanceof Error && e.message === "UNAUTHORIZED";
-    return NextResponse.json({ error: (e as Error).message }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "settings/members/DELETE");
   }
 }

@@ -1,3 +1,4 @@
+/// <reference types="bun-types" />
 // Table-driven unit tests for the GENCON 94 laytime engine.
 // Run with: bun test src/lib/laytime/gencon94.test.ts
 

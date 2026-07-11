@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
+import { apiError } from "@/lib/api-errors";
 
 const UpdateCompanySchema = z.object({
   name: z.string().min(1),
@@ -51,8 +52,7 @@ export async function GET() {
       members,
     });
   } catch (e) {
-    const isAuth = e instanceof Error && e.message === "UNAUTHORIZED";
-    return NextResponse.json({ error: (e as Error).message }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "settings/GET");
   }
 }
 
@@ -98,6 +98,6 @@ export async function PATCH(req: NextRequest) {
       }
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return apiError(e, "settings/PATCH");
   }
 }

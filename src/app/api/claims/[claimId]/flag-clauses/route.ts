@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/server-auth";
 import { flagClauses } from "@/lib/clause-flagging";
 import { CpTerms } from "@/lib/laytime/types";
 import { createClient } from "@/lib/supabase/server";
+import { apiError } from "@/lib/api-errors";
 
 export async function POST(
   _req: NextRequest,
@@ -38,6 +39,6 @@ export async function POST(
       })),
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return apiError(e, "flag-clauses/POST");
   }
 }

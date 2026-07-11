@@ -2,72 +2,38 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { seedScenarios } from "@/lib/seed-data";
-import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
+import { seedScenario } from "@/lib/seed-claims";
+import { apiError } from "@/lib/api-errors";
 
 export async function POST() {
   try {
     const auth = await requireAuth();
     const supabase = await createClient();
-    const created: string[] = [];
-    
-    for (const scenario of seedScenarios) {
-      const { data: claim } = await supabase
-        .from("claims")
-        .insert({
-          company_id: auth.companyId,
-          vessel: scenario.vessel,
-          voyage_ref: scenario.voyageRef,
-          port: scenario.port,
-          cargo: scenario.cargo,
-          cp_form: "GENCON94",
-          cp_terms: scenario.cpTerms,
-          created_by: auth.userId,
-          status: "draft",
-        })
-        .select("id")
-        .maybeSingle();
-        
-      if (!claim) continue;
 
-      const { data: doc } = await supabase
-        .from("documents")
-        .insert({
-          claim_id: claim.id,
-          storage_path: `seed/${claim.id}`,
-          mime: "application/pdf",
-          extraction_status: "extracted",
-          page_count: 1,
-        })
-        .select("id")
-        .maybeSingle();
-        
-      if (!doc) continue;
+    // Idempotency: never seed a company that already has claims, so repeated
+    // calls (double-click, retry) can't accumulate duplicate demo data.
+    const { count } = await supabase
+      .from("claims")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", auth.companyId);
 
-      for (const ev of scenario.events) {
-        await supabase.from("sof_events").insert({
-          claim_id: claim.id,
-          document_id: doc.id,
-          occurred_at: new Date(ev.occurred_at).toISOString(),
-          event_type: ev.event_type,
-          raw_text: ev.verbatim,
-          page: ev.page,
-          bbox: ev.bbox,
-          confidence: ev.confidence,
-          source: "ai",
-          status: "accepted",
-          ai_reasoning: ev.reasoning,
-        });
-      }
-
-      try {
-        await recomputeLaytimeServerFn(claim.id);
-      } catch (e) {
-        // ignore
-      }
-      created.push(claim.id);
+    if (count && count > 0) {
+      return NextResponse.json({ seeded: 0, alreadySeeded: true, claimIds: [] });
     }
+
+    const created: string[] = [];
+
+    for (const scenario of seedScenarios) {
+      const claimId = await seedScenario(supabase, {
+        companyId: auth.companyId,
+        userId: auth.userId,
+        scenario,
+      });
+      if (claimId) created.push(claimId);
+    }
+
     return NextResponse.json({ seeded: created.length, claimIds: created });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return apiError(e, "seed/POST");
   }
 }

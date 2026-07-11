@@ -16,6 +16,7 @@
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.1.1",
     "@mdxeditor/editor": "^3.39.1",
+    "@pdf-lib/fontkit": "^1.1.1",
     "@reactuses/core": "^6.0.5",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.1",

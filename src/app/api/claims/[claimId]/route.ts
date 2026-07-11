@@ -50,9 +50,18 @@ export async function GET(
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
 
+    // laytime_calculations has a UNIQUE(claim_id) constraint, so PostgREST
+    // embeds it as a single object (to-one), not an array. Normalize to an
+    // array so the sort/slice/map below behave consistently.
+    claim.laytime_calculations = Array.isArray(claim.laytime_calculations)
+      ? claim.laytime_calculations
+      : claim.laytime_calculations
+        ? [claim.laytime_calculations]
+        : [];
+
     claim.documents?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     claim.sof_events?.sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
-    claim.laytime_calculations?.sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+    claim.laytime_calculations.sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
 
     const eventIds = claim.sof_events?.map((e: any) => e.id) || [];
     let clauseFlags: any[] = [];
@@ -64,6 +73,29 @@ export async function GET(
       clauseFlags = flags || [];
     }
 
+    // Documents live in Supabase Storage, not as static files — the viewer
+    // needs a real signed URL, not a path it has to guess at. A document
+    // whose storage object no longer exists (e.g. seed/demo rows with no
+    // real upload) signs as null rather than failing the whole request.
+    const documentsWithUrls = await Promise.all(
+      (claim.documents || []).map(async (d: any) => {
+        const { data: signedUrlData } = await supabase.storage
+          .from("sofs")
+          .createSignedUrl(d.storage_path, 300);
+        return {
+          ...d,
+          claimId: d.claim_id,
+          storagePath: d.storage_path,
+          mimeType: d.mime,
+          pageCount: d.page_count,
+          extractionStatus: d.extraction_status,
+          createdAt: d.created_at,
+          originalFilename: d.originalFilename || d.storage_path,
+          url: signedUrlData?.signedUrl ?? null,
+        };
+      })
+    );
+
     const formattedClaim = {
       ...claim,
       companyId: claim.company_id,
@@ -74,16 +106,7 @@ export async function GET(
       createdAt: claim.created_at,
       updatedAt: claim.updated_at,
       company: claim.companies,
-      documents: claim.documents?.map((d: any) => ({
-        ...d,
-        claimId: d.claim_id,
-        storagePath: d.storage_path,
-        mimeType: d.mime,
-        pageCount: d.page_count,
-        extractionStatus: d.extraction_status,
-        createdAt: d.created_at,
-        originalFilename: d.originalFilename || d.storage_path, 
-      })),
+      documents: documentsWithUrls,
       sofEvents: claim.sof_events?.map((e: any) => ({
         ...e,
         claimId: e.claim_id,

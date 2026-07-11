@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
 import { fileTypeFromBuffer } from "file-type";
+import { apiError } from "@/lib/api-errors";
 
 export async function POST(
   req: NextRequest,
@@ -96,6 +97,6 @@ export async function POST(
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return apiError(e, "documents/POST");
   }
 }
