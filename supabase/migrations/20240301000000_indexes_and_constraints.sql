@@ -13,7 +13,7 @@ CREATE INDEX idx_laytime_calculations_claim_id ON public.laytime_calculations(cl
 -- DB-7: Check constraints for status and event_type
 ALTER TABLE public.claims 
 ADD CONSTRAINT check_claims_status 
-CHECK (status IN ('draft', 'processing', 'completed', 'failed'));
+CHECK (status IN ('draft', 'processing', 'completed', 'failed', 'demurrage', 'despatch', 'in_progress'));
 
 ALTER TABLE public.sof_events 
 ADD CONSTRAINT check_sof_events_event_type 

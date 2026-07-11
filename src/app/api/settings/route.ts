@@ -16,7 +16,7 @@ export async function GET() {
       .from("companies")
       .select("id, name, created_at")
       .eq("id", auth.companyId)
-      .single();
+      .maybeSingle();
 
     if (companyErr || !company) {
       return NextResponse.json({ error: "COMPANY_NOT_FOUND" }, { status: 404 });
@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest) {
       .select("role")
       .eq("company_id", auth.companyId)
       .eq("user_id", auth.userId)
-      .single();
+      .maybeSingle();
 
     if (!membership || membership.role !== "admin") {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest) {
       .update({ name: parsed.data.name })
       .eq("id", auth.companyId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
 

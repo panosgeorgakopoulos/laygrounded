@@ -22,7 +22,7 @@ export async function requireAuth(): Promise<AuthContext> {
       companies ( name )
     `)
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (memError || !membership) {
     throw new Error("NO_COMPANY");

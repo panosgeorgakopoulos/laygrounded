@@ -25,7 +25,7 @@ export async function recomputeLaytimeServerFn(
     .from("claims")
     .select("*")
     .eq("id", claimId)
-    .single();
+    .maybeSingle();
     
   if (claimErr || !claim) throw new Error("CLAIM_NOT_FOUND");
 

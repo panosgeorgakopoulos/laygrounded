@@ -22,7 +22,7 @@ const UpdateClaimSchema = z.object({
   port: z.string().min(1).optional(),
   cargo: z.string().min(1).optional(),
   cpTerms: CpTermsSchema.optional(),
-  status: z.enum(["draft", "processing", "completed", "failed"]).optional(),
+  status: z.enum(["draft", "processing", "completed", "failed", "demurrage", "despatch", "in_progress"]).optional(),
 });
 
 export async function GET(
@@ -44,7 +44,7 @@ export async function GET(
         companies (*)
       `)
       .eq("id", claimId)
-      .single();
+      .maybeSingle();
 
     if (error || !claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
@@ -135,7 +135,7 @@ export async function PATCH(
       .from("claims")
       .select("company_id")
       .eq("id", claimId)
-      .single();
+      .maybeSingle();
 
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
@@ -162,7 +162,7 @@ export async function PATCH(
       .update(data)
       .eq("id", claimId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     
