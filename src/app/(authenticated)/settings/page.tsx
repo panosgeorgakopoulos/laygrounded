@@ -62,7 +62,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (session?.user) {
-      setDisplayName(session.user.user_metadata?.display_name || "");
+      setDisplayName((session.user as any).user_metadata?.display_name || "");
     }
   }, [session]);
 
@@ -73,7 +73,7 @@ export default function SettingsPage() {
     setAccountMsg(null);
     try {
       const updates: any = {};
-      if (displayName !== session?.user?.user_metadata?.display_name) {
+      if (displayName !== (session?.user as any)?.user_metadata?.display_name) {
         updates.data = { display_name: displayName };
       }
       if (password) {
