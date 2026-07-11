@@ -35,7 +35,7 @@ export async function exportClaimPack(payload: ExportPayload) {
       companies (*),
       documents (*),
       sof_events (*),
-      calculations (*)
+      laytime_calculations (*)
     `)
     .eq("id", payload.claimId)
     .single();
@@ -45,7 +45,7 @@ export async function exportClaimPack(payload: ExportPayload) {
   }
 
   const sofEvents = (claim.sof_events || []).sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
-  const calculations = (claim.calculations || []).sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+  const calculations = (claim.laytime_calculations || []).sort((a: any, b: any) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
   const company = claim.companies;
   const latestCalc = calculations[0];
 
@@ -122,8 +122,8 @@ export async function exportClaimPack(payload: ExportPayload) {
     flagsObj
   );
 
-  const pdfName = `exports/${claim.id}/claim-${claim.id}-${Date.now()}.pdf`;
-  const xlsxName = `exports/${claim.id}/claim-${claim.id}-${Date.now()}.xlsx`;
+  const pdfName = `${payload.companyId}/exports/${claim.id}/claim-${claim.id}-${Date.now()}.pdf`;
+  const xlsxName = `${payload.companyId}/exports/${claim.id}/claim-${claim.id}-${Date.now()}.xlsx`;
 
   await supabase.storage.from("sofs").upload(pdfName, pdfBytes, { contentType: "application/pdf" });
   await supabase.storage.from("sofs").upload(xlsxName, xlsxBytes, { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });

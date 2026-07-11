@@ -73,20 +73,36 @@ function isExceptedHour(
 
 // Pre-compute intervals for O(n) checking
 type Interval = { start: Date; end: Date };
-function getActiveIntervals(events: SofEventInput[], type: EventTypeEnum, windowEnd: Date): Interval[] {
-  const matching = events
-    .filter((e) => e.event_type === type)
-    .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
-  
+
+// Pairs an explicit start/end event type (e.g. WEATHER_DELAY / WEATHER_DELAY_END)
+// into intervals, mirroring getHatchIntervals/getOperationsIntervals below. A
+// start with no matching end runs to windowEnd (conservative: we never assume
+// a delay ended just because some unrelated event happened to be logged next).
+// A stray end with no open start is ignored.
+function getPairedIntervals(
+  events: SofEventInput[],
+  startType: EventTypeEnum,
+  endType: EventTypeEnum,
+  windowEnd: Date
+): Interval[] {
   const intervals: Interval[] = [];
-  for (const ev of matching) {
-    const start = parseISO(ev.occurred_at);
-    const nextEvent = events
-      .map((e) => parseISO(e.occurred_at))
-      .filter((t) => t > start && t <= windowEnd)
-      .sort((a, b) => a.getTime() - b.getTime())[0];
-    const end = nextEvent ?? windowEnd;
-    intervals.push({ start, end });
+  let currentStart: Date | null = null;
+  const paired = events
+    .filter((e) => e.event_type === startType || e.event_type === endType)
+    .sort((a, b) => parseISO(a.occurred_at).getTime() - parseISO(b.occurred_at).getTime());
+
+  for (const ev of paired) {
+    if (ev.event_type === startType) {
+      if (!currentStart) currentStart = parseISO(ev.occurred_at);
+    } else if (ev.event_type === endType) {
+      if (currentStart) {
+        intervals.push({ start: currentStart, end: parseISO(ev.occurred_at) });
+        currentStart = null;
+      }
+    }
+  }
+  if (currentStart) {
+    intervals.push({ start: currentStart, end: windowEnd });
   }
   return intervals;
 }
@@ -199,8 +215,8 @@ export function recomputeLaytime(
   }
 
   // Precompute intervals
-  const weatherIntervals = getActiveIntervals(events, "WEATHER_DELAY", windowEnd);
-  const shiftingIntervals = getActiveIntervals(events, "SHIFTING", windowEnd);
+  const weatherIntervals = getPairedIntervals(events, "WEATHER_DELAY", "WEATHER_DELAY_END", windowEnd);
+  const shiftingIntervals = getPairedIntervals(events, "SHIFTING", "SHIFTING_END", windowEnd);
   const opsIntervals = getOperationsIntervals(events, windowEnd);
   const hatchIntervals = getHatchIntervals(events, windowEnd);
 

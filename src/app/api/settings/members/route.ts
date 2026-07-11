@@ -55,6 +55,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 });
       }
 
+      // This app only supports a single company per user (requireAuth() assumes
+      // exactly one company_members row). Adding a user who already belongs to
+      // a different company would give that user a second row and break their
+      // own requireAuth() lookup on every future request, locking them out.
+      const { data: otherMemberships } = await adminClient
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", userId);
+
+      if (otherMemberships && otherMemberships.length > 0) {
+        return NextResponse.json({ error: "USER_ALREADY_IN_ANOTHER_COMPANY" }, { status: 409 });
+      }
+
       await supabase.from("company_members").insert({
         company_id: auth.companyId,
         user_id: userId,

@@ -247,7 +247,7 @@ CREATE INDEX idx_sof_events_document_id ON public.sof_events(document_id);
 CREATE INDEX idx_laytime_calculations_claim_id ON public.laytime_calculations(claim_id);
 
 ALTER TABLE public.claims ADD CONSTRAINT check_claims_status CHECK (status IN ('draft', 'processing', 'completed', 'failed', 'demurrage', 'despatch', 'in_progress'));
-ALTER TABLE public.sof_events ADD CONSTRAINT check_sof_events_event_type CHECK (event_type IN ('NOR_TENDERED', 'ALL_FAST', 'HATCH_OPEN', 'HATCH_CLOSE', 'COMMENCED_LOADING', 'COMPLETED_LOADING', 'COMMENCED_DISCHARGE', 'COMPLETED_DISCHARGE', 'WEATHER_DELAY', 'SHIFTING', 'BERTHED', 'EXCEPTED_PERIOD_START', 'EXCEPTED_PERIOD_END'));
+ALTER TABLE public.sof_events ADD CONSTRAINT check_sof_events_event_type CHECK (event_type IN ('NOR_TENDERED', 'ALL_FAST', 'HATCH_OPEN', 'HATCH_CLOSE', 'COMMENCED_LOADING', 'COMPLETED_LOADING', 'COMMENCED_DISCHARGE', 'COMPLETED_DISCHARGE', 'WEATHER_DELAY', 'WEATHER_DELAY_END', 'SHIFTING', 'SHIFTING_END', 'BERTHED', 'EXCEPTED_PERIOD_START', 'EXCEPTED_PERIOD_END'));
 ALTER TABLE public.sof_events ADD CONSTRAINT check_sof_events_status CHECK (status IN ('suggested', 'pending', 'accepted', 'rejected', 'edited'));
 
 -- Demo Data Injection
@@ -269,10 +269,121 @@ values
 (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-01T14:00:00Z', 'ALL_FAST', 'Vessel all fast at berth 1400 hrs', 'accepted', 'All fast time', 1),
 (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-01T16:00:00Z', 'COMMENCED_DISCHARGE', 'Commenced discharge at 1600', 'accepted', 'Discharge start', 1),
 (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-02T10:00:00Z', 'WEATHER_DELAY', 'Rain delay from 1000', 'accepted', 'Rain delay start', 1),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-02T14:00:00Z', 'WEATHER_DELAY', 'Rain stopped at 1400', 'accepted', 'Rain delay end', 1),
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-02T14:00:00Z', 'WEATHER_DELAY_END', 'Rain stopped at 1400', 'accepted', 'Rain delay end', 1),
 (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', '55555555-5555-5555-5555-555555555555', '2024-03-06T12:00:00Z', 'COMPLETED_DISCHARGE', 'Completed discharge 1200 hrs', 'accepted', 'Discharge finish', 1);
 
 insert into public.laytime_calculations (claim_id, breakdown, allowed_hours, used_hours, demurrage_amount, despatch_amount, currency)
 values
 ('33333333-3333-3333-3333-333333333333', '[{"hour":"2024-03-01T16:00:00Z","status":"laytime","counts":true,"clause_ref":"GENCON94-6c","reasoning":"Laytime counting."}]'::jsonb, 72, 116, 27500.00, 0, 'USD')
 on conflict do nothing;
+
+-- Fix: "infinite recursion detected in policy for relation company_members" (42P17).
+-- See supabase/migrations/20260711000000_fix_company_members_rls_recursion.sql for the
+-- full explanation. Every policy above resolves company membership with an inline
+-- subquery against company_members, including company_members' own SELECT policy
+-- against itself — Postgres's RLS recursion guard aborts any query that reaches it.
+-- Moved the membership check into SECURITY DEFINER helpers (same pattern as
+-- get_user_id_by_email above), which bypass RLS for their own internal query.
+
+create or replace function public.current_user_company_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select company_id from public.company_members where user_id = auth.uid();
+$$;
+
+create or replace function public.is_company_member(target_company_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.company_members
+    where company_id = target_company_id and user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.user_owns_claim(target_claim_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.claims c
+    where c.id = target_claim_id and public.is_company_member(c.company_id)
+  );
+$$;
+
+create or replace function public.user_owns_event(target_event_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.sof_events e
+    where e.id = target_event_id and public.user_owns_claim(e.claim_id)
+  );
+$$;
+
+grant execute on function public.current_user_company_ids() to authenticated;
+grant execute on function public.is_company_member(uuid) to authenticated;
+grant execute on function public.user_owns_claim(uuid) to authenticated;
+grant execute on function public.user_owns_event(uuid) to authenticated;
+
+drop policy if exists "Users can view their own companies" on public.companies;
+create policy "Users can view their own companies"
+  on public.companies for select
+  using (public.is_company_member(id));
+
+drop policy if exists "Users can view members of their company" on public.company_members;
+create policy "Users can view members of their company"
+  on public.company_members for select
+  using (company_id in (select public.current_user_company_ids()));
+
+drop policy if exists "Users can perform all actions on claims of their company" on public.claims;
+create policy "Users can perform all actions on claims of their company"
+  on public.claims for all
+  using (public.is_company_member(company_id))
+  with check (public.is_company_member(company_id));
+
+drop policy if exists "Users can perform all actions on documents of their company claims" on public.documents;
+create policy "Users can perform all actions on documents of their company claims"
+  on public.documents for all
+  using (public.user_owns_claim(claim_id))
+  with check (public.user_owns_claim(claim_id));
+
+drop policy if exists "Users can perform all actions on sof_events of their company claims" on public.sof_events;
+create policy "Users can perform all actions on sof_events of their company claims"
+  on public.sof_events for all
+  using (public.user_owns_claim(claim_id))
+  with check (public.user_owns_claim(claim_id));
+
+drop policy if exists "Users can perform all actions on clause_flags of their company claims" on public.clause_flags;
+create policy "Users can perform all actions on clause_flags of their company claims"
+  on public.clause_flags for all
+  using (public.user_owns_event(event_id))
+  with check (public.user_owns_event(event_id));
+
+drop policy if exists "Users can perform all actions on laytime_calculations of their company claims" on public.laytime_calculations;
+create policy "Users can perform all actions on laytime_calculations of their company claims"
+  on public.laytime_calculations for all
+  using (public.user_owns_claim(claim_id))
+  with check (public.user_owns_claim(claim_id));
+
+drop policy if exists "Users can only access their company's files" on storage.objects;
+create policy "Users can only access their company's files"
+  on storage.objects for all
+  using (
+    bucket_id = 'sofs'
+    and auth.role() = 'authenticated'
+    and public.is_company_member(((storage.foldername(name))[1])::uuid)
+  );

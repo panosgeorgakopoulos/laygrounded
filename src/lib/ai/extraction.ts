@@ -53,11 +53,20 @@ Map every SoF entry to ONE of these canonical event types ONLY:
 - COMPLETED_LOADING (loading completed)
 - COMMENCED_DISCHARGE (discharge commenced)
 - COMPLETED_DISCHARGE (discharge completed)
-- WEATHER_DELAY (weather preventing work)
-- SHIFTING (vessel shifting berth/anchorage)
+- WEATHER_DELAY (weather preventing work starts)
+- WEATHER_DELAY_END (weather preventing work ends / work resumes)
+- SHIFTING (vessel begins shifting berth/anchorage)
+- SHIFTING_END (vessel finishes shifting, made fast again)
 - BERTHED (vessel berthed)
 - EXCEPTED_PERIOD_START (Sunday/holiday start)
 - EXCEPTED_PERIOD_END (Sunday/holiday end)
+
+WEATHER_DELAY and SHIFTING are period events, exactly like HATCH_OPEN/HATCH_CLOSE:
+every WEATHER_DELAY must be paired with a later WEATHER_DELAY_END, and every
+SHIFTING with a later SHIFTING_END. Only emit a bare WEATHER_DELAY or SHIFTING
+with no matching end event if the document truly never states when the delay
+or shift ended — do not infer an end time from some other unrelated event
+that merely happens to occur afterward.
 
 For every event, include:
 - occurred_at: ISO 8601 timestamp with timezone offset

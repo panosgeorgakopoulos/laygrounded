@@ -3,15 +3,12 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
-COPY prisma ./prisma
 RUN bun install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# We don't have db connection at build time to run generate, but Prisma client needs to be generated.
-# Prisma is generated during bun install in deps, so it's fine.
 # Run Next.js build
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
@@ -22,9 +19,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create non-root user (Debian base image: groupadd/useradd, not Alpine's addgroup/adduser)
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 --gid 1001 --no-create-home nextjs
 
 # Copy static assets and optimized images
 COPY --from=builder /app/public ./public

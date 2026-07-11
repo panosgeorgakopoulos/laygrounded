@@ -1,0 +1,30 @@
+# Version control (history contains a previously-committed .env — never ship it)
+.git
+.gitignore
+
+# Env files — must be injected at deploy time, never baked into the image
+.env
+.env.*
+!.env.example
+
+# Dependencies (reinstalled in the deps stage)
+node_modules
+
+# Build output
+.next
+out
+build
+
+# Local debug/scratch scripts — not part of the application
+call_init.ts
+fix_demo_db.ts
+test_create_user.ts
+test_demo2.ts
+test_demo_login.ts
+verify_demo.ts
+*.log
+
+# Editor/OS cruft
+.DS_Store
+.vscode
+.idea

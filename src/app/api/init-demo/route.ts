@@ -5,6 +5,10 @@ import { seedScenarios } from "@/lib/seed-data";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 
 export async function POST(req: Request) {
+  const expectedSecret = process.env.INIT_DEMO_SECRET;
+  if (!expectedSecret || req.headers.get("x-init-secret") !== expectedSecret) {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
   try {
     const supabase = createServiceRoleClient();
     const user = await ensureDemoUser();
@@ -85,6 +89,7 @@ export async function POST(req: Request) {
       demoEmail: user.email,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || String(e), stack: e.stack }, { status: 500 });
+    console.error("[init-demo] failed:", e);
+    return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
   }
 }

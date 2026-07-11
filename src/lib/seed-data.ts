@@ -233,6 +233,15 @@ export const seedScenarios: SeedScenario[] = [
       },
       {
         occurred_at: "2024-03-05T14:00:00Z",
+        event_type: "WEATHER_DELAY_END",
+        verbatim: "Rain stopped, loading resumed 14:00 LT.",
+        page: 1,
+        bbox: bbox(0.58),
+        confidence: 0.85,
+        reasoning: "Explicit end of weather delay window — bounds the excluded period.",
+      },
+      {
+        occurred_at: "2024-03-05T14:00:00Z",
         event_type: "COMMENCED_LOADING",
         verbatim: "Loading resumed 14:00 LT after rain.",
         page: 1,

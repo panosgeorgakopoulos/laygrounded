@@ -147,8 +147,9 @@ const fixtures: Fixture[] = [
       { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
       { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "COMMENCED_LOADING" },
       { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "WEATHER_DELAY" },
-      { id: "4", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
-      { id: "5", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+      { id: "4", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "WEATHER_DELAY_END" },
+      { id: "5", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "6", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
     ],
     cpTerms: {
       laytime_allowed_hours: 4,
@@ -224,10 +225,11 @@ const fixtures: Fixture[] = [
     events: [
       { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
       { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "SHIFTING" },
-      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
-      { id: "4", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "HATCH_OPEN" },
-      { id: "5", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
-      { id: "6", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "SHIFTING_END" },
+      { id: "4", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
+      { id: "5", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "HATCH_OPEN" },
+      { id: "6", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "7", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
     ],
     cpTerms: {
       // Laytime commences 14:00. 14:00→16:00 shift counts (WIBON, used 2).
@@ -292,10 +294,11 @@ const fixtures: Fixture[] = [
     events: [
       { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
       { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "SHIFTING" },
-      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
-      { id: "4", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "HATCH_OPEN" },
-      { id: "5", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
-      { id: "6", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "SHIFTING_END" },
+      { id: "4", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
+      { id: "5", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "HATCH_OPEN" },
+      { id: "6", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "7", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
     ],
     cpTerms: {
       laytime_allowed_hours: 12,
@@ -448,6 +451,214 @@ const fixtures: Fixture[] = [
         time_saved_hours: 16,
         demurrage_amount: 0,
         despatch_amount: 8333.33,
+        currency: "USD",
+      },
+    },
+  },
+  // 7. Weather delay with an explicit end, and an unrelated event logged
+  //    mid-delay. Regression test for the bug where the engine used to treat
+  //    "whatever event happens next" as the end of the delay — the BERTHED
+  //    event at 17:00 must NOT cut the delay short; only WEATHER_DELAY_END does.
+  {
+    name: "weather-delay-not-cut-short-by-unrelated-event",
+    description:
+      "Weather delay 16:00-20:00 (explicit end). An unrelated BERTHED event fires at 17:00 mid-delay and must not end it early.",
+    events: [
+      { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
+      { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "WEATHER_DELAY" },
+      { id: "4", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "BERTHED" },
+      { id: "5", occurred_at: iso("2024-03-04T20:00:00Z"), event_type: "WEATHER_DELAY_END" },
+      { id: "6", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+    ],
+    cpTerms: {
+      laytime_allowed_hours: 4,
+      turn_time_hours: 6,
+      nor_variant: "WIBON",
+      days_basis: "WWDSHEX-EIU",
+      demurrage_rate: 24000,
+      despatch_rate: 12000,
+      currency: "USD",
+    },
+    expected: {
+      // 14:00-16:00 laytime (2h, used 2)
+      // 16:00-20:00 weather_delay, excluded (BERTHED@17:00 does not end it)
+      // 20:00-22:00 laytime (2h, used 4) -> allowed exhausted
+      // 22:00 -> next-day 08:00 demurrage (10h, used 14)
+      breakdown: [
+        {
+          start_time: iso("2024-03-04T14:00:00Z"),
+          end_time: iso("2024-03-04T16:00:00Z"),
+          duration_hours: 2,
+          status: "laytime",
+          counts: true,
+          clause_ref: "GENCON94-6",
+          reasoning: "Laytime counting.",
+        },
+        {
+          start_time: iso("2024-03-04T16:00:00Z"),
+          end_time: iso("2024-03-04T20:00:00Z"),
+          duration_hours: 4,
+          status: "weather_delay",
+          counts: false,
+          clause_ref: "GENCON94-6c",
+          reasoning: "Weather working day excluded — weather delays excluded from laytime.",
+        },
+        {
+          start_time: iso("2024-03-04T20:00:00Z"),
+          end_time: iso("2024-03-04T22:00:00Z"),
+          duration_hours: 2,
+          status: "laytime",
+          counts: true,
+          clause_ref: "GENCON94-6",
+          reasoning: "Laytime counting.",
+        },
+        {
+          start_time: iso("2024-03-04T22:00:00Z"),
+          end_time: iso("2024-03-05T08:00:00Z"),
+          duration_hours: 10,
+          status: "demurrage",
+          counts: true,
+          clause_ref: "GENCON94-8",
+          reasoning:
+            "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting.",
+        },
+      ],
+      totals: {
+        allowed_hours: 4,
+        used_hours: 14,
+        time_on_demurrage_hours: 10,
+        time_saved_hours: 0,
+        demurrage_amount: 10000.00,
+        despatch_amount: 0,
+        currency: "USD",
+      },
+    },
+  },
+
+  // 8. Weather delay with NO end event at all: must conservatively run to
+  //    windowEnd, not stop at the next unrelated event (the old bug's behavior).
+  {
+    name: "weather-delay-no-end-runs-to-window-end",
+    description:
+      "Weather delay logged with no WEATHER_DELAY_END. An unrelated BERTHED event follows an hour later but must not be treated as the delay's end — the delay must run all the way to the end of the operation.",
+    events: [
+      { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
+      { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "WEATHER_DELAY" },
+      { id: "4", occurred_at: iso("2024-03-04T17:00:00Z"), event_type: "BERTHED" },
+      { id: "5", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+    ],
+    cpTerms: {
+      laytime_allowed_hours: 4,
+      turn_time_hours: 6,
+      nor_variant: "WIBON",
+      days_basis: "WWDSHEX-EIU",
+      demurrage_rate: 24000,
+      despatch_rate: 12000,
+      currency: "USD",
+    },
+    expected: {
+      // 14:00-16:00 laytime (2h, used 2)
+      // 16:00 -> completion: weather delay, unresolved, excluded for the rest
+      // of the operation. Never reaches the 4h allowance, so despatch applies.
+      breakdown: [
+        {
+          start_time: iso("2024-03-04T14:00:00Z"),
+          end_time: iso("2024-03-04T16:00:00Z"),
+          duration_hours: 2,
+          status: "laytime",
+          counts: true,
+          clause_ref: "GENCON94-6",
+          reasoning: "Laytime counting.",
+        },
+        {
+          start_time: iso("2024-03-04T16:00:00Z"),
+          end_time: iso("2024-03-05T08:00:00Z"),
+          duration_hours: 16,
+          status: "weather_delay",
+          counts: false,
+          clause_ref: "GENCON94-6c",
+          reasoning: "Weather working day excluded — weather delays excluded from laytime.",
+        },
+      ],
+      totals: {
+        allowed_hours: 4,
+        used_hours: 2,
+        time_on_demurrage_hours: 0,
+        time_saved_hours: 2,
+        demurrage_amount: 0,
+        despatch_amount: 1000.00,
+        currency: "USD",
+      },
+    },
+  },
+
+  // 9. Shifting with an explicit end, plus an unrelated HATCH_OPEN logged
+  //    mid-shift (dangling, no HATCH_CLOSE) that must not interfere.
+  {
+    name: "shifting-paired-with-end-ignores-unrelated-event",
+    description:
+      "WIPON: shifting 14:00-16:00 with explicit SHIFTING_END. A HATCH_OPEN at 15:00 (never closed) must not affect the shifting window or the laytime count.",
+    events: [
+      { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
+      { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "SHIFTING" },
+      { id: "3", occurred_at: iso("2024-03-04T15:00:00Z"), event_type: "HATCH_OPEN" },
+      { id: "4", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "SHIFTING_END" },
+      { id: "5", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
+      { id: "6", occurred_at: iso("2024-03-04T18:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "7", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+    ],
+    cpTerms: {
+      laytime_allowed_hours: 12,
+      turn_time_hours: 6,
+      nor_variant: "WIPON",
+      days_basis: "SHINC",
+      demurrage_rate: 24000,
+      despatch_rate: 12000,
+      currency: "USD",
+    },
+    expected: {
+      // 14:00-16:00 shifting excluded (WIPON, 2h)
+      // 16:00 -> next-day 04:00 laytime (12h, used 12)
+      // 04:00 -> 08:00 demurrage (4h, used 16)
+      breakdown: [
+        {
+          start_time: iso("2024-03-04T14:00:00Z"),
+          end_time: iso("2024-03-04T16:00:00Z"),
+          duration_hours: 2,
+          status: "shifting",
+          counts: false,
+          clause_ref: "GENCON94-6c",
+          reasoning: "Non-WIBON: shifting does not count as laytime.",
+        },
+        {
+          start_time: iso("2024-03-04T16:00:00Z"),
+          end_time: iso("2024-03-05T04:00:00Z"),
+          duration_hours: 12,
+          status: "laytime",
+          counts: true,
+          clause_ref: "GENCON94-6",
+          reasoning: "Laytime counting.",
+        },
+        {
+          start_time: iso("2024-03-05T04:00:00Z"),
+          end_time: iso("2024-03-05T08:00:00Z"),
+          duration_hours: 4,
+          status: "demurrage",
+          counts: true,
+          clause_ref: "GENCON94-8",
+          reasoning:
+            "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting.",
+        },
+      ],
+      totals: {
+        allowed_hours: 12,
+        used_hours: 16,
+        time_on_demurrage_hours: 4,
+        time_saved_hours: 0,
+        demurrage_amount: 4000.00,
+        despatch_amount: 0,
         currency: "USD",
       },
     },
