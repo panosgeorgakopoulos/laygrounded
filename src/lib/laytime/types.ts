@@ -20,7 +20,12 @@ export type EventTypeEnum =
 export type NorVariant = "WIBON" | "WIPON" | "WICCON" | "WIFPON";
 export type DaysBasis = "SHINC" | "SHEX" | "SHEX-UU" | "WWDSHEX-EIU" | "SSHEX" | "SSHEX-UU" | "WWDSSHEX-EIU";
 
+// Charterparty form the engine applies. GENCON94 = dry bulk (default);
+// ASBATANKVOY = tanker running-hours regime (Part II Clauses 6–8).
+export type CpForm = "GENCON94" | "ASBATANKVOY";
+
 export interface CpTerms {
+  cp_form?: CpForm; // absent = GENCON94 (legacy rows predate the field)
   laytime_allowed_hours: number;
   load_rate?: number;
   discharge_rate?: number;
@@ -61,6 +66,9 @@ export interface CalculationTotals {
   used_hours: number;
   time_on_demurrage_hours: number;
   time_saved_hours: number;
+  // ASBATANKVOY only: demurrage hours billed at half rate under Part II
+  // Clause 8 (storm/weather while on demurrage). Absent for GENCON 94.
+  demurrage_half_rate_hours?: number;
   demurrage_amount: number;
   despatch_amount: number;
   currency: string;
@@ -92,6 +100,7 @@ export const EVENT_TYPE_VALUES: EventTypeEnum[] = [
 
 export const NOR_VARIANTS: NorVariant[] = ["WIBON", "WIPON", "WICCON", "WIFPON"];
 export const DAYS_BASES: DaysBasis[] = ["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU", "SSHEX", "SSHEX-UU", "WWDSSHEX-EIU"];
+export const CP_FORMS: CpForm[] = ["GENCON94", "ASBATANKVOY"];
 
 // === Default CP terms for new claims ===
 export const DEFAULT_CP_TERMS: CpTerms = {

@@ -1,0 +1,99 @@
+{
+  "id": "timebar-ok-0008",
+  "archetype": "timebar-ok",
+  "seed": 3825060366,
+  "description": "Time-bar countdown in the \"ok\" band (60-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "MISTRAL WIND",
+    "voyageRef": "V25-098",
+    "port": "Newcastle",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 15,
+    "load_rate": 10000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 18000,
+    "despatch_rate": 9000,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-11-19T21:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-11-20T02:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-11-20T03:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-11-20T04:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-11-22T12:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-11-20T03:00:00.000Z",
+          "end_time": "2023-11-20T18:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-11-20T18:00:00.000Z",
+          "end_time": "2023-11-22T12:00:00.000Z",
+          "duration_hours": 42,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 15,
+        "used_hours": 57,
+        "time_on_demurrage_hours": 42,
+        "time_saved_hours": 0,
+        "demurrage_amount": 31500,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2023-11-04T00:00:00.000Z",
+    "timeBarDays": 60,
+    "expected": {
+      "state": "ok",
+      "deadline": "2024-01-21T12:00:00.000Z",
+      "daysRemaining": 78
+    }
+  }
+}

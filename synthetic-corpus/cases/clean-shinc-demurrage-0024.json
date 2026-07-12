@@ -1,0 +1,84 @@
+{
+  "id": "clean-shinc-demurrage-0024",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 2515538711,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V25-653",
+    "port": "Richards Bay",
+    "cargo": "Soybeans",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 25,
+    "load_rate": 10000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 39500,
+    "despatch_rate": 19750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-03-20T08:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-03-20T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-03-20T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-03-24T18:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-03-20T14:00:00.000Z",
+          "end_time": "2024-03-21T15:00:00.000Z",
+          "duration_hours": 25,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-21T15:00:00.000Z",
+          "end_time": "2024-03-24T18:00:00.000Z",
+          "duration_hours": 75,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 25,
+        "used_hours": 100,
+        "time_on_demurrage_hours": 75,
+        "time_saved_hours": 0,
+        "demurrage_amount": 123437.5,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

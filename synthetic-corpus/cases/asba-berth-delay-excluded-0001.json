@@ -1,0 +1,98 @@
+{
+  "id": "asba-berth-delay-excluded-0001",
+  "archetype": "asba-berth-delay-excluded",
+  "seed": 2681098278,
+  "description": "ASBATANKVOY Cl.6: delay getting into berth after NOR does not count as used laytime, regardless of NOR variant.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V24-604",
+    "port": "Houston",
+    "cargo": "Crude oil",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 37,
+    "load_rate": 9000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 21000,
+    "despatch_rate": 10500,
+    "currency": "EUR",
+    "port_timezone": "America/Chicago",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-09-01T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-09-01T19:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-09-01T22:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-09-01T22:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-09-01T23:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-09-03T04:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-09-01T19:00:00.000Z",
+          "end_time": "2024-09-01T22:00:00.000Z",
+          "duration_hours": 3,
+          "status": "shifting",
+          "counts": false,
+          "clause_ref": "ASBA-II-6",
+          "reasoning": "Delay getting into berth after NOR, beyond Charterer's control — does not count as used laytime."
+        },
+        {
+          "start_time": "2024-09-01T22:00:00.000Z",
+          "end_time": "2024-09-03T04:00:00.000Z",
+          "duration_hours": 30,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 37,
+        "used_hours": 30,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 7,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 0,
+        "despatch_amount": 3062.5,
+        "currency": "EUR"
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "error-no-nor-0003",
+  "archetype": "error-no-nor",
+  "seed": 3373308066,
+  "description": "SoF with no NOR: the engine must refuse with NO_NOR, never guess a commencement.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V24-587",
+    "port": "Santos",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 52,
+    "load_rate": 11000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 20500,
+    "despatch_rate": 10250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-08-16T18:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-08-19T03:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "error": "NO_NOR"
+  }
+}

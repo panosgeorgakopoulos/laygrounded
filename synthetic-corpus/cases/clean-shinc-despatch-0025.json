@@ -1,0 +1,93 @@
+{
+  "id": "clean-shinc-despatch-0025",
+  "archetype": "clean-shinc-despatch",
+  "seed": 104492510,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V24-865",
+    "port": "Richards Bay",
+    "cargo": "Steam coal",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 172,
+    "load_rate": 4000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 35500,
+    "despatch_rate": 17750,
+    "currency": "EUR",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-02-20T04:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-02-20T09:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-02-20T12:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-02-25T05:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-02-20T10:30:00.000Z",
+          "end_time": "2025-02-22T22:30:00.000Z",
+          "duration_hours": 60,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-02-22T22:30:00.000Z",
+          "end_time": "2025-02-23T22:30:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2025-02-23T22:30:00.000Z",
+          "end_time": "2025-02-25T05:30:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 172,
+        "used_hours": 115,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 57,
+        "demurrage_amount": 0,
+        "despatch_amount": 42156.25,
+        "currency": "EUR"
+      }
+    }
+  }
+}

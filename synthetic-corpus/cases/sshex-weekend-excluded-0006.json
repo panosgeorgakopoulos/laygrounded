@@ -1,0 +1,93 @@
+{
+  "id": "sshex-weekend-excluded-0006",
+  "archetype": "sshex-weekend-excluded",
+  "seed": 3989601875,
+  "description": "SSHEX: Saturdays and Sundays excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V25-619",
+    "port": "Houston",
+    "cargo": "Soybeans",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 88,
+    "load_rate": 6000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX",
+    "demurrage_rate": 36000,
+    "despatch_rate": 18000,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-10-10T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-10-10T15:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-10-10T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-10-13T23:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-10-10T19:00:00.000Z",
+          "end_time": "2025-10-11T05:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-10-11T05:00:00.000Z",
+          "end_time": "2025-10-13T05:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-10-13T05:00:00.000Z",
+          "end_time": "2025-10-13T23:00:00.000Z",
+          "duration_hours": 18,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 88,
+        "used_hours": 28,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 60,
+        "demurrage_amount": 0,
+        "despatch_amount": 45000,
+        "currency": "USD"
+      }
+    }
+  }
+}

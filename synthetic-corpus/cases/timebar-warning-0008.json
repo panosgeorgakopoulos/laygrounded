@@ -1,0 +1,108 @@
+{
+  "id": "timebar-warning-0008",
+  "archetype": "timebar-warning",
+  "seed": 3238385464,
+  "description": "Time-bar countdown in the \"warning\" band (90-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "NORTHERN LIGHT",
+    "voyageRef": "V23-841",
+    "port": "Santos",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 139,
+    "load_rate": 12000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 25000,
+    "despatch_rate": 12500,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-01-23T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-01-23T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-01-23T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-01-23T15:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-01-28T01:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-01-23T17:00:00.000Z",
+          "end_time": "2026-01-25T03:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-01-25T03:00:00.000Z",
+          "end_time": "2026-01-26T03:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2026-01-26T03:00:00.000Z",
+          "end_time": "2026-01-28T01:00:00.000Z",
+          "duration_hours": 46,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 139,
+        "used_hours": 104,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 35,
+        "demurrage_amount": 0,
+        "despatch_amount": 18229.17,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2026-04-11T13:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "warning",
+      "deadline": "2026-04-28T01:00:00.000Z",
+      "daysRemaining": 16
+    }
+  }
+}

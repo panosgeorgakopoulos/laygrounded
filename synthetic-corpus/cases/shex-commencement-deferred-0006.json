@@ -1,0 +1,75 @@
+{
+  "id": "shex-commencement-deferred-0006",
+  "archetype": "shex-commencement-deferred",
+  "seed": 1173654097,
+  "description": "NOR late Saturday under SHEX: nominal commencement falls on Sunday and must be deferred off the excepted day.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V25-644",
+    "port": "Santos",
+    "cargo": "Bauxite",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 29,
+    "load_rate": 7000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 18500,
+    "despatch_rate": 9250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-03-23T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-03-23T03:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-03-23T04:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-03-24T23:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-03-24T03:00:00.000Z",
+          "end_time": "2025-03-24T23:00:00.000Z",
+          "duration_hours": 20,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 29,
+        "used_hours": 20,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 9,
+        "demurrage_amount": 0,
+        "despatch_amount": 3468.75,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
 import { z } from "zod";
 
 const CpTermsSchema = z.object({
+  cp_form: z.enum(["GENCON94", "ASBATANKVOY"]).optional(),
   laytime_allowed_hours: z.number().min(0),
   load_rate: z.number().min(0).optional(),
   discharge_rate: z.number().min(0).optional(),
@@ -17,14 +18,13 @@ const CpTermsSchema = z.object({
   port_timezone: z.string().optional()
 });
 
-export async function recomputeLaytimeServerFn(
+// Loads everything the engine needs for a claim: the row itself, validated CP
+// terms, and the confirmed (accepted/edited) events as engine inputs. Shared
+// by recompute, the claim-room diff, and clause P&L counterfactuals.
+export async function loadClaimComputationInputs(
   claimId: string,
-  // Callers that run outside a user request (e.g. the demo seeder using the
-  // service-role client) must pass their own client — the default cookie-based
-  // RLS client has no authenticated user in that context and every query is
-  // blocked by row-level security.
   client?: SupabaseClient
-): Promise<LaytimeResult> {
+): Promise<{ claim: any; cpTerms: CpTerms; sofInputs: SofEventInput[] }> {
   const supabase = client ?? (await createClient());
 
   const { data: claim, error: claimErr } = await supabase
@@ -32,7 +32,7 @@ export async function recomputeLaytimeServerFn(
     .select("*")
     .eq("id", claimId)
     .maybeSingle();
-    
+
   if (claimErr || !claim) throw new Error("CLAIM_NOT_FOUND");
 
   const parsedCpTerms = CpTermsSchema.safeParse(claim.cp_terms);
@@ -51,6 +51,20 @@ export async function recomputeLaytimeServerFn(
     occurred_at: e.occurred_at,
     event_type: e.event_type as any,
   }));
+
+  return { claim, cpTerms, sofInputs };
+}
+
+export async function recomputeLaytimeServerFn(
+  claimId: string,
+  // Callers that run outside a user request (e.g. the demo seeder using the
+  // service-role client) must pass their own client — the default cookie-based
+  // RLS client has no authenticated user in that context and every query is
+  // blocked by row-level security.
+  client?: SupabaseClient
+): Promise<LaytimeResult> {
+  const supabase = client ?? (await createClient());
+  const { claim, cpTerms, sofInputs } = await loadClaimComputationInputs(claimId, supabase);
 
   // DEM-8: Validate chronological order of critical events
   const nor = sofInputs.find(e => e.event_type === "NOR_TENDERED");
@@ -80,7 +94,7 @@ export async function recomputeLaytimeServerFn(
   let newStatus = claim.status;
   if (result.totals.demurrage_amount > 0) newStatus = "demurrage";
   else if (result.totals.despatch_amount > 0) newStatus = "despatch";
-  else if (events && events.length > 0) newStatus = "in_progress";
+  else if (sofInputs.length > 0) newStatus = "in_progress";
 
   if (newStatus !== claim.status) {
     const { error: statusErr } = await supabase

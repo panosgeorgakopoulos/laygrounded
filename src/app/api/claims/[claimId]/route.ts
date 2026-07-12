@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
+import { computeTimeBar } from "@/lib/time-bar";
 
 const CpTermsSchema = z.object({
+  cp_form: z.enum(["GENCON94", "ASBATANKVOY"]).optional(),
   laytime_allowed_hours: z.number().min(0),
   load_rate: z.number().min(0).optional(),
   discharge_rate: z.number().min(0).optional(),
@@ -23,6 +25,15 @@ const UpdateClaimSchema = z.object({
   cargo: z.string().min(1).optional(),
   cpTerms: CpTermsSchema.optional(),
   status: z.enum(["draft", "processing", "completed", "failed", "demurrage", "despatch", "in_progress"]).optional(),
+  timeBarDays: z.number().int().min(1).max(365).optional(),
+  // Settlement recording: what the claim actually closed at. Null clears a
+  // mistaken entry.
+  settledAmount: z.number().min(0).nullable().optional(),
+  settledAt: z
+    .string()
+    .refine((s) => !isNaN(new Date(s).getTime()), "Invalid datetime")
+    .nullable()
+    .optional(),
 });
 
 export async function GET(
@@ -96,6 +107,20 @@ export async function GET(
       })
     );
 
+    const confirmedEvents = (claim.sof_events || []).filter(
+      (e: any) => e.status === "accepted" || e.status === "edited"
+    );
+    const timeBar = computeTimeBar({
+      timeBarDays: claim.time_bar_days ?? 90,
+      events: confirmedEvents.map((e: any) => ({
+        event_type: e.event_type,
+        occurred_at: e.occurred_at,
+      })),
+      hasSofDocument: (claim.documents || []).some((d: any) => d.mime !== "manual"),
+      hasValidCpTerms: CpTermsSchema.safeParse(claim.cp_terms).success,
+      hasCalculation: claim.laytime_calculations.length > 0,
+    });
+
     const formattedClaim = {
       ...claim,
       companyId: claim.company_id,
@@ -105,6 +130,10 @@ export async function GET(
       createdBy: claim.created_by,
       createdAt: claim.created_at,
       updatedAt: claim.updated_at,
+      timeBarDays: claim.time_bar_days ?? 90,
+      settledAmount: claim.settled_amount ?? null,
+      settledAt: claim.settled_at ?? null,
+      timeBar,
       company: claim.companies,
       documents: documentsWithUrls,
       sofEvents: claim.sof_events?.map((e: any) => ({
@@ -178,7 +207,19 @@ export async function PATCH(
     if (parsed.data.port) data.port = parsed.data.port;
     if (parsed.data.cargo) data.cargo = parsed.data.cargo;
     if (parsed.data.status) data.status = parsed.data.status;
-    if (parsed.data.cpTerms) data.cp_terms = parsed.data.cpTerms;
+    if (parsed.data.cpTerms) {
+      data.cp_terms = parsed.data.cpTerms;
+      // Keep the top-level column in sync with the terms — dashboards and
+      // analytics filter on it without unpacking the jsonb.
+      data.cp_form = parsed.data.cpTerms.cp_form ?? "GENCON94";
+    }
+    if (parsed.data.timeBarDays !== undefined) data.time_bar_days = parsed.data.timeBarDays;
+    if (parsed.data.settledAmount !== undefined) data.settled_amount = parsed.data.settledAmount;
+    if (parsed.data.settledAt !== undefined) {
+      data.settled_at = parsed.data.settledAt
+        ? new Date(parsed.data.settledAt).toISOString()
+        : null;
+    }
 
     const { data: updated, error } = await supabase
       .from("claims")
@@ -197,7 +238,10 @@ export async function PATCH(
       cpTerms: updated.cp_terms,
       createdBy: updated.created_by,
       createdAt: updated.created_at,
-      updatedAt: updated.updated_at
+      updatedAt: updated.updated_at,
+      timeBarDays: updated.time_bar_days ?? 90,
+      settledAmount: updated.settled_amount ?? null,
+      settledAt: updated.settled_at ?? null,
     } });
   } catch (e) {
     const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");

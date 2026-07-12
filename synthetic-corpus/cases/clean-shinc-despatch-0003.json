@@ -1,0 +1,75 @@
+{
+  "id": "clean-shinc-despatch-0003",
+  "archetype": "clean-shinc-despatch",
+  "seed": 2952192996,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V25-310",
+    "port": "Rotterdam",
+    "cargo": "Bauxite",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 90,
+    "load_rate": 12000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 23500,
+    "despatch_rate": 11750,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-02-24T08:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-02-24T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-02-24T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-02-27T00:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-02-24T08:00:00.000Z",
+          "end_time": "2025-02-27T00:00:00.000Z",
+          "duration_hours": 64,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 90,
+        "used_hours": 64,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 26,
+        "demurrage_amount": 0,
+        "despatch_amount": 12729.17,
+        "currency": "USD"
+      }
+    }
+  }
+}

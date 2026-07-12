@@ -6,6 +6,7 @@ import { EventTimeline, SofEvent } from "@/components/laygrounded/event-timeline
 import { CalculationPane } from "@/components/laygrounded/calculation-pane";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
+import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
 import styles from "./Workspace.module.css";
 import { Button } from "@/components/core/Button";
 
@@ -31,6 +32,9 @@ interface ClaimData {
     cpTerms: CpTerms | string | null;
     status: string;
     updatedAt: string;
+    timeBar: TimeBarView | null;
+    settledAmount: number | null;
+    settledAt: string | null;
     documents: Array<{
       id: string;
       storagePath: string;
@@ -391,6 +395,16 @@ export default function WorkspacePage({
           </div>
         </div>
       </header>
+
+      {/* Claim intelligence: time bar, evidence, claim room, settlement */}
+      <ClaimIntelPanel
+        claimId={claimId}
+        timeBar={data.claim.timeBar ?? null}
+        settledAmount={data.claim.settledAmount ?? null}
+        settledAt={data.claim.settledAt ?? null}
+        currency={cpTerms.currency}
+        onClaimChanged={fetchClaim}
+      />
 
       {/* Mobile tab bar */}
       <div className={styles.mobileTabBar} role="tablist" aria-label="Workspace panes">

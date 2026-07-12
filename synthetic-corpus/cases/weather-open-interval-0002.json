@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0002",
+  "archetype": "weather-open-interval",
+  "seed": 2095784762,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V23-270",
+    "port": "Singapore",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 51,
+    "load_rate": 4000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 39000,
+    "despatch_rate": 19500,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-02-17T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-02-17T05:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-02-17T07:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-02-17T15:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-02-18T23:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-02-17T00:00:00.000Z",
+          "end_time": "2025-02-17T15:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-02-17T15:00:00.000Z",
+          "end_time": "2025-02-18T23:00:00.000Z",
+          "duration_hours": 32,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 51,
+        "used_hours": 15,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 36,
+        "demurrage_amount": 0,
+        "despatch_amount": 29250,
+        "currency": "USD"
+      }
+    }
+  }
+}

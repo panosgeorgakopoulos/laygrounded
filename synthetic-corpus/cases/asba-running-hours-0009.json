@@ -1,0 +1,77 @@
+{
+  "id": "asba-running-hours-0009",
+  "archetype": "asba-running-hours",
+  "seed": 510787725,
+  "description": "ASBATANKVOY running hours: Sundays included, laytime runs continuously.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V23-234",
+    "port": "Santos",
+    "cargo": "Gasoil",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 43,
+    "load_rate": 8000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 36500,
+    "despatch_rate": 18250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-01-20T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-01-20T19:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-01-20T20:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-01-21T23:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-01-20T17:00:00.000Z",
+          "end_time": "2025-01-21T23:00:00.000Z",
+          "duration_hours": 30,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 43,
+        "used_hours": 30,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 13,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 0,
+        "despatch_amount": 9885.42,
+        "currency": "USD"
+      }
+    }
+  }
+}

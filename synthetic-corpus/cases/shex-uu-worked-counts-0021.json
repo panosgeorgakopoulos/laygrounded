@@ -1,0 +1,99 @@
+{
+  "id": "shex-uu-worked-counts-0021",
+  "archetype": "shex-uu-worked-counts",
+  "seed": 893855651,
+  "description": "SHEX-UU with hatches open and cargo working through the weekend: excepted hours count (Cl.7(d)).",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V25-570",
+    "port": "Gibraltar",
+    "cargo": "Bauxite",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 93,
+    "load_rate": 6000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX-UU",
+    "demurrage_rate": 28000,
+    "despatch_rate": 14000,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-06T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-06-06T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-06-06T13:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-06-06T14:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-06-09T20:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-06-06T12:00:00.000Z",
+          "end_time": "2025-06-07T22:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-06-07T22:00:00.000Z",
+          "end_time": "2025-06-08T22:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(d)",
+          "reasoning": "SHEX-UU: Excepted period counts when hatch open and operations ongoing."
+        },
+        {
+          "start_time": "2025-06-08T22:00:00.000Z",
+          "end_time": "2025-06-09T20:00:00.000Z",
+          "duration_hours": 22,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 93,
+        "used_hours": 80,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 13,
+        "demurrage_amount": 0,
+        "despatch_amount": 7583.33,
+        "currency": "USD"
+      }
+    }
+  }
+}

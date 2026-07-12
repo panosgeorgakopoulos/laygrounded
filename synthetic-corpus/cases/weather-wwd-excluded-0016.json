@@ -1,0 +1,135 @@
+{
+  "id": "weather-wwd-excluded-0016",
+  "archetype": "weather-wwd-excluded",
+  "seed": 1725311953,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "OCEAN HARMONY",
+    "voyageRef": "V25-789",
+    "port": "Gibraltar",
+    "cargo": "Urea prills",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 93,
+    "load_rate": 9000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 32500,
+    "despatch_rate": 16250,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-04-14T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-04-14T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-04-14T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-04-14T19:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-04-14T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-04-15T09:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2025-04-15T14:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2025-04-17T05:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-04-14T18:00:00.000Z",
+          "end_time": "2025-04-14T19:00:00.000Z",
+          "duration_hours": 1,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-04-14T19:00:00.000Z",
+          "end_time": "2025-04-14T23:00:00.000Z",
+          "duration_hours": 4,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-04-14T23:00:00.000Z",
+          "end_time": "2025-04-15T09:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-04-15T09:00:00.000Z",
+          "end_time": "2025-04-15T14:00:00.000Z",
+          "duration_hours": 5,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-04-15T14:00:00.000Z",
+          "end_time": "2025-04-17T05:00:00.000Z",
+          "duration_hours": 39,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 93,
+        "used_hours": 50,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 43,
+        "demurrage_amount": 0,
+        "despatch_amount": 29114.58,
+        "currency": "USD"
+      }
+    }
+  }
+}

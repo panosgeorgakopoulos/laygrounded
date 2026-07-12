@@ -1,0 +1,159 @@
+{
+  "id": "multi-interruption-stress-0035",
+  "archetype": "multi-interruption-stress",
+  "seed": 2684659690,
+  "description": "Stress case: shifting + weather + weekend (and sometimes a strike) stacked in one WWDSHEX-EIU voyage.",
+  "claim": {
+    "vessel": "IRON DUKE",
+    "voyageRef": "V26-696",
+    "port": "Santos",
+    "cargo": "Steam coal",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 60,
+    "load_rate": 9000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 42000,
+    "despatch_rate": 21000,
+    "currency": "EUR",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-08-16T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-08-16T17:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Vessel shifting to working berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-08-16T21:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-08-16T21:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-08-16T22:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-08-16T23:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2024-08-17T03:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2024-08-17T08:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e9",
+      "occurred_at": "2024-08-21T20:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-08-16T17:00:00.000Z",
+          "end_time": "2024-08-16T21:00:00.000Z",
+          "duration_hours": 4,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2024-08-16T21:00:00.000Z",
+          "end_time": "2024-08-17T03:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-08-17T03:00:00.000Z",
+          "end_time": "2024-08-17T08:00:00.000Z",
+          "duration_hours": 5,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-08-17T08:00:00.000Z",
+          "end_time": "2024-08-18T03:00:00.000Z",
+          "duration_hours": 19,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-08-18T03:00:00.000Z",
+          "end_time": "2024-08-19T03:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-08-19T03:00:00.000Z",
+          "end_time": "2024-08-20T10:00:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-08-20T10:00:00.000Z",
+          "end_time": "2024-08-21T20:00:00.000Z",
+          "duration_hours": 34,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 60,
+        "used_hours": 94,
+        "time_on_demurrage_hours": 34,
+        "time_saved_hours": 0,
+        "demurrage_amount": 59500,
+        "despatch_amount": 0,
+        "currency": "EUR"
+      }
+    }
+  }
+}

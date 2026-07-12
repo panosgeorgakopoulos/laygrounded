@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0014",
+  "archetype": "shex-sunday-excluded",
+  "seed": 1906276301,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "MISTRAL WIND",
+    "voyageRef": "V24-794",
+    "port": "Houston",
+    "cargo": "Urea prills",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 122,
+    "load_rate": 6000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 42000,
+    "despatch_rate": 21000,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-03-27T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-03-27T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-03-27T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-03-31T09:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-03-27T19:00:00.000Z",
+          "end_time": "2026-03-29T05:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-03-29T05:00:00.000Z",
+          "end_time": "2026-03-30T05:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2026-03-30T05:00:00.000Z",
+          "end_time": "2026-03-31T09:00:00.000Z",
+          "duration_hours": 28,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 122,
+        "used_hours": 62,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 60,
+        "demurrage_amount": 0,
+        "despatch_amount": 52500,
+        "currency": "USD"
+      }
+    }
+  }
+}

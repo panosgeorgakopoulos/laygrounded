@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0007",
+  "archetype": "weather-open-interval",
+  "seed": 318866503,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V26-910",
+    "port": "Newcastle",
+    "cargo": "Bauxite",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 66,
+    "load_rate": 7000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 38000,
+    "despatch_rate": 19000,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-02-23T21:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-02-24T02:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-02-24T03:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-02-24T12:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-02-26T04:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-02-24T03:00:00.000Z",
+          "end_time": "2025-02-24T12:00:00.000Z",
+          "duration_hours": 9,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-02-24T12:00:00.000Z",
+          "end_time": "2025-02-26T04:00:00.000Z",
+          "duration_hours": 40,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 66,
+        "used_hours": 9,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 57,
+        "demurrage_amount": 0,
+        "despatch_amount": 45125,
+        "currency": "USD"
+      }
+    }
+  }
+}

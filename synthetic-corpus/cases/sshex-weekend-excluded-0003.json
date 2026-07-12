@@ -1,0 +1,93 @@
+{
+  "id": "sshex-weekend-excluded-0003",
+  "archetype": "sshex-weekend-excluded",
+  "seed": 2183579950,
+  "description": "SSHEX: Saturdays and Sundays excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V24-310",
+    "port": "Gibraltar",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 110,
+    "load_rate": 6000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX",
+    "demurrage_rate": 43000,
+    "despatch_rate": 21500,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-04-07T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-04-07T11:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-04-07T12:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-04-11T11:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-04-07T12:00:00.000Z",
+          "end_time": "2023-04-07T22:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-04-07T22:00:00.000Z",
+          "end_time": "2023-04-09T22:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-04-09T22:00:00.000Z",
+          "end_time": "2023-04-11T11:00:00.000Z",
+          "duration_hours": 37,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 110,
+        "used_hours": 47,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 63,
+        "demurrage_amount": 0,
+        "despatch_amount": 56437.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "id": "weather-wwd-excluded-0025",
+  "archetype": "weather-wwd-excluded",
+  "seed": 4140520272,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "NORTHERN LIGHT",
+    "voyageRef": "V26-043",
+    "port": "Richards Bay",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 62,
+    "load_rate": 4000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 26500,
+    "despatch_rate": 13250,
+    "currency": "EUR",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-11-18T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-11-18T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-11-18T13:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-11-18T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-11-19T03:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-11-19T07:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2024-11-19T11:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2024-11-20T18:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-11-18T06:00:00.000Z",
+          "end_time": "2024-11-18T23:00:00.000Z",
+          "duration_hours": 17,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-11-18T23:00:00.000Z",
+          "end_time": "2024-11-19T03:00:00.000Z",
+          "duration_hours": 4,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-11-19T03:00:00.000Z",
+          "end_time": "2024-11-19T07:00:00.000Z",
+          "duration_hours": 4,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-11-19T07:00:00.000Z",
+          "end_time": "2024-11-19T11:00:00.000Z",
+          "duration_hours": 4,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-11-19T11:00:00.000Z",
+          "end_time": "2024-11-20T18:00:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 62,
+        "used_hours": 52,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 10,
+        "demurrage_amount": 0,
+        "despatch_amount": 5520.83,
+        "currency": "EUR"
+      }
+    }
+  }
+}

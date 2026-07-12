@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0016",
+  "archetype": "weather-open-interval",
+  "seed": 2750565336,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "EMERALD SEAS",
+    "voyageRef": "V25-486",
+    "port": "Singapore",
+    "cargo": "Urea prills",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 42,
+    "load_rate": 10000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 33000,
+    "despatch_rate": 16500,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-03-13T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-03-13T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-03-13T07:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-03-13T19:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-03-15T06:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-03-13T06:00:00.000Z",
+          "end_time": "2023-03-13T19:00:00.000Z",
+          "duration_hours": 13,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-03-13T19:00:00.000Z",
+          "end_time": "2023-03-15T06:00:00.000Z",
+          "duration_hours": 35,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 42,
+        "used_hours": 13,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 29,
+        "demurrage_amount": 0,
+        "despatch_amount": 19937.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

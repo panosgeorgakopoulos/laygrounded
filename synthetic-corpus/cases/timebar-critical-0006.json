@@ -1,0 +1,99 @@
+{
+  "id": "timebar-critical-0006",
+  "archetype": "timebar-critical",
+  "seed": 1703321163,
+  "description": "Time-bar countdown in the \"critical\" band (90-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V25-873",
+    "port": "Rotterdam",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 14,
+    "load_rate": 4000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 28000,
+    "despatch_rate": 14000,
+    "currency": "EUR",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-14T05:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-14T09:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-14T10:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-14T12:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-01-17T11:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-14T05:00:00.000Z",
+          "end_time": "2024-01-14T19:00:00.000Z",
+          "duration_hours": 14,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-01-14T19:00:00.000Z",
+          "end_time": "2024-01-17T11:00:00.000Z",
+          "duration_hours": 64,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 14,
+        "used_hours": 78,
+        "time_on_demurrage_hours": 64,
+        "time_saved_hours": 0,
+        "demurrage_amount": 74666.67,
+        "despatch_amount": 0,
+        "currency": "EUR"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2024-04-14T23:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "critical",
+      "deadline": "2024-04-16T11:00:00.000Z",
+      "daysRemaining": 1
+    }
+  }
+}

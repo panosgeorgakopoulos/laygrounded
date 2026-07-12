@@ -1,0 +1,159 @@
+{
+  "id": "multi-interruption-stress-0016",
+  "archetype": "multi-interruption-stress",
+  "seed": 3806763057,
+  "description": "Stress case: shifting + weather + weekend (and sometimes a strike) stacked in one WWDSHEX-EIU voyage.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V25-078",
+    "port": "Qingdao",
+    "cargo": "Bauxite",
+    "portTimezone": "Asia/Shanghai"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 57,
+    "load_rate": 11000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 36000,
+    "despatch_rate": 18000,
+    "currency": "USD",
+    "port_timezone": "Asia/Shanghai"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-10-20T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-10-20T06:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-10-20T10:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-10-20T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-10-20T11:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-10-20T12:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2023-10-20T22:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2023-10-21T01:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e9",
+      "occurred_at": "2023-10-24T13:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-10-20T06:00:00.000Z",
+          "end_time": "2023-10-20T10:00:00.000Z",
+          "duration_hours": 4,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2023-10-20T10:00:00.000Z",
+          "end_time": "2023-10-20T22:00:00.000Z",
+          "duration_hours": 12,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-20T22:00:00.000Z",
+          "end_time": "2023-10-21T01:00:00.000Z",
+          "duration_hours": 3,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2023-10-21T01:00:00.000Z",
+          "end_time": "2023-10-21T16:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-21T16:00:00.000Z",
+          "end_time": "2023-10-22T16:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-10-22T16:00:00.000Z",
+          "end_time": "2023-10-23T18:00:00.000Z",
+          "duration_hours": 26,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-23T18:00:00.000Z",
+          "end_time": "2023-10-24T13:00:00.000Z",
+          "duration_hours": 19,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 57,
+        "used_hours": 76,
+        "time_on_demurrage_hours": 19,
+        "time_saved_hours": 0,
+        "demurrage_amount": 28500,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "id": "wibon-shifting-counts-0006",
+  "archetype": "wibon-shifting-counts",
+  "seed": 3451574432,
+  "description": "WIBON: shifting from anchorage to berth counts as laytime.",
+  "claim": {
+    "vessel": "OCEAN HARMONY",
+    "voyageRef": "V23-963",
+    "port": "Rotterdam",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 24,
+    "load_rate": 7000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 42500,
+    "despatch_rate": 21250,
+    "currency": "EUR",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-09T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-06-09T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Vessel shifting to working berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-06-09T16:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Completed shifting"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-06-09T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-06-09T18:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-06-10T19:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-06-09T12:00:00.000Z",
+          "end_time": "2025-06-09T16:00:00.000Z",
+          "duration_hours": 4,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2025-06-09T16:00:00.000Z",
+          "end_time": "2025-06-10T12:00:00.000Z",
+          "duration_hours": 20,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-06-10T12:00:00.000Z",
+          "end_time": "2025-06-10T19:00:00.000Z",
+          "duration_hours": 7,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 24,
+        "used_hours": 31,
+        "time_on_demurrage_hours": 7,
+        "time_saved_hours": 0,
+        "demurrage_amount": 12395.83,
+        "despatch_amount": 0,
+        "currency": "EUR"
+      }
+    }
+  }
+}

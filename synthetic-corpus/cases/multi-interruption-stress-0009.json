@@ -1,0 +1,189 @@
+{
+  "id": "multi-interruption-stress-0009",
+  "archetype": "multi-interruption-stress",
+  "seed": 2388804640,
+  "description": "Stress case: shifting + weather + weekend (and sometimes a strike) stacked in one WWDSHEX-EIU voyage.",
+  "claim": {
+    "vessel": "CRIMSON TIDE",
+    "voyageRef": "V25-214",
+    "port": "Gibraltar",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 74,
+    "load_rate": 6000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 24500,
+    "despatch_rate": 12250,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-03-01T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-03-01T13:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-03-01T17:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Completed shifting"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-03-01T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-03-01T18:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-03-01T19:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2024-03-01T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2024-03-02T02:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e9",
+      "occurred_at": "2024-03-02T11:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Stevedores' strike commenced — all work stopped"
+    },
+    {
+      "id": "e10",
+      "occurred_at": "2024-03-02T17:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Strike ended — work resumed"
+    },
+    {
+      "id": "e11",
+      "occurred_at": "2024-03-06T23:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-03-01T13:00:00.000Z",
+          "end_time": "2024-03-01T17:00:00.000Z",
+          "duration_hours": 4,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2024-03-01T17:00:00.000Z",
+          "end_time": "2024-03-01T23:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-01T23:00:00.000Z",
+          "end_time": "2024-03-02T02:00:00.000Z",
+          "duration_hours": 3,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-03-02T02:00:00.000Z",
+          "end_time": "2024-03-02T11:00:00.000Z",
+          "duration_hours": 9,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-02T11:00:00.000Z",
+          "end_time": "2024-03-02T17:00:00.000Z",
+          "duration_hours": 6,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-03-02T17:00:00.000Z",
+          "end_time": "2024-03-02T23:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-02T23:00:00.000Z",
+          "end_time": "2024-03-03T23:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-03-03T23:00:00.000Z",
+          "end_time": "2024-03-06T00:00:00.000Z",
+          "duration_hours": 49,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-06T00:00:00.000Z",
+          "end_time": "2024-03-06T23:00:00.000Z",
+          "duration_hours": 23,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 74,
+        "used_hours": 97,
+        "time_on_demurrage_hours": 23,
+        "time_saved_hours": 0,
+        "demurrage_amount": 23479.17,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

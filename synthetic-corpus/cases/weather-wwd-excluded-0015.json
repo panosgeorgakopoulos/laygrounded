@@ -1,0 +1,135 @@
+{
+  "id": "weather-wwd-excluded-0015",
+  "archetype": "weather-wwd-excluded",
+  "seed": 3236008342,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "EASTERN STAR",
+    "voyageRef": "V25-794",
+    "port": "Santos",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 60,
+    "load_rate": 11000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 40500,
+    "despatch_rate": 20250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-05-27T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-05-27T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-05-27T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-05-28T00:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-05-28T05:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-05-28T11:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2024-05-28T13:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2024-05-29T17:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-05-27T17:00:00.000Z",
+          "end_time": "2024-05-28T00:00:00.000Z",
+          "duration_hours": 7,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-05-28T00:00:00.000Z",
+          "end_time": "2024-05-28T05:00:00.000Z",
+          "duration_hours": 5,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-05-28T05:00:00.000Z",
+          "end_time": "2024-05-28T11:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-05-28T11:00:00.000Z",
+          "end_time": "2024-05-28T13:00:00.000Z",
+          "duration_hours": 2,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2024-05-28T13:00:00.000Z",
+          "end_time": "2024-05-29T17:00:00.000Z",
+          "duration_hours": 28,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 60,
+        "used_hours": 41,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 19,
+        "demurrage_amount": 0,
+        "despatch_amount": 16031.25,
+        "currency": "USD"
+      }
+    }
+  }
+}

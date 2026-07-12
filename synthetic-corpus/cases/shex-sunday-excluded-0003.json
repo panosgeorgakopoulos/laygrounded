@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0003",
+  "archetype": "shex-sunday-excluded",
+  "seed": 204583672,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "AMBER DAWN",
+    "voyageRef": "V24-673",
+    "port": "Rotterdam",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 92,
+    "load_rate": 10000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 26000,
+    "despatch_rate": 13000,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-12-01T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-12-01T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-12-01T14:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-12-04T14:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-12-01T13:00:00.000Z",
+          "end_time": "2023-12-02T23:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-12-02T23:00:00.000Z",
+          "end_time": "2023-12-03T23:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-12-03T23:00:00.000Z",
+          "end_time": "2023-12-04T14:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 92,
+        "used_hours": 49,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 43,
+        "demurrage_amount": 0,
+        "despatch_amount": 23291.67,
+        "currency": "USD"
+      }
+    }
+  }
+}

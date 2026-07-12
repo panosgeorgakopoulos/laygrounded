@@ -1,5 +1,7 @@
-// GENCON 94 laytime rules engine.
+// Laytime rules engine: GENCON 94 (dry bulk) and ASBATANKVOY (tanker).
 // Pure TypeScript, no I/O, no AI. Every branch cites its clause in clause_ref.
+// GENCON 94 references cite the form's clause numbers; ASBATANKVOY references
+// cite Part II clauses ("ASBA-II-n").
 
 import { toZonedTime } from 'date-fns-tz';
 import { Decimal } from 'decimal.js';
@@ -174,10 +176,22 @@ export function recomputeLaytime(
 
   const norTime = parseISO(norEvent.occurred_at);
   const tz = cpTerms.port_timezone || "UTC";
+  const isAsba = (cpTerms.cp_form ?? "GENCON94") === "ASBATANKVOY";
 
   let laytimeCommencesAt = addHours(norTime, cpTerms.turn_time_hours);
-  
-  if (cpTerms.days_basis !== "SHINC") {
+
+  if (isAsba) {
+    // ASBA-II-6: laytime commences on expiry of turn time (6h standard) after
+    // NOR, or upon the vessel's arrival in berth, whichever first occurs.
+    const berthedAt = events
+      .filter((e) => e.event_type === "ALL_FAST" || e.event_type === "BERTHED")
+      .map((e) => parseISO(e.occurred_at))
+      .filter((d) => d >= norTime)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    if (berthedAt && berthedAt < laytimeCommencesAt) {
+      laytimeCommencesAt = berthedAt;
+    }
+  } else if (cpTerms.days_basis !== "SHINC") {
      let guard = 0;
      while(isExceptedDay(laytimeCommencesAt, cpTerms.days_basis, tz) && guard < 168) {
         laytimeCommencesAt = addHours(laytimeCommencesAt, 1);
@@ -236,6 +250,7 @@ export function recomputeLaytime(
 
   let iterations = 0;
   const MAX_HOURS = 1440; // 60 days
+  let halfRateDemurrageHours = 0;
 
   while (cursor < windowEnd && iterations < MAX_HOURS) {
     iterations++;
@@ -249,8 +264,45 @@ export function recomputeLaytime(
     if (usedHours >= allowedHours) {
       status = "demurrage";
       counts = true;
-      clause_ref = "GENCON94-8";
-      reasoning = "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting.";
+      if (isAsba && isActiveAt(weatherIntervals, hourStart)) {
+        halfRateDemurrageHours += 1;
+        clause_ref = "ASBA-II-8";
+        reasoning = "Demurrage during storm/weather — rate reduced one-half.";
+      } else if (isAsba) {
+        clause_ref = "ASBA-II-8";
+        reasoning = "Demurrage per running hour, pro rata for part of an hour.";
+      } else {
+        clause_ref = "GENCON94-8";
+        reasoning = "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting.";
+      }
+    } else if (isAsba) {
+      // ASBATANKVOY: running hours — Sundays/holidays included, weather does
+      // not stop laytime; only agreed exceptions and delays getting into
+      // berth beyond the charterer's control are excluded.
+      const explicitExcepted = exceptedPeriods.some(
+        (p) => hourStart >= p.start && hourStart < p.end
+      );
+      if (explicitExcepted) {
+        status = "excepted";
+        counts = false;
+        clause_ref = "ASBA-II-7";
+        reasoning = "Agreed excepted period excluded from laytime.";
+      } else if (isActiveAt(shiftingIntervals, hourStart)) {
+        status = "shifting";
+        counts = false;
+        clause_ref = "ASBA-II-6";
+        reasoning = "Delay getting into berth after NOR, beyond Charterer's control — does not count as used laytime.";
+      } else if (isActiveAt(weatherIntervals, hourStart)) {
+        status = "weather_delay";
+        counts = true;
+        clause_ref = "ASBA-II-7";
+        reasoning = "Running hours — weather interruptions do not stop laytime.";
+      } else {
+        status = "laytime";
+        counts = true;
+        clause_ref = "ASBA-II-7";
+        reasoning = "Laytime running (running hours, Sundays and holidays included).";
+      }
     } else {
       const weatherActive = isActiveAt(weatherIntervals, hourStart);
       const daysBasisIncludesWWD = cpTerms.days_basis.includes("WWD");
@@ -346,8 +398,12 @@ export function recomputeLaytime(
 
   const time_on_demurrage_hours = Math.max(0, usedHours - allowedHours);
   const time_saved_hours = Math.max(0, allowedHours - usedHours);
-  
-  const demurrage_amount = new Decimal(time_on_demurrage_hours).div(24).mul(cpTerms.demurrage_rate).toDecimalPlaces(2).toNumber();
+
+  // ASBA-II-8: hours flagged half-rate bill at 50%; everything else full rate.
+  const effectiveDemurrageHours = new Decimal(time_on_demurrage_hours)
+    .minus(halfRateDemurrageHours)
+    .plus(new Decimal(halfRateDemurrageHours).div(2));
+  const demurrage_amount = effectiveDemurrageHours.div(24).mul(cpTerms.demurrage_rate).toDecimalPlaces(2).toNumber();
   const despatch_amount = new Decimal(time_saved_hours).div(24).mul(cpTerms.despatch_rate).toDecimalPlaces(2).toNumber();
 
   return {
@@ -357,6 +413,7 @@ export function recomputeLaytime(
       used_hours: usedHours,
       time_on_demurrage_hours,
       time_saved_hours,
+      ...(isAsba ? { demurrage_half_rate_hours: halfRateDemurrageHours } : {}),
       demurrage_amount,
       despatch_amount,
       currency: cpTerms.currency,

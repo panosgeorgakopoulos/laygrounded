@@ -1,0 +1,108 @@
+{
+  "id": "timebar-expired-0007",
+  "archetype": "timebar-expired",
+  "seed": 2295290850,
+  "description": "Time-bar countdown in the \"expired\" band (60-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V24-150",
+    "port": "Santos",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 47,
+    "load_rate": 10000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 38500,
+    "despatch_rate": 19250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-09-20T09:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-09-20T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-09-20T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-09-20T16:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-09-24T13:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-09-20T09:00:00.000Z",
+          "end_time": "2024-09-22T03:00:00.000Z",
+          "duration_hours": 42,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-09-22T03:00:00.000Z",
+          "end_time": "2024-09-22T08:00:00.000Z",
+          "duration_hours": 5,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-09-22T08:00:00.000Z",
+          "end_time": "2024-09-24T13:00:00.000Z",
+          "duration_hours": 53,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 47,
+        "used_hours": 100,
+        "time_on_demurrage_hours": 53,
+        "time_saved_hours": 0,
+        "demurrage_amount": 85020.83,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2024-12-02T01:00:00.000Z",
+    "timeBarDays": 60,
+    "expected": {
+      "state": "expired",
+      "deadline": "2024-11-23T13:00:00.000Z",
+      "daysRemaining": -9
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "id": "timebar-warning-0006",
+  "archetype": "timebar-warning",
+  "seed": 2247278758,
+  "description": "Time-bar countdown in the \"warning\" band (90-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V25-972",
+    "port": "Singapore",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 147,
+    "load_rate": 11000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 37500,
+    "despatch_rate": 18750,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-11T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-12T02:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-12T03:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-16T04:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-12T04:00:00.000Z",
+          "end_time": "2024-01-13T16:00:00.000Z",
+          "duration_hours": 36,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-01-13T16:00:00.000Z",
+          "end_time": "2024-01-14T16:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-01-14T16:00:00.000Z",
+          "end_time": "2024-01-16T04:00:00.000Z",
+          "duration_hours": 36,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 147,
+        "used_hours": 96,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 51,
+        "demurrage_amount": 0,
+        "despatch_amount": 39843.75,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2024-03-26T16:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "warning",
+      "deadline": "2024-04-15T04:00:00.000Z",
+      "daysRemaining": 19
+    }
+  }
+}

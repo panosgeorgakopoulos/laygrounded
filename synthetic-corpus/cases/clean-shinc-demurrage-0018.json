@@ -1,0 +1,84 @@
+{
+  "id": "clean-shinc-demurrage-0018",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 1596323149,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "EMERALD SEAS",
+    "voyageRef": "V23-495",
+    "port": "Richards Bay",
+    "cargo": "Steam coal",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 23,
+    "load_rate": 11000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 39500,
+    "despatch_rate": 19750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-09-22T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-09-22T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-09-22T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-09-27T09:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-09-22T13:00:00.000Z",
+          "end_time": "2023-09-23T12:00:00.000Z",
+          "duration_hours": 23,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-09-23T12:00:00.000Z",
+          "end_time": "2023-09-27T09:00:00.000Z",
+          "duration_hours": 93,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 23,
+        "used_hours": 116,
+        "time_on_demurrage_hours": 93,
+        "time_saved_hours": 0,
+        "demurrage_amount": 153062.5,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

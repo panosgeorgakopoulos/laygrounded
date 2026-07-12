@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0020",
+  "archetype": "shex-sunday-excluded",
+  "seed": 2327993767,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "AMBER DAWN",
+    "voyageRef": "V26-218",
+    "port": "Singapore",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 110,
+    "load_rate": 5000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 22000,
+    "despatch_rate": 11000,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-02-03T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-02-03T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-02-03T09:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-02-06T14:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-02-03T06:00:00.000Z",
+          "end_time": "2023-02-04T16:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-02-04T16:00:00.000Z",
+          "end_time": "2023-02-05T16:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-02-05T16:00:00.000Z",
+          "end_time": "2023-02-06T14:00:00.000Z",
+          "duration_hours": 22,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 110,
+        "used_hours": 56,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 54,
+        "demurrage_amount": 0,
+        "despatch_amount": 24750,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0018",
+  "archetype": "weather-open-interval",
+  "seed": 1600347978,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V23-586",
+    "port": "Santos",
+    "cargo": "Soybeans",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 59,
+    "load_rate": 11000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 30500,
+    "despatch_rate": 15250,
+    "currency": "EUR",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-09-29T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-09-29T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-09-29T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-09-30T04:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-09-30T18:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-09-29T23:00:00.000Z",
+          "end_time": "2025-09-30T04:00:00.000Z",
+          "duration_hours": 5,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-09-30T04:00:00.000Z",
+          "end_time": "2025-09-30T18:00:00.000Z",
+          "duration_hours": 14,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 59,
+        "used_hours": 5,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 54,
+        "demurrage_amount": 0,
+        "despatch_amount": 34312.5,
+        "currency": "EUR"
+      }
+    }
+  }
+}

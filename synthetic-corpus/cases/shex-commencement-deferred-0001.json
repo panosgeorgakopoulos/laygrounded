@@ -1,0 +1,75 @@
+{
+  "id": "shex-commencement-deferred-0001",
+  "archetype": "shex-commencement-deferred",
+  "seed": 1854876094,
+  "description": "NOR late Saturday under SHEX: nominal commencement falls on Sunday and must be deferred off the excepted day.",
+  "claim": {
+    "vessel": "EASTERN STAR",
+    "voyageRef": "V26-321",
+    "port": "Santos",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 53,
+    "load_rate": 7000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 28500,
+    "despatch_rate": 14250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-09-07T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-09-08T00:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-09-08T02:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-09-09T08:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-09-09T03:00:00.000Z",
+          "end_time": "2024-09-09T08:00:00.000Z",
+          "duration_hours": 5,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 53,
+        "used_hours": 5,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 48,
+        "demurrage_amount": 0,
+        "despatch_amount": 28500,
+        "currency": "USD"
+      }
+    }
+  }
+}

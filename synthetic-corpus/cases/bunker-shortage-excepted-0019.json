@@ -1,0 +1,105 @@
+{
+  "id": "bunker-shortage-excepted-0019",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 2417219062,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V24-818",
+    "port": "Gibraltar",
+    "cargo": "Steam coal",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 45,
+    "load_rate": 9000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 45000,
+    "despatch_rate": 22500,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-22T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-22T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-22T13:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-23T04:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Cargo operations suspended — vessel bunkering, insufficient bunkers on board"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-01-23T11:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-01-24T07:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-22T13:00:00.000Z",
+          "end_time": "2024-01-23T04:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-01-23T04:00:00.000Z",
+          "end_time": "2024-01-23T11:00:00.000Z",
+          "duration_hours": 7,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-01-23T11:00:00.000Z",
+          "end_time": "2024-01-24T07:00:00.000Z",
+          "duration_hours": 20,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 45,
+        "used_hours": 35,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 10,
+        "demurrage_amount": 0,
+        "despatch_amount": 9375,
+        "currency": "USD"
+      }
+    }
+  }
+}

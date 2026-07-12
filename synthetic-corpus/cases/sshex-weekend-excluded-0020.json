@@ -1,0 +1,93 @@
+{
+  "id": "sshex-weekend-excluded-0020",
+  "archetype": "sshex-weekend-excluded",
+  "seed": 81077873,
+  "description": "SSHEX: Saturdays and Sundays excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V24-576",
+    "port": "Santos",
+    "cargo": "Steam coal",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 123,
+    "load_rate": 7000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX",
+    "demurrage_rate": 29500,
+    "despatch_rate": 14750,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-09-27T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-09-27T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-09-27T15:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-10-01T12:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-09-27T17:00:00.000Z",
+          "end_time": "2024-09-28T03:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-09-28T03:00:00.000Z",
+          "end_time": "2024-09-30T03:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-09-30T03:00:00.000Z",
+          "end_time": "2024-10-01T12:00:00.000Z",
+          "duration_hours": 33,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 123,
+        "used_hours": 43,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 80,
+        "demurrage_amount": 0,
+        "despatch_amount": 49166.67,
+        "currency": "USD"
+      }
+    }
+  }
+}

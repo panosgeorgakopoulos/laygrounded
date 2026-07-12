@@ -1,0 +1,96 @@
+{
+  "id": "weather-on-demurrage-counts-0010",
+  "archetype": "weather-on-demurrage-counts",
+  "seed": 3270477795,
+  "description": "GENCON 94 Cl.8: once on demurrage, weather does not interrupt — the weather window bills at the full rate.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V24-952",
+    "port": "Newcastle",
+    "cargo": "Soybeans",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 7,
+    "load_rate": 11000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 39000,
+    "despatch_rate": 19500,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-01-19T21:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-01-20T01:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-01-20T04:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-01-20T19:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-01-20T22:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-01-21T17:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-01-19T21:00:00.000Z",
+          "end_time": "2025-01-20T04:00:00.000Z",
+          "duration_hours": 7,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-01-20T04:00:00.000Z",
+          "end_time": "2025-01-21T17:00:00.000Z",
+          "duration_hours": 37,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 7,
+        "used_hours": 44,
+        "time_on_demurrage_hours": 37,
+        "time_saved_hours": 0,
+        "demurrage_amount": 60125,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

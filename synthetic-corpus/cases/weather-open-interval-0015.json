@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0015",
+  "archetype": "weather-open-interval",
+  "seed": 96858527,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "SOUTHERN CROSS",
+    "voyageRef": "V23-249",
+    "port": "Houston",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 63,
+    "load_rate": 5000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 21500,
+    "despatch_rate": 10750,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-30T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-06-30T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-06-30T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-06-30T21:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-07-01T18:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-06-30T13:00:00.000Z",
+          "end_time": "2025-06-30T21:00:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-06-30T21:00:00.000Z",
+          "end_time": "2025-07-01T18:00:00.000Z",
+          "duration_hours": 21,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 63,
+        "used_hours": 8,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 55,
+        "demurrage_amount": 0,
+        "despatch_amount": 24635.42,
+        "currency": "USD"
+      }
+    }
+  }
+}

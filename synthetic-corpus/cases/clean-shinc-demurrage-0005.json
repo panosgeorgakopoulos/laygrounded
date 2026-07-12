@@ -1,0 +1,84 @@
+{
+  "id": "clean-shinc-demurrage-0005",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 1473649362,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V25-407",
+    "port": "Newcastle",
+    "cargo": "Bauxite",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 19,
+    "load_rate": 9000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 20500,
+    "despatch_rate": 10250,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-03-21T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-03-22T04:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-03-22T07:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-03-24T02:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-03-22T10:00:00.000Z",
+          "end_time": "2024-03-23T05:00:00.000Z",
+          "duration_hours": 19,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-03-23T05:00:00.000Z",
+          "end_time": "2024-03-24T02:00:00.000Z",
+          "duration_hours": 21,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 19,
+        "used_hours": 40,
+        "time_on_demurrage_hours": 21,
+        "time_saved_hours": 0,
+        "demurrage_amount": 17937.5,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

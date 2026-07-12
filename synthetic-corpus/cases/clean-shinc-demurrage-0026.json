@@ -1,0 +1,99 @@
+{
+  "id": "clean-shinc-demurrage-0026",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 1365321349,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V23-230",
+    "port": "Richards Bay",
+    "cargo": "Bauxite",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 46,
+    "load_rate": 10000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 30000,
+    "despatch_rate": 15000,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-04-04T08:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-04-04T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-04-04T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-04-04T15:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-04-08T16:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-04-04T08:00:00.000Z",
+          "end_time": "2025-04-05T22:00:00.000Z",
+          "duration_hours": 38,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-04-05T22:00:00.000Z",
+          "end_time": "2025-04-06T06:00:00.000Z",
+          "duration_hours": 8,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2025-04-06T06:00:00.000Z",
+          "end_time": "2025-04-08T16:00:00.000Z",
+          "duration_hours": 58,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 46,
+        "used_hours": 104,
+        "time_on_demurrage_hours": 58,
+        "time_saved_hours": 0,
+        "demurrage_amount": 72500,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

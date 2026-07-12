@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0005",
+  "archetype": "shex-sunday-excluded",
+  "seed": 3246571342,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V23-896",
+    "port": "Rotterdam",
+    "cargo": "Urea prills",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 129,
+    "load_rate": 6000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 34500,
+    "despatch_rate": 17250,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-10-06T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-10-06T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-10-06T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-10-10T14:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-10-06T12:00:00.000Z",
+          "end_time": "2023-10-07T22:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-07T22:00:00.000Z",
+          "end_time": "2023-10-08T22:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-10-08T22:00:00.000Z",
+          "end_time": "2023-10-10T14:00:00.000Z",
+          "duration_hours": 40,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 129,
+        "used_hours": 74,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 55,
+        "demurrage_amount": 0,
+        "despatch_amount": 39531.25,
+        "currency": "USD"
+      }
+    }
+  }
+}

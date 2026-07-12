@@ -1,0 +1,90 @@
+{
+  "id": "clean-shinc-despatch-0028",
+  "archetype": "clean-shinc-despatch",
+  "seed": 994172659,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "OCEAN HARMONY",
+    "voyageRef": "V25-919",
+    "port": "Houston",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 88,
+    "load_rate": 7000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 43500,
+    "despatch_rate": 21750,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-04-06T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-04-06T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-04-06T14:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-04-06T14:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-04-08T13:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-04-06T23:00:00.000Z",
+          "end_time": "2025-04-07T05:00:00.000Z",
+          "duration_hours": 6,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2025-04-07T05:00:00.000Z",
+          "end_time": "2025-04-08T13:00:00.000Z",
+          "duration_hours": 32,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 88,
+        "used_hours": 38,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 50,
+        "demurrage_amount": 0,
+        "despatch_amount": 45312.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

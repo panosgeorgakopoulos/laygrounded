@@ -1,0 +1,303 @@
+.page {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1.5rem;
+}
+
+.roomLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.vesselTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.metaRow {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.metaItem strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.expiry {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cardTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+.totalsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.totalCell {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-background);
+}
+
+.totalLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.375rem;
+}
+
+.totalValue {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.deltaBar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px dashed var(--color-border-hover);
+  font-size: 0.875rem;
+}
+
+.deltaNeg {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.deltaPos {
+  color: #ca8a04;
+  font-weight: 600;
+}
+
+.deltaZero {
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.table th {
+  padding: 0.625rem 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.eventType {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rawText {
+  color: var(--color-text-tertiary);
+  font-size: 0.8125rem;
+  max-width: 340px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badgePending {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.badgeAccepted {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.badgeRejected {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.proposeBtn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.25rem 0.625rem;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.proposeBtn:hover {
+  border-color: var(--color-border-hover);
+}
+
+.inlineForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-background);
+}
+
+.input,
+.select,
+.textarea {
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.375rem 0.5rem;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 3rem;
+  resize: vertical;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.submitBtn {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.errorText {
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.emptyNote {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.deadCenter {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}

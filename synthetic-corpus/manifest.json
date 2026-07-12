@@ -1,0 +1,33 @@
+{
+  "generator": "synthetic-claims v1",
+  "seed": 20260712,
+  "count": 500,
+  "withPdfs": true,
+  "engineSha256": "59fd3b8d640a51a1946d9c919218a97ff189ff2b25751953d8402a8da75b0a4f",
+  "byArchetype": {
+    "clean-shinc-demurrage": 28,
+    "clean-shinc-despatch": 28,
+    "weather-wwd-excluded": 42,
+    "weather-on-demurrage-counts": 23,
+    "weather-open-interval": 19,
+    "shex-sunday-excluded": 26,
+    "sshex-weekend-excluded": 21,
+    "shex-uu-worked-counts": 28,
+    "shex-commencement-deferred": 19,
+    "wibon-shifting-counts": 23,
+    "non-wibon-shifting-excluded": 23,
+    "port-strike-excepted": 28,
+    "bunker-shortage-excepted": 23,
+    "asba-running-hours": 23,
+    "asba-berth-cuts-turn-time": 19,
+    "asba-half-rate-demurrage": 23,
+    "asba-berth-delay-excluded": 19,
+    "multi-interruption-stress": 37,
+    "error-no-nor": 8,
+    "error-multiple-nor": 7,
+    "timebar-expired": 9,
+    "timebar-critical": 8,
+    "timebar-warning": 8,
+    "timebar-ok": 8
+  }
+}

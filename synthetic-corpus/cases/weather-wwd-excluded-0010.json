@@ -1,0 +1,105 @@
+{
+  "id": "weather-wwd-excluded-0010",
+  "archetype": "weather-wwd-excluded",
+  "seed": 2878042491,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V25-545",
+    "port": "Gibraltar",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 64,
+    "load_rate": 10000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 19000,
+    "despatch_rate": 9500,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-12-01T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-12-01T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-12-01T16:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-12-02T01:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-12-02T03:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-12-04T12:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-12-01T19:00:00.000Z",
+          "end_time": "2025-12-02T01:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-12-02T01:00:00.000Z",
+          "end_time": "2025-12-02T03:00:00.000Z",
+          "duration_hours": 2,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-12-02T03:00:00.000Z",
+          "end_time": "2025-12-04T12:00:00.000Z",
+          "duration_hours": 57,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 64,
+        "used_hours": 63,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 1,
+        "demurrage_amount": 0,
+        "despatch_amount": 395.83,
+        "currency": "USD"
+      }
+    }
+  }
+}

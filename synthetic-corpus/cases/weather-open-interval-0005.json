@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0005",
+  "archetype": "weather-open-interval",
+  "seed": 1469100245,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "CRIMSON TIDE",
+    "voyageRef": "V26-388",
+    "port": "Houston",
+    "cargo": "Soybeans",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 27,
+    "load_rate": 5000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 20500,
+    "despatch_rate": 10250,
+    "currency": "EUR",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-02-27T14:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-02-27T18:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-02-27T19:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-02-27T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-02-28T23:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-02-27T20:00:00.000Z",
+          "end_time": "2023-02-27T23:00:00.000Z",
+          "duration_hours": 3,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-02-27T23:00:00.000Z",
+          "end_time": "2023-02-28T23:00:00.000Z",
+          "duration_hours": 24,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 27,
+        "used_hours": 3,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 24,
+        "demurrage_amount": 0,
+        "despatch_amount": 10250,
+        "currency": "EUR"
+      }
+    }
+  }
+}

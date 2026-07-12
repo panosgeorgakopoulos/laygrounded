@@ -1,0 +1,75 @@
+{
+  "id": "clean-shinc-despatch-0022",
+  "archetype": "clean-shinc-despatch",
+  "seed": 3985963817,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V26-411",
+    "port": "Qingdao",
+    "cargo": "Urea prills",
+    "portTimezone": "Asia/Shanghai"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 81,
+    "load_rate": 6000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 39000,
+    "despatch_rate": 19500,
+    "currency": "USD",
+    "port_timezone": "Asia/Shanghai"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-05-09T02:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-05-09T05:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-05-09T08:30:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-05-10T21:30:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-05-09T08:30:00.000Z",
+          "end_time": "2024-05-10T21:30:00.000Z",
+          "duration_hours": 37,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 81,
+        "used_hours": 37,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 44,
+        "demurrage_amount": 0,
+        "despatch_amount": 35750,
+        "currency": "USD"
+      }
+    }
+  }
+}

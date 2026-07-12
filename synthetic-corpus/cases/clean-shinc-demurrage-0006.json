@@ -1,0 +1,84 @@
+{
+  "id": "clean-shinc-demurrage-0006",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 4119830553,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "STELLAR PIONEER",
+    "voyageRef": "V23-015",
+    "port": "Singapore",
+    "cargo": "Bauxite",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 23,
+    "load_rate": 6000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 44500,
+    "despatch_rate": 22250,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-04-10T01:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-04-10T07:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-04-10T10:30:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-04-14T07:30:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-04-10T13:30:00.000Z",
+          "end_time": "2023-04-11T12:30:00.000Z",
+          "duration_hours": 23,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-04-11T12:30:00.000Z",
+          "end_time": "2023-04-14T07:30:00.000Z",
+          "duration_hours": 67,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 23,
+        "used_hours": 90,
+        "time_on_demurrage_hours": 67,
+        "time_saved_hours": 0,
+        "demurrage_amount": 124229.17,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

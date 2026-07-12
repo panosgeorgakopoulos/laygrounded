@@ -1,0 +1,99 @@
+{
+  "id": "shex-uu-worked-counts-0011",
+  "archetype": "shex-uu-worked-counts",
+  "seed": 61464957,
+  "description": "SHEX-UU with hatches open and cargo working through the weekend: excepted hours count (Cl.7(d)).",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V24-835",
+    "port": "Rotterdam",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 131,
+    "load_rate": 11000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX-UU",
+    "demurrage_rate": 29500,
+    "despatch_rate": 14750,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-02-13T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-02-13T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-02-13T13:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-02-13T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-02-18T03:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-02-13T13:00:00.000Z",
+          "end_time": "2026-02-13T23:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-13T23:00:00.000Z",
+          "end_time": "2026-02-15T23:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(d)",
+          "reasoning": "SHEX-UU: Excepted period counts when hatch open and operations ongoing."
+        },
+        {
+          "start_time": "2026-02-15T23:00:00.000Z",
+          "end_time": "2026-02-18T03:00:00.000Z",
+          "duration_hours": 52,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 131,
+        "used_hours": 110,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 21,
+        "demurrage_amount": 0,
+        "despatch_amount": 12906.25,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "id": "weather-wwd-excluded-0036",
+  "archetype": "weather-wwd-excluded",
+  "seed": 3127684677,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V23-706",
+    "port": "Rotterdam",
+    "cargo": "Urea prills",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 112,
+    "load_rate": 4000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 21000,
+    "despatch_rate": 10500,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-09-04T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-09-04T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-09-04T15:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-09-04T19:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-09-04T21:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-09-05T07:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2023-09-05T13:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2023-09-08T08:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-09-04T06:00:00.000Z",
+          "end_time": "2023-09-04T19:00:00.000Z",
+          "duration_hours": 13,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-09-04T19:00:00.000Z",
+          "end_time": "2023-09-04T21:00:00.000Z",
+          "duration_hours": 2,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2023-09-04T21:00:00.000Z",
+          "end_time": "2023-09-05T07:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-09-05T07:00:00.000Z",
+          "end_time": "2023-09-05T13:00:00.000Z",
+          "duration_hours": 6,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2023-09-05T13:00:00.000Z",
+          "end_time": "2023-09-08T08:00:00.000Z",
+          "duration_hours": 67,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 112,
+        "used_hours": 90,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 22,
+        "demurrage_amount": 0,
+        "despatch_amount": 9625,
+        "currency": "USD"
+      }
+    }
+  }
+}

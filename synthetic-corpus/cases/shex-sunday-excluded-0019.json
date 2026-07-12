@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0019",
+  "archetype": "shex-sunday-excluded",
+  "seed": 1753864040,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "MISTRAL WIND",
+    "voyageRef": "V26-116",
+    "port": "Qingdao",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Asia/Shanghai"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 105,
+    "load_rate": 9000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 27000,
+    "despatch_rate": 13500,
+    "currency": "EUR",
+    "port_timezone": "Asia/Shanghai"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-05-10T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-05-10T03:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-05-10T05:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-05-14T11:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-05-10T06:00:00.000Z",
+          "end_time": "2024-05-11T16:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-05-11T16:00:00.000Z",
+          "end_time": "2024-05-12T16:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-05-12T16:00:00.000Z",
+          "end_time": "2024-05-14T11:00:00.000Z",
+          "duration_hours": 43,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 105,
+        "used_hours": 77,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 28,
+        "demurrage_amount": 0,
+        "despatch_amount": 15750,
+        "currency": "EUR"
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "error-no-nor-0004",
+  "archetype": "error-no-nor",
+  "seed": 1802179437,
+  "description": "SoF with no NOR: the engine must refuse with NO_NOR, never guess a commencement.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V26-738",
+    "port": "Rotterdam",
+    "cargo": "Bauxite",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 72,
+    "load_rate": 9000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 20000,
+    "despatch_rate": 10000,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-09-01T18:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-09-02T14:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "error": "NO_NOR"
+  }
+}

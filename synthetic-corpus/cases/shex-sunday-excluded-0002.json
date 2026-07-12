@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0002",
+  "archetype": "shex-sunday-excluded",
+  "seed": 3942198433,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V25-260",
+    "port": "Houston",
+    "cargo": "Urea prills",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 95,
+    "load_rate": 5000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 36500,
+    "despatch_rate": 18250,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-07-05T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-07-05T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-07-05T17:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-07-09T14:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-07-05T19:00:00.000Z",
+          "end_time": "2024-07-07T05:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-07-07T05:00:00.000Z",
+          "end_time": "2024-07-08T05:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-07-08T05:00:00.000Z",
+          "end_time": "2024-07-09T14:00:00.000Z",
+          "duration_hours": 33,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 95,
+        "used_hours": 67,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 28,
+        "demurrage_amount": 0,
+        "despatch_amount": 21291.67,
+        "currency": "USD"
+      }
+    }
+  }
+}

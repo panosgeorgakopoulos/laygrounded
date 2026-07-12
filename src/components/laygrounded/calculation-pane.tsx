@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import {
   CpTerms,
+  CpForm,
   LaytimeResult,
   NorVariant,
   DaysBasis,
   NOR_VARIANTS,
   DAYS_BASES,
+  CP_FORMS,
 } from "@/lib/laytime/types";
 import styles from "./CalculationPane.module.css";
 import { Button } from "@/components/core/Button";
@@ -84,6 +86,20 @@ export function CalculationPane({
         <div className={styles.section}>
           <div className={`${styles.sectionTitle} tnum`}>Charter Party Terms</div>
           <div className={styles.formGrid}>
+            <div className={styles.formGroupFull}>
+              <label className={styles.label}>CP Form</label>
+              <select
+                value={localCp.cp_form ?? "GENCON94"}
+                onChange={(e) => handleChange("cp_form", e.target.value as CpForm)}
+                className={styles.select}
+              >
+                {CP_FORMS.map((f) => (
+                  <option key={f} value={f}>
+                    {f === "ASBATANKVOY" ? "ASBATANKVOY (tanker)" : "GENCON 94 (dry bulk)"}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Laytime Allowed (Hrs)</label>
               <input
@@ -192,6 +208,14 @@ export function CalculationPane({
                   <span className={styles.statLabel}>Used</span>
                   <span className={`${styles.statValueHighlight} tnum`}>{result.totals.used_hours.toFixed(2)} hrs</span>
                 </div>
+                {(result.totals.demurrage_half_rate_hours ?? 0) > 0 && (
+                  <div className={styles.statRow}>
+                    <span className={styles.statLabel}>Half-rate demurrage (ASBA II-8)</span>
+                    <span className={`${styles.statValue} tnum`}>
+                      {result.totals.demurrage_half_rate_hours!.toFixed(2)} hrs
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className={styles.resultAmount} style={{ marginTop: "1rem" }}>

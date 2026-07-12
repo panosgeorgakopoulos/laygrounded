@@ -1,0 +1,99 @@
+{
+  "id": "timebar-critical-0005",
+  "archetype": "timebar-critical",
+  "seed": 3353289856,
+  "description": "Time-bar countdown in the \"critical\" band (90-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V26-639",
+    "port": "Richards Bay",
+    "cargo": "Bauxite",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 31,
+    "load_rate": 8000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 25000,
+    "despatch_rate": 12500,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-24T08:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-24T10:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-24T11:30:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-24T11:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-01-28T07:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-24T14:30:00.000Z",
+          "end_time": "2024-01-25T21:30:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-01-25T21:30:00.000Z",
+          "end_time": "2024-01-28T07:30:00.000Z",
+          "duration_hours": 58,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 31,
+        "used_hours": 89,
+        "time_on_demurrage_hours": 58,
+        "time_saved_hours": 0,
+        "demurrage_amount": 60416.67,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2024-04-22T19:30:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "critical",
+      "deadline": "2024-04-27T07:30:00.000Z",
+      "daysRemaining": 4
+    }
+  }
+}

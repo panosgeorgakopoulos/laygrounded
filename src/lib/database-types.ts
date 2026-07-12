@@ -59,6 +59,11 @@ export interface ClaimWithRelations {
   cp_form: string;
   cp_terms: CpTerms;
   status: string;
+  time_bar_days?: number;
+  settled_amount?: number | null;
+  settled_at?: string | null;
+  port_lat?: number | null;
+  port_lon?: number | null;
   created_at: string;
   updated_at: string;
   companies?: CompanyRow;

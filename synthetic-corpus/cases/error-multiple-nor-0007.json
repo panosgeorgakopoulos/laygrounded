@@ -1,0 +1,54 @@
+{
+  "id": "error-multiple-nor-0007",
+  "archetype": "error-multiple-nor",
+  "seed": 3324952325,
+  "description": "Two NOR events: the engine must refuse with MULTIPLE_NOR.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V26-968",
+    "port": "Richards Bay",
+    "cargo": "Soybeans",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 55,
+    "load_rate": 6000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 20500,
+    "despatch_rate": 10250,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-07-02T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-07-02T17:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-07-02T12:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-07-04T16:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "error": "MULTIPLE_NOR"
+  }
+}

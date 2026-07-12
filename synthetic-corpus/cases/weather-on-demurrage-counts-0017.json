@@ -1,0 +1,96 @@
+{
+  "id": "weather-on-demurrage-counts-0017",
+  "archetype": "weather-on-demurrage-counts",
+  "seed": 1835684752,
+  "description": "GENCON 94 Cl.8: once on demurrage, weather does not interrupt — the weather window bills at the full rate.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V23-079",
+    "port": "Houston",
+    "cargo": "Bauxite",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 14,
+    "load_rate": 6000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 26000,
+    "despatch_rate": 13000,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-15T14:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-15T18:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-15T21:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-17T01:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-01-17T08:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-01-17T13:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-15T20:00:00.000Z",
+          "end_time": "2024-01-16T10:00:00.000Z",
+          "duration_hours": 14,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-01-16T10:00:00.000Z",
+          "end_time": "2024-01-17T13:00:00.000Z",
+          "duration_hours": 27,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 14,
+        "used_hours": 41,
+        "time_on_demurrage_hours": 27,
+        "time_saved_hours": 0,
+        "demurrage_amount": 29250,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

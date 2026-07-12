@@ -1,0 +1,105 @@
+{
+  "id": "bunker-shortage-excepted-0007",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 2106165570,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "IRON DUKE",
+    "voyageRef": "V25-106",
+    "port": "Houston",
+    "cargo": "Soybeans",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 86,
+    "load_rate": 4000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 43000,
+    "despatch_rate": 21500,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-09-29T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-09-29T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-09-29T17:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-09-29T21:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Ops suspended for emergency bunkering alongside"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-09-30T09:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-10-02T02:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-09-29T13:00:00.000Z",
+          "end_time": "2025-09-29T21:00:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-09-29T21:00:00.000Z",
+          "end_time": "2025-09-30T09:00:00.000Z",
+          "duration_hours": 12,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-09-30T09:00:00.000Z",
+          "end_time": "2025-10-02T02:00:00.000Z",
+          "duration_hours": 41,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 86,
+        "used_hours": 49,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 37,
+        "demurrage_amount": 0,
+        "despatch_amount": 33145.83,
+        "currency": "USD"
+      }
+    }
+  }
+}

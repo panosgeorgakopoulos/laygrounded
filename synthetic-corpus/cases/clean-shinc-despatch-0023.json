@@ -1,0 +1,90 @@
+{
+  "id": "clean-shinc-despatch-0023",
+  "archetype": "clean-shinc-despatch",
+  "seed": 1135305040,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "SOUTHERN CROSS",
+    "voyageRef": "V24-510",
+    "port": "Santos",
+    "cargo": "Bauxite",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 104,
+    "load_rate": 8000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 18500,
+    "despatch_rate": 9250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-11-03T12:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-11-03T15:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-11-03T16:30:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-11-03T18:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-11-07T11:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-11-03T12:30:00.000Z",
+          "end_time": "2024-11-04T03:30:00.000Z",
+          "duration_hours": 15,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-11-04T03:30:00.000Z",
+          "end_time": "2024-11-07T11:30:00.000Z",
+          "duration_hours": 80,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 104,
+        "used_hours": 95,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 9,
+        "demurrage_amount": 0,
+        "despatch_amount": 3468.75,
+        "currency": "USD"
+      }
+    }
+  }
+}

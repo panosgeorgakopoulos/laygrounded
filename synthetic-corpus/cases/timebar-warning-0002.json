@@ -1,0 +1,108 @@
+{
+  "id": "timebar-warning-0002",
+  "archetype": "timebar-warning",
+  "seed": 215017858,
+  "description": "Time-bar countdown in the \"warning\" band (60-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "IRON DUKE",
+    "voyageRef": "V26-612",
+    "port": "Gibraltar",
+    "cargo": "Steam coal",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 150,
+    "load_rate": 9000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 42000,
+    "despatch_rate": 21000,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-02-02T08:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-02-02T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-02-02T11:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-02-02T11:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-02-07T11:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-02-02T14:00:00.000Z",
+          "end_time": "2023-02-04T23:00:00.000Z",
+          "duration_hours": 57,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-02-04T23:00:00.000Z",
+          "end_time": "2023-02-05T23:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2023-02-05T23:00:00.000Z",
+          "end_time": "2023-02-07T11:00:00.000Z",
+          "duration_hours": 36,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 150,
+        "used_hours": 117,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 33,
+        "demurrage_amount": 0,
+        "despatch_amount": 28875,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2023-03-30T23:00:00.000Z",
+    "timeBarDays": 60,
+    "expected": {
+      "state": "warning",
+      "deadline": "2023-04-08T11:00:00.000Z",
+      "daysRemaining": 8
+    }
+  }
+}

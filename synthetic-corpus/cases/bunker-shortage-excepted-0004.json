@@ -1,0 +1,105 @@
+{
+  "id": "bunker-shortage-excepted-0004",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 1456487337,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V24-339",
+    "port": "Santos",
+    "cargo": "Soybeans",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 67,
+    "load_rate": 12000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 43000,
+    "despatch_rate": 21500,
+    "currency": "EUR",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-07-28T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-07-28T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-07-28T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-07-29T01:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Cargo operations suspended — vessel bunkering, insufficient bunkers on board"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-07-29T06:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-07-30T21:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-07-28T23:00:00.000Z",
+          "end_time": "2025-07-29T01:00:00.000Z",
+          "duration_hours": 2,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-07-29T01:00:00.000Z",
+          "end_time": "2025-07-29T06:00:00.000Z",
+          "duration_hours": 5,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-07-29T06:00:00.000Z",
+          "end_time": "2025-07-30T21:00:00.000Z",
+          "duration_hours": 39,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 67,
+        "used_hours": 41,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 26,
+        "demurrage_amount": 0,
+        "despatch_amount": 23291.67,
+        "currency": "EUR"
+      }
+    }
+  }
+}

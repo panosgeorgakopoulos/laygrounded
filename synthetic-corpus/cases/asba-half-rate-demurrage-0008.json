@@ -1,0 +1,116 @@
+{
+  "id": "asba-half-rate-demurrage-0008",
+  "archetype": "asba-half-rate-demurrage",
+  "seed": 2711227182,
+  "description": "ASBATANKVOY Cl.8: storm while on demurrage — those hours bill at half the demurrage rate.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V26-057",
+    "port": "Santos",
+    "cargo": "Crude oil",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 8,
+    "load_rate": 11000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 23500,
+    "despatch_rate": 11750,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-03-25T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-03-25T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-03-25T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-03-26T04:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-03-26T08:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2026-03-26T12:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-03-25T13:00:00.000Z",
+          "end_time": "2026-03-25T21:00:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        },
+        {
+          "start_time": "2026-03-25T21:00:00.000Z",
+          "end_time": "2026-03-26T04:00:00.000Z",
+          "duration_hours": 7,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        },
+        {
+          "start_time": "2026-03-26T04:00:00.000Z",
+          "end_time": "2026-03-26T08:00:00.000Z",
+          "duration_hours": 4,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage during storm/weather — rate reduced one-half."
+        },
+        {
+          "start_time": "2026-03-26T08:00:00.000Z",
+          "end_time": "2026-03-26T12:00:00.000Z",
+          "duration_hours": 4,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 8,
+        "used_hours": 23,
+        "time_on_demurrage_hours": 15,
+        "time_saved_hours": 0,
+        "demurrage_half_rate_hours": 4,
+        "demurrage_amount": 12729.17,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

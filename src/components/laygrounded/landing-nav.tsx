@@ -11,6 +11,7 @@ import styles from "./IslandNav.module.css";
 const NAV_ITEMS = [
   { label: "Claims",     href: "/claims" },
   { label: "New Claim",  href: "/claims/new" },
+  { label: "Analytics",  href: "/analytics" },
   { label: "Settings",  href: "/settings" },
 ];
 

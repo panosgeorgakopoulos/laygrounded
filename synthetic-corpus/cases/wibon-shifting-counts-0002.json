@@ -1,0 +1,105 @@
+{
+  "id": "wibon-shifting-counts-0002",
+  "archetype": "wibon-shifting-counts",
+  "seed": 1150873988,
+  "description": "WIBON: shifting from anchorage to berth counts as laytime.",
+  "claim": {
+    "vessel": "NORTHERN LIGHT",
+    "voyageRef": "V25-735",
+    "port": "Newcastle",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 29,
+    "load_rate": 12000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 27000,
+    "despatch_rate": 13500,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-09-15T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-09-16T04:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Vessel shifting to working berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-09-16T07:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Completed shifting"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-09-16T07:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-09-16T10:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-09-18T23:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-09-16T04:00:00.000Z",
+          "end_time": "2024-09-16T07:00:00.000Z",
+          "duration_hours": 3,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2024-09-16T07:00:00.000Z",
+          "end_time": "2024-09-17T09:00:00.000Z",
+          "duration_hours": 26,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-09-17T09:00:00.000Z",
+          "end_time": "2024-09-18T23:00:00.000Z",
+          "duration_hours": 38,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 29,
+        "used_hours": 67,
+        "time_on_demurrage_hours": 38,
+        "time_saved_hours": 0,
+        "demurrage_amount": 42750,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

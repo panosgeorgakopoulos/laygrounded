@@ -1,0 +1,99 @@
+{
+  "id": "clean-shinc-despatch-0016",
+  "archetype": "clean-shinc-despatch",
+  "seed": 2519143775,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "BLUE HORIZON",
+    "voyageRef": "V23-510",
+    "port": "Singapore",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 96,
+    "load_rate": 4000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 31000,
+    "despatch_rate": 15500,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-10-21T02:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-10-21T06:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-10-21T07:30:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-10-21T09:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-10-23T23:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-10-21T08:30:00.000Z",
+          "end_time": "2023-10-21T16:30:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-21T16:30:00.000Z",
+          "end_time": "2023-10-22T16:30:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2023-10-22T16:30:00.000Z",
+          "end_time": "2023-10-23T23:30:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 96,
+        "used_hours": 63,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 33,
+        "demurrage_amount": 0,
+        "despatch_amount": 21312.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

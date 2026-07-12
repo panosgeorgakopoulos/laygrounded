@@ -1,0 +1,105 @@
+{
+  "id": "port-strike-excepted-0013",
+  "archetype": "port-strike-excepted",
+  "seed": 1971753603,
+  "description": "Stevedores' strike logged as an excepted period — excluded from laytime under SHEX.",
+  "claim": {
+    "vessel": "MISTRAL WIND",
+    "voyageRef": "V26-553",
+    "port": "Newcastle",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 87,
+    "load_rate": 5000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 40500,
+    "despatch_rate": 20250,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-03-16T21:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-03-17T03:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-03-17T06:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-03-17T20:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Stevedores' strike commenced — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-03-18T10:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Industrial action lifted, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-03-20T12:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-03-16T21:00:00.000Z",
+          "end_time": "2025-03-17T20:00:00.000Z",
+          "duration_hours": 23,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-03-17T20:00:00.000Z",
+          "end_time": "2025-03-18T10:00:00.000Z",
+          "duration_hours": 14,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-03-18T10:00:00.000Z",
+          "end_time": "2025-03-20T12:00:00.000Z",
+          "duration_hours": 50,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 87,
+        "used_hours": 73,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 14,
+        "demurrage_amount": 0,
+        "despatch_amount": 11812.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

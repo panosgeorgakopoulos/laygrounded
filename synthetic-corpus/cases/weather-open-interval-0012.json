@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0012",
+  "archetype": "weather-open-interval",
+  "seed": 706503908,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V24-269",
+    "port": "Richards Bay",
+    "cargo": "Soybeans",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 50,
+    "load_rate": 8000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 37500,
+    "despatch_rate": 18750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-06-10T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-06-10T09:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-06-10T10:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-06-10T16:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-06-11T15:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-06-10T12:00:00.000Z",
+          "end_time": "2024-06-10T16:00:00.000Z",
+          "duration_hours": 4,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-06-10T16:00:00.000Z",
+          "end_time": "2024-06-11T15:00:00.000Z",
+          "duration_hours": 23,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 50,
+        "used_hours": 4,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 46,
+        "demurrage_amount": 0,
+        "despatch_amount": 35937.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

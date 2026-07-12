@@ -1,0 +1,96 @@
+{
+  "id": "bunker-shortage-excepted-0003",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 4104892518,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "EMERALD SEAS",
+    "voyageRef": "V23-446",
+    "port": "Gibraltar",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 43,
+    "load_rate": 10000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 23500,
+    "despatch_rate": 11750,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-03-25T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-03-25T09:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-03-25T12:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-03-25T17:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Cargo operations suspended — vessel bunkering, insufficient bunkers on board"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-03-25T21:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-03-27T02:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-03-25T19:00:00.000Z",
+          "end_time": "2024-03-25T21:00:00.000Z",
+          "duration_hours": 2,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-03-25T21:00:00.000Z",
+          "end_time": "2024-03-27T02:00:00.000Z",
+          "duration_hours": 29,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 43,
+        "used_hours": 29,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 14,
+        "demurrage_amount": 0,
+        "despatch_amount": 6854.17,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "asba-berth-cuts-turn-time-0005",
+  "archetype": "asba-berth-cuts-turn-time",
+  "seed": 2389301501,
+  "description": "ASBATANKVOY Cl.6: berthing before the 6-hour turn time expires commences laytime immediately.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V23-258",
+    "port": "Santos",
+    "cargo": "Naphtha",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 15,
+    "load_rate": 10000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 32000,
+    "despatch_rate": 16000,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-08-21T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-08-21T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-08-21T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-08-22T12:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-08-21T16:00:00.000Z",
+          "end_time": "2023-08-22T07:00:00.000Z",
+          "duration_hours": 15,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        },
+        {
+          "start_time": "2023-08-22T07:00:00.000Z",
+          "end_time": "2023-08-22T12:00:00.000Z",
+          "duration_hours": 5,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 15,
+        "used_hours": 20,
+        "time_on_demurrage_hours": 5,
+        "time_saved_hours": 0,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 6666.67,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

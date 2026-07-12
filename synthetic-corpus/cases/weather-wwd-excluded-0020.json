@@ -1,0 +1,114 @@
+{
+  "id": "weather-wwd-excluded-0020",
+  "archetype": "weather-wwd-excluded",
+  "seed": 3656659509,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "SOUTHERN CROSS",
+    "voyageRef": "V24-129",
+    "port": "Houston",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 66,
+    "load_rate": 12000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 27000,
+    "despatch_rate": 13500,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-12-29T14:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-12-29T18:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-12-29T19:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-12-29T22:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-12-30T00:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2026-01-01T17:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-12-29T14:00:00.000Z",
+          "end_time": "2025-12-29T22:00:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-12-29T22:00:00.000Z",
+          "end_time": "2025-12-30T00:00:00.000Z",
+          "duration_hours": 2,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-12-30T00:00:00.000Z",
+          "end_time": "2026-01-01T10:00:00.000Z",
+          "duration_hours": 58,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-01-01T10:00:00.000Z",
+          "end_time": "2026-01-01T17:00:00.000Z",
+          "duration_hours": 7,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 66,
+        "used_hours": 73,
+        "time_on_demurrage_hours": 7,
+        "time_saved_hours": 0,
+        "demurrage_amount": 7875,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

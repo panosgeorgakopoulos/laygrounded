@@ -1,0 +1,77 @@
+{
+  "id": "asba-running-hours-0004",
+  "archetype": "asba-running-hours",
+  "seed": 3915162088,
+  "description": "ASBATANKVOY running hours: Sundays included, laytime runs continuously.",
+  "claim": {
+    "vessel": "SILVER GULL",
+    "voyageRef": "V24-652",
+    "port": "Gibraltar",
+    "cargo": "Crude oil",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 43,
+    "load_rate": 9000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 40000,
+    "despatch_rate": 20000,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-22T02:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-22T11:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-22T12:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-23T18:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-22T08:00:00.000Z",
+          "end_time": "2026-04-23T18:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 43,
+        "used_hours": 34,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 9,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 0,
+        "despatch_amount": 7500,
+        "currency": "USD"
+      }
+    }
+  }
+}

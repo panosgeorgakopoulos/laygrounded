@@ -1,0 +1,90 @@
+{
+  "id": "weather-open-interval-0008",
+  "archetype": "weather-open-interval",
+  "seed": 2973638016,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V26-691",
+    "port": "Rotterdam",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 58,
+    "load_rate": 4000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 19000,
+    "despatch_rate": 9500,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-13T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-13T08:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-13T11:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-13T16:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-04-14T14:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-13T12:00:00.000Z",
+          "end_time": "2026-04-13T16:00:00.000Z",
+          "duration_hours": 4,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-04-13T16:00:00.000Z",
+          "end_time": "2026-04-14T14:00:00.000Z",
+          "duration_hours": 22,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 58,
+        "used_hours": 4,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 54,
+        "demurrage_amount": 0,
+        "despatch_amount": 21375,
+        "currency": "USD"
+      }
+    }
+  }
+}

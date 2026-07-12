@@ -1,0 +1,77 @@
+{
+  "id": "asba-running-hours-0014",
+  "archetype": "asba-running-hours",
+  "seed": 915009298,
+  "description": "ASBATANKVOY running hours: Sundays included, laytime runs continuously.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V24-141",
+    "port": "Richards Bay",
+    "cargo": "Fuel oil 380cst",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 36,
+    "load_rate": 12000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 44000,
+    "despatch_rate": 22000,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-09-06T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-09-06T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-09-06T18:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-09-07T21:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-09-06T12:00:00.000Z",
+          "end_time": "2025-09-07T21:00:00.000Z",
+          "duration_hours": 33,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 36,
+        "used_hours": 33,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 3,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 0,
+        "despatch_amount": 2750,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "sshex-weekend-excluded-0018",
+  "archetype": "sshex-weekend-excluded",
+  "seed": 1197878023,
+  "description": "SSHEX: Saturdays and Sundays excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V26-299",
+    "port": "Newcastle",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 82,
+    "load_rate": 8000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX",
+    "demurrage_rate": 19000,
+    "despatch_rate": 9500,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-07-27T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-07-28T04:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-07-28T06:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-07-31T08:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-07-28T04:00:00.000Z",
+          "end_time": "2023-07-28T14:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-07-28T14:00:00.000Z",
+          "end_time": "2023-07-30T14:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-07-30T14:00:00.000Z",
+          "end_time": "2023-07-31T08:00:00.000Z",
+          "duration_hours": 18,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 82,
+        "used_hours": 28,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 54,
+        "demurrage_amount": 0,
+        "despatch_amount": 21375,
+        "currency": "USD"
+      }
+    }
+  }
+}

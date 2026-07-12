@@ -1,0 +1,75 @@
+{
+  "id": "shex-commencement-deferred-0015",
+  "archetype": "shex-commencement-deferred",
+  "seed": 3052958160,
+  "description": "NOR late Saturday under SHEX: nominal commencement falls on Sunday and must be deferred off the excepted day.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V23-340",
+    "port": "Richards Bay",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 56,
+    "load_rate": 4000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 27000,
+    "despatch_rate": 13500,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-02-17T17:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-02-17T19:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-02-17T20:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-02-19T04:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-02-18T22:00:00.000Z",
+          "end_time": "2024-02-19T04:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 56,
+        "used_hours": 6,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 50,
+        "demurrage_amount": 0,
+        "despatch_amount": 28125,
+        "currency": "USD"
+      }
+    }
+  }
+}

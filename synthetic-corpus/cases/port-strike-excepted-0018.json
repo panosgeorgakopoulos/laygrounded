@@ -1,0 +1,105 @@
+{
+  "id": "port-strike-excepted-0018",
+  "archetype": "port-strike-excepted",
+  "seed": 1655780324,
+  "description": "Stevedores' strike logged as an excepted period — excluded from laytime under SHEX.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V25-600",
+    "port": "Singapore",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 68,
+    "load_rate": 12000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 22000,
+    "despatch_rate": 11000,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-05-01T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-05-01T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-05-01T09:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-05-01T18:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Stevedores' strike commenced — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-05-02T03:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Industrial action lifted, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-05-03T01:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-05-01T06:00:00.000Z",
+          "end_time": "2023-05-01T18:00:00.000Z",
+          "duration_hours": 12,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-05-01T18:00:00.000Z",
+          "end_time": "2023-05-02T03:00:00.000Z",
+          "duration_hours": 9,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-05-02T03:00:00.000Z",
+          "end_time": "2023-05-03T01:00:00.000Z",
+          "duration_hours": 22,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 68,
+        "used_hours": 34,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 34,
+        "demurrage_amount": 0,
+        "despatch_amount": 15583.33,
+        "currency": "USD"
+      }
+    }
+  }
+}

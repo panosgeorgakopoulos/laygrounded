@@ -1,0 +1,96 @@
+{
+  "id": "weather-on-demurrage-counts-0019",
+  "archetype": "weather-on-demurrage-counts",
+  "seed": 1390104162,
+  "description": "GENCON 94 Cl.8: once on demurrage, weather does not interrupt — the weather window bills at the full rate.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V24-185",
+    "port": "Rotterdam",
+    "cargo": "Soybeans",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 14,
+    "load_rate": 9000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 0,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 41500,
+    "despatch_rate": 20750,
+    "currency": "EUR",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-02-06T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-02-06T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-02-06T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-02-07T19:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-02-08T00:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather moderated, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-02-08T20:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-02-06T07:00:00.000Z",
+          "end_time": "2023-02-06T21:00:00.000Z",
+          "duration_hours": 14,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-02-06T21:00:00.000Z",
+          "end_time": "2023-02-08T20:00:00.000Z",
+          "duration_hours": 47,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 14,
+        "used_hours": 61,
+        "time_on_demurrage_hours": 47,
+        "time_saved_hours": 0,
+        "demurrage_amount": 81270.83,
+        "despatch_amount": 0,
+        "currency": "EUR"
+      }
+    }
+  }
+}

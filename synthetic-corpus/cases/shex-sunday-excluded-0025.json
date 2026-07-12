@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0025",
+  "archetype": "shex-sunday-excluded",
+  "seed": 2784836802,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V24-096",
+    "port": "Rotterdam",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 90,
+    "load_rate": 6000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 30500,
+    "despatch_rate": 15250,
+    "currency": "EUR",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-01-19T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-01-19T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-01-19T12:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-01-22T22:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-01-19T13:00:00.000Z",
+          "end_time": "2024-01-20T23:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-01-20T23:00:00.000Z",
+          "end_time": "2024-01-21T23:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-01-21T23:00:00.000Z",
+          "end_time": "2024-01-22T22:00:00.000Z",
+          "duration_hours": 23,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 90,
+        "used_hours": 57,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 33,
+        "demurrage_amount": 0,
+        "despatch_amount": 20968.75,
+        "currency": "EUR"
+      }
+    }
+  }
+}

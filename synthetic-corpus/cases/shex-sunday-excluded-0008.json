@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0008",
+  "archetype": "shex-sunday-excluded",
+  "seed": 657199643,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V24-924",
+    "port": "Richards Bay",
+    "cargo": "Bauxite",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 96,
+    "load_rate": 7000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 27500,
+    "despatch_rate": 13750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-03T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-03T11:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-03T12:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-06T20:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-03T12:00:00.000Z",
+          "end_time": "2026-04-04T22:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-04-04T22:00:00.000Z",
+          "end_time": "2026-04-05T22:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2026-04-05T22:00:00.000Z",
+          "end_time": "2026-04-06T20:00:00.000Z",
+          "duration_hours": 22,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 96,
+        "used_hours": 56,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 40,
+        "demurrage_amount": 0,
+        "despatch_amount": 22916.67,
+        "currency": "USD"
+      }
+    }
+  }
+}

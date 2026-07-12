@@ -1,0 +1,86 @@
+{
+  "id": "asba-running-hours-0005",
+  "archetype": "asba-running-hours",
+  "seed": 2257856401,
+  "description": "ASBATANKVOY running hours: Sundays included, laytime runs continuously.",
+  "claim": {
+    "vessel": "SOUTHERN CROSS",
+    "voyageRef": "V26-890",
+    "port": "Rotterdam",
+    "cargo": "Crude oil",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 26,
+    "load_rate": 10000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 18500,
+    "despatch_rate": 9250,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-04T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-04T15:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-04T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-06T11:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-04T12:00:00.000Z",
+          "end_time": "2026-04-05T14:00:00.000Z",
+          "duration_hours": 26,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        },
+        {
+          "start_time": "2026-04-05T14:00:00.000Z",
+          "end_time": "2026-04-06T11:00:00.000Z",
+          "duration_hours": 21,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 26,
+        "used_hours": 47,
+        "time_on_demurrage_hours": 21,
+        "time_saved_hours": 0,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 16187.5,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

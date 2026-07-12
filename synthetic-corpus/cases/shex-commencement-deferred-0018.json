@@ -1,0 +1,75 @@
+{
+  "id": "shex-commencement-deferred-0018",
+  "archetype": "shex-commencement-deferred",
+  "seed": 4015972101,
+  "description": "NOR late Saturday under SHEX: nominal commencement falls on Sunday and must be deferred off the excepted day.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V24-139",
+    "port": "Gibraltar",
+    "cargo": "Soybeans",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 59,
+    "load_rate": 10000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 19500,
+    "despatch_rate": 9750,
+    "currency": "USD",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-01-31T20:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-02-01T02:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-02-01T03:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-02-02T13:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-02-01T23:00:00.000Z",
+          "end_time": "2026-02-02T13:00:00.000Z",
+          "duration_hours": 14,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 59,
+        "used_hours": 14,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 45,
+        "demurrage_amount": 0,
+        "despatch_amount": 18281.25,
+        "currency": "USD"
+      }
+    }
+  }
+}

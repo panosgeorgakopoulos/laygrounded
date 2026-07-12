@@ -1,0 +1,105 @@
+{
+  "id": "bunker-shortage-excepted-0021",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 3565232480,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V24-673",
+    "port": "Singapore",
+    "cargo": "Bauxite",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 71,
+    "load_rate": 12000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 41500,
+    "despatch_rate": 20750,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-03-23T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-03-23T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-03-23T07:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-03-23T11:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Cargo operations suspended — vessel bunkering, insufficient bunkers on board"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-03-23T23:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2026-03-25T11:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-03-23T06:00:00.000Z",
+          "end_time": "2026-03-23T11:00:00.000Z",
+          "duration_hours": 5,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-03-23T11:00:00.000Z",
+          "end_time": "2026-03-23T23:00:00.000Z",
+          "duration_hours": 12,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2026-03-23T23:00:00.000Z",
+          "end_time": "2026-03-25T11:00:00.000Z",
+          "duration_hours": 36,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 71,
+        "used_hours": 41,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 30,
+        "demurrage_amount": 0,
+        "despatch_amount": 25937.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

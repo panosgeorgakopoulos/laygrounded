@@ -1,0 +1,105 @@
+{
+  "id": "bunker-shortage-excepted-0015",
+  "archetype": "bunker-shortage-excepted",
+  "seed": 1800273050,
+  "description": "Cargo ops suspended for emergency bunkering — logged excepted period excluded under SHEX.",
+  "claim": {
+    "vessel": "AMBER DAWN",
+    "voyageRef": "V26-472",
+    "port": "Qingdao",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Asia/Shanghai"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 56,
+    "load_rate": 7000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 38000,
+    "despatch_rate": 19000,
+    "currency": "USD",
+    "port_timezone": "Asia/Shanghai"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-12-11T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-12-11T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-12-11T08:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-12-11T21:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Cargo operations suspended — vessel bunkering, insufficient bunkers on board"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-12-12T03:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Bunkering completed — cargo operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-12-13T09:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-12-11T12:00:00.000Z",
+          "end_time": "2023-12-11T21:00:00.000Z",
+          "duration_hours": 9,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-12-11T21:00:00.000Z",
+          "end_time": "2023-12-12T03:00:00.000Z",
+          "duration_hours": 6,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-12-12T03:00:00.000Z",
+          "end_time": "2023-12-13T09:00:00.000Z",
+          "duration_hours": 30,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 56,
+        "used_hours": 39,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 17,
+        "demurrage_amount": 0,
+        "despatch_amount": 13458.33,
+        "currency": "USD"
+      }
+    }
+  }
+}

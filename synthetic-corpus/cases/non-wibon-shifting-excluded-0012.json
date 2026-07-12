@@ -1,0 +1,105 @@
+{
+  "id": "non-wibon-shifting-excluded-0012",
+  "archetype": "non-wibon-shifting-excluded",
+  "seed": 2865485970,
+  "description": "WIPON/WICCON/WIFPON: shifting to berth does not count as laytime.",
+  "claim": {
+    "vessel": "GOLDEN WAVE",
+    "voyageRef": "V23-661",
+    "port": "Houston",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 51,
+    "load_rate": 9000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIPON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 24500,
+    "despatch_rate": 12250,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-09-15T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-09-15T19:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-09-15T22:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-09-15T22:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-09-16T01:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-09-19T01:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-09-15T19:00:00.000Z",
+          "end_time": "2025-09-15T22:00:00.000Z",
+          "duration_hours": 3,
+          "status": "shifting",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Non-WIBON: shifting does not count as laytime."
+        },
+        {
+          "start_time": "2025-09-15T22:00:00.000Z",
+          "end_time": "2025-09-18T01:00:00.000Z",
+          "duration_hours": 51,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-09-18T01:00:00.000Z",
+          "end_time": "2025-09-19T01:00:00.000Z",
+          "duration_hours": 24,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 51,
+        "used_hours": 75,
+        "time_on_demurrage_hours": 24,
+        "time_saved_hours": 0,
+        "demurrage_amount": 24500,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

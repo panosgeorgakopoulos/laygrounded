@@ -1,0 +1,84 @@
+{
+  "id": "clean-shinc-despatch-0005",
+  "archetype": "clean-shinc-despatch",
+  "seed": 1648750162,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "EMERALD SEAS",
+    "voyageRef": "V25-178",
+    "port": "Houston",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 106,
+    "load_rate": 10000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 21000,
+    "despatch_rate": 10500,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-12-03T16:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-12-03T21:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-12-03T22:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-12-06T13:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-12-04T04:30:00.000Z",
+          "end_time": "2023-12-04T06:30:00.000Z",
+          "duration_hours": 2,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2023-12-04T06:30:00.000Z",
+          "end_time": "2023-12-06T13:30:00.000Z",
+          "duration_hours": 55,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 106,
+        "used_hours": 57,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 49,
+        "demurrage_amount": 0,
+        "despatch_amount": 21437.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

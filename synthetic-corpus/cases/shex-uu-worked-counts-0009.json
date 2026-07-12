@@ -1,0 +1,99 @@
+{
+  "id": "shex-uu-worked-counts-0009",
+  "archetype": "shex-uu-worked-counts",
+  "seed": 1077451791,
+  "description": "SHEX-UU with hatches open and cargo working through the weekend: excepted hours count (Cl.7(d)).",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V26-138",
+    "port": "Santos",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 116,
+    "load_rate": 9000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX-UU",
+    "demurrage_rate": 22500,
+    "despatch_rate": 11250,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-05-24T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-05-24T13:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-05-24T14:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-05-24T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-05-29T01:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-05-24T17:00:00.000Z",
+          "end_time": "2024-05-26T03:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-05-26T03:00:00.000Z",
+          "end_time": "2024-05-27T03:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(d)",
+          "reasoning": "SHEX-UU: Excepted period counts when hatch open and operations ongoing."
+        },
+        {
+          "start_time": "2024-05-27T03:00:00.000Z",
+          "end_time": "2024-05-29T01:00:00.000Z",
+          "duration_hours": 46,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 116,
+        "used_hours": 104,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 12,
+        "demurrage_amount": 0,
+        "despatch_amount": 5625,
+        "currency": "USD"
+      }
+    }
+  }
+}

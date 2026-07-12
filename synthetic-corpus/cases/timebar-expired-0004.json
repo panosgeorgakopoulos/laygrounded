@@ -1,0 +1,108 @@
+{
+  "id": "timebar-expired-0004",
+  "archetype": "timebar-expired",
+  "seed": 2744576265,
+  "description": "Time-bar countdown in the \"expired\" band (90-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V23-435",
+    "port": "Singapore",
+    "cargo": "Soybeans",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 37,
+    "load_rate": 8000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 43000,
+    "despatch_rate": 21500,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-02-26T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-02-27T04:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-02-27T05:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-02-27T05:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-03-02T13:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-02-27T10:00:00.000Z",
+          "end_time": "2026-02-28T16:00:00.000Z",
+          "duration_hours": 30,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-28T16:00:00.000Z",
+          "end_time": "2026-02-28T23:00:00.000Z",
+          "duration_hours": 7,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2026-02-28T23:00:00.000Z",
+          "end_time": "2026-03-02T13:00:00.000Z",
+          "duration_hours": 38,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 37,
+        "used_hours": 75,
+        "time_on_demurrage_hours": 38,
+        "time_saved_hours": 0,
+        "demurrage_amount": 68083.33,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2026-06-03T01:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "expired",
+      "deadline": "2026-05-31T13:00:00.000Z",
+      "daysRemaining": -3
+    }
+  }
+}

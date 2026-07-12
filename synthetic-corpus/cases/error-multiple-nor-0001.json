@@ -1,0 +1,54 @@
+{
+  "id": "error-multiple-nor-0001",
+  "archetype": "error-multiple-nor",
+  "seed": 194876083,
+  "description": "Two NOR events: the engine must refuse with MULTIPLE_NOR.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V24-523",
+    "port": "Gibraltar",
+    "cargo": "Steam coal",
+    "portTimezone": "Europe/Gibraltar"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 32,
+    "load_rate": 8000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 35500,
+    "despatch_rate": 17750,
+    "currency": "EUR",
+    "port_timezone": "Europe/Gibraltar"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-04-24T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-04-24T15:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-04-24T17:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-04-25T17:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "error": "MULTIPLE_NOR"
+  }
+}

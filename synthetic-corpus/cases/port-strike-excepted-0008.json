@@ -1,0 +1,105 @@
+{
+  "id": "port-strike-excepted-0008",
+  "archetype": "port-strike-excepted",
+  "seed": 2364305710,
+  "description": "Stevedores' strike logged as an excepted period — excluded from laytime under SHEX.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V23-183",
+    "port": "Houston",
+    "cargo": "Steam coal",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 75,
+    "load_rate": 11000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 24000,
+    "despatch_rate": 12000,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-12-15T14:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-12-15T16:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-12-15T17:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-12-16T03:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Port workers industrial action — operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-12-16T18:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Strike ended — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-12-18T19:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-12-15T20:00:00.000Z",
+          "end_time": "2025-12-16T03:00:00.000Z",
+          "duration_hours": 7,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-12-16T03:00:00.000Z",
+          "end_time": "2025-12-16T18:00:00.000Z",
+          "duration_hours": 15,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-12-16T18:00:00.000Z",
+          "end_time": "2025-12-18T19:00:00.000Z",
+          "duration_hours": 49,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 75,
+        "used_hours": 56,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 19,
+        "demurrage_amount": 0,
+        "despatch_amount": 9500,
+        "currency": "USD"
+      }
+    }
+  }
+}

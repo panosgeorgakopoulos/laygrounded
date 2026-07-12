@@ -1,0 +1,99 @@
+{
+  "id": "clean-shinc-demurrage-0020",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 479655995,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "NORTHERN LIGHT",
+    "voyageRef": "V25-117",
+    "port": "Houston",
+    "cargo": "Urea prills",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 34,
+    "load_rate": 12000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 24000,
+    "despatch_rate": 12000,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-12T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-12T15:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-12T16:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-12T18:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-04-16T03:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-12T19:00:00.000Z",
+          "end_time": "2026-04-13T05:00:00.000Z",
+          "duration_hours": 10,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2026-04-13T05:00:00.000Z",
+          "end_time": "2026-04-14T05:00:00.000Z",
+          "duration_hours": 24,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-04-14T05:00:00.000Z",
+          "end_time": "2026-04-16T03:00:00.000Z",
+          "duration_hours": 46,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 34,
+        "used_hours": 80,
+        "time_on_demurrage_hours": 46,
+        "time_saved_hours": 0,
+        "demurrage_amount": 46000,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

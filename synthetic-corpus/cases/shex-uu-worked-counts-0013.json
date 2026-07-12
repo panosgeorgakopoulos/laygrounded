@@ -1,0 +1,99 @@
+{
+  "id": "shex-uu-worked-counts-0013",
+  "archetype": "shex-uu-worked-counts",
+  "seed": 3340432875,
+  "description": "SHEX-UU with hatches open and cargo working through the weekend: excepted hours count (Cl.7(d)).",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V23-921",
+    "port": "Rotterdam",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 77,
+    "load_rate": 5000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX-UU",
+    "demurrage_rate": 42500,
+    "despatch_rate": 21250,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-03-24T07:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-03-24T11:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-03-24T12:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-03-24T13:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-03-27T18:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-03-24T13:00:00.000Z",
+          "end_time": "2023-03-24T23:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-03-24T23:00:00.000Z",
+          "end_time": "2023-03-26T22:00:00.000Z",
+          "duration_hours": 47,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(d)",
+          "reasoning": "SHEX-UU: Excepted period counts when hatch open and operations ongoing."
+        },
+        {
+          "start_time": "2023-03-26T22:00:00.000Z",
+          "end_time": "2023-03-27T18:00:00.000Z",
+          "duration_hours": 20,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 77,
+        "used_hours": 77,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 0,
+        "demurrage_amount": 0,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "id": "shex-uu-worked-counts-0020",
+  "archetype": "shex-uu-worked-counts",
+  "seed": 2476628474,
+  "description": "SHEX-UU with hatches open and cargo working through the weekend: excepted hours count (Cl.7(d)).",
+  "claim": {
+    "vessel": "OCEAN HARMONY",
+    "voyageRef": "V25-821",
+    "port": "Houston",
+    "cargo": "Corn in bulk",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 91,
+    "load_rate": 12000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX-UU",
+    "demurrage_rate": 28000,
+    "despatch_rate": 14000,
+    "currency": "EUR",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-08-22T13:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-08-22T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-08-22T18:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-08-22T18:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-08-26T08:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-08-22T19:00:00.000Z",
+          "end_time": "2025-08-23T05:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-08-23T05:00:00.000Z",
+          "end_time": "2025-08-25T05:00:00.000Z",
+          "duration_hours": 48,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(d)",
+          "reasoning": "SHEX-UU: Excepted period counts when hatch open and operations ongoing."
+        },
+        {
+          "start_time": "2025-08-25T05:00:00.000Z",
+          "end_time": "2025-08-26T08:00:00.000Z",
+          "duration_hours": 27,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 91,
+        "used_hours": 85,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 6,
+        "demurrage_amount": 0,
+        "despatch_amount": 3500,
+        "currency": "EUR"
+      }
+    }
+  }
+}

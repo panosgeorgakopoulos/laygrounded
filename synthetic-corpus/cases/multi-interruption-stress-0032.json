@@ -1,0 +1,159 @@
+{
+  "id": "multi-interruption-stress-0032",
+  "archetype": "multi-interruption-stress",
+  "seed": 3346936961,
+  "description": "Stress case: shifting + weather + weekend (and sometimes a strike) stacked in one WWDSHEX-EIU voyage.",
+  "claim": {
+    "vessel": "CRIMSON TIDE",
+    "voyageRef": "V26-577",
+    "port": "Richards Bay",
+    "cargo": "Corn in bulk",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 72,
+    "load_rate": 10000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 21000,
+    "despatch_rate": 10500,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-02-20T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-02-20T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Vessel shifting to working berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-02-20T14:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Completed shifting"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-02-20T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-02-20T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2026-02-20T16:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2026-02-20T21:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2026-02-21T01:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e9",
+      "occurred_at": "2026-02-25T20:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-02-20T12:00:00.000Z",
+          "end_time": "2026-02-20T14:00:00.000Z",
+          "duration_hours": 2,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2026-02-20T14:00:00.000Z",
+          "end_time": "2026-02-20T21:00:00.000Z",
+          "duration_hours": 7,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-20T21:00:00.000Z",
+          "end_time": "2026-02-21T01:00:00.000Z",
+          "duration_hours": 4,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2026-02-21T01:00:00.000Z",
+          "end_time": "2026-02-21T22:00:00.000Z",
+          "duration_hours": 21,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-21T22:00:00.000Z",
+          "end_time": "2026-02-22T22:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2026-02-22T22:00:00.000Z",
+          "end_time": "2026-02-24T16:00:00.000Z",
+          "duration_hours": 42,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-24T16:00:00.000Z",
+          "end_time": "2026-02-25T20:00:00.000Z",
+          "duration_hours": 28,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 72,
+        "used_hours": 100,
+        "time_on_demurrage_hours": 28,
+        "time_saved_hours": 0,
+        "demurrage_amount": 24500,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

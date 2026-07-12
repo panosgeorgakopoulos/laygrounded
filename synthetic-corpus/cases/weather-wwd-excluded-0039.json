@@ -1,0 +1,135 @@
+{
+  "id": "weather-wwd-excluded-0039",
+  "archetype": "weather-wwd-excluded",
+  "seed": 2681355118,
+  "description": "WWDSHEX-EIU: logged weather interruptions excluded from laytime.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V23-747",
+    "port": "Singapore",
+    "cargo": "Steam coal",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 103,
+    "load_rate": 12000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 22500,
+    "despatch_rate": 11250,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-10-13T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-10-13T02:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-10-13T04:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-10-13T08:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-10-13T10:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-10-13T22:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Rain — all work stopped"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2025-10-14T04:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2025-10-16T17:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-10-13T06:00:00.000Z",
+          "end_time": "2025-10-13T08:00:00.000Z",
+          "duration_hours": 2,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-10-13T08:00:00.000Z",
+          "end_time": "2025-10-13T10:00:00.000Z",
+          "duration_hours": 2,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-10-13T10:00:00.000Z",
+          "end_time": "2025-10-13T22:00:00.000Z",
+          "duration_hours": 12,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-10-13T22:00:00.000Z",
+          "end_time": "2025-10-14T04:00:00.000Z",
+          "duration_hours": 6,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-10-14T04:00:00.000Z",
+          "end_time": "2025-10-16T17:00:00.000Z",
+          "duration_hours": 61,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 103,
+        "used_hours": 75,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 28,
+        "demurrage_amount": 0,
+        "despatch_amount": 13125,
+        "currency": "USD"
+      }
+    }
+  }
+}

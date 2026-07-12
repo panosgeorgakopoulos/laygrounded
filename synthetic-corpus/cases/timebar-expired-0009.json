@@ -1,0 +1,90 @@
+{
+  "id": "timebar-expired-0009",
+  "archetype": "timebar-expired",
+  "seed": 1421363308,
+  "description": "Time-bar countdown in the \"expired\" band (60-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "CORAL EMPRESS",
+    "voyageRef": "V24-448",
+    "port": "Newcastle",
+    "cargo": "Steam coal",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 106,
+    "load_rate": 9000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 24500,
+    "despatch_rate": 12250,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-10T00:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-06-10T06:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-06-10T07:30:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-06-10T09:30:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-06-13T16:30:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-06-10T06:30:00.000Z",
+          "end_time": "2025-06-13T16:30:00.000Z",
+          "duration_hours": 82,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 106,
+        "used_hours": 82,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 24,
+        "demurrage_amount": 0,
+        "despatch_amount": 12250,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2025-08-28T04:30:00.000Z",
+    "timeBarDays": 60,
+    "expected": {
+      "state": "expired",
+      "deadline": "2025-08-12T16:30:00.000Z",
+      "daysRemaining": -16
+    }
+  }
+}

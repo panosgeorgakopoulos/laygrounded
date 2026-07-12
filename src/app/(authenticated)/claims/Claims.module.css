@@ -89,6 +89,12 @@
   border-color: var(--color-border);
 }
 
+.badgeDanger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
 .pageHeader {
   display: flex;
   justify-content: space-between;

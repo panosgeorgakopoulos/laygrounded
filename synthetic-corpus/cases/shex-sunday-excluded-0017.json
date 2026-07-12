@@ -1,0 +1,93 @@
+{
+  "id": "shex-sunday-excluded-0017",
+  "archetype": "shex-sunday-excluded",
+  "seed": 1463339674,
+  "description": "SHEX: Sunday excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "SILVER GULL",
+    "voyageRef": "V25-287",
+    "port": "Singapore",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 105,
+    "load_rate": 10000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 21500,
+    "despatch_rate": 10750,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-02-06T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-02-06T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-02-06T08:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-02-09T14:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-02-06T06:00:00.000Z",
+          "end_time": "2026-02-07T16:00:00.000Z",
+          "duration_hours": 34,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-02-07T16:00:00.000Z",
+          "end_time": "2026-02-08T16:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2026-02-08T16:00:00.000Z",
+          "end_time": "2026-02-09T14:00:00.000Z",
+          "duration_hours": 22,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 105,
+        "used_hours": 56,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 49,
+        "demurrage_amount": 0,
+        "despatch_amount": 21947.92,
+        "currency": "USD"
+      }
+    }
+  }
+}

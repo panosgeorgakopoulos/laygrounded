@@ -1,0 +1,93 @@
+{
+  "id": "sshex-weekend-excluded-0002",
+  "archetype": "sshex-weekend-excluded",
+  "seed": 1693341559,
+  "description": "SSHEX: Saturdays and Sundays excluded while the allowance still runs.",
+  "claim": {
+    "vessel": "ATLANTIC SPIRIT",
+    "voyageRef": "V25-987",
+    "port": "Rotterdam",
+    "cargo": "Bauxite",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 104,
+    "load_rate": 12000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SSHEX",
+    "demurrage_rate": 41000,
+    "despatch_rate": 20500,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-10-24T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-10-24T09:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-10-24T10:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-10-28T06:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-10-24T12:00:00.000Z",
+          "end_time": "2025-10-24T22:00:00.000Z",
+          "duration_hours": 10,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-10-24T22:00:00.000Z",
+          "end_time": "2025-10-26T23:00:00.000Z",
+          "duration_hours": 49,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-10-26T23:00:00.000Z",
+          "end_time": "2025-10-28T06:00:00.000Z",
+          "duration_hours": 31,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 104,
+        "used_hours": 41,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 63,
+        "demurrage_amount": 0,
+        "despatch_amount": 53812.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

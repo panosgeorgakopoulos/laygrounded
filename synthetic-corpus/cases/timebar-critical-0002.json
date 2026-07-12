@@ -1,0 +1,99 @@
+{
+  "id": "timebar-critical-0002",
+  "archetype": "timebar-critical",
+  "seed": 3970217839,
+  "description": "Time-bar countdown in the \"critical\" band (90-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V25-309",
+    "port": "Santos",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 189,
+    "load_rate": 9000,
+    "discharge_rate": 3000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 45000,
+    "despatch_rate": 22500,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-12-14T12:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-12-14T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-12-14T18:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-12-14T18:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-12-19T15:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-12-15T00:00:00.000Z",
+          "end_time": "2025-12-15T03:00:00.000Z",
+          "duration_hours": 3,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2025-12-15T03:00:00.000Z",
+          "end_time": "2025-12-19T15:00:00.000Z",
+          "duration_hours": 108,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 189,
+        "used_hours": 111,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 78,
+        "demurrage_amount": 0,
+        "despatch_amount": 73125,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2026-03-18T03:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "critical",
+      "deadline": "2026-03-19T15:00:00.000Z",
+      "daysRemaining": 1
+    }
+  }
+}

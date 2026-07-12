@@ -1,0 +1,93 @@
+{
+  "id": "timebar-warning-0004",
+  "archetype": "timebar-warning",
+  "seed": 1214512148,
+  "description": "Time-bar countdown in the \"warning\" band (90-day bar). Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V23-292",
+    "port": "Santos",
+    "cargo": "Iron ore fines",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 42,
+    "load_rate": 7000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 42000,
+    "despatch_rate": 21000,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-01-22T13:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-01-22T18:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-01-22T21:30:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-01-26T13:30:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-01-22T19:30:00.000Z",
+          "end_time": "2026-01-24T13:30:00.000Z",
+          "duration_hours": 42,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-01-24T13:30:00.000Z",
+          "end_time": "2026-01-26T13:30:00.000Z",
+          "duration_hours": 48,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 42,
+        "used_hours": 90,
+        "time_on_demurrage_hours": 48,
+        "time_saved_hours": 0,
+        "demurrage_amount": 84000,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2026-04-14T01:30:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "warning",
+      "deadline": "2026-04-26T13:30:00.000Z",
+      "daysRemaining": 12
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "id": "port-strike-excepted-0015",
+  "archetype": "port-strike-excepted",
+  "seed": 941071665,
+  "description": "Stevedores' strike logged as an excepted period — excluded from laytime under SHEX.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V25-591",
+    "port": "Richards Bay",
+    "cargo": "Bauxite",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 62,
+    "load_rate": 12000,
+    "discharge_rate": 5000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 21000,
+    "despatch_rate": 10500,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-02-12T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-02-12T09:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-02-12T10:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-02-12T15:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Stevedores' strike commenced — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-02-12T19:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Strike ended — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-02-13T21:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-02-12T12:00:00.000Z",
+          "end_time": "2024-02-12T15:00:00.000Z",
+          "duration_hours": 3,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-02-12T15:00:00.000Z",
+          "end_time": "2024-02-12T19:00:00.000Z",
+          "duration_hours": 4,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2024-02-12T19:00:00.000Z",
+          "end_time": "2024-02-13T21:00:00.000Z",
+          "duration_hours": 26,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 62,
+        "used_hours": 29,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 33,
+        "demurrage_amount": 0,
+        "despatch_amount": 14437.5,
+        "currency": "USD"
+      }
+    }
+  }
+}

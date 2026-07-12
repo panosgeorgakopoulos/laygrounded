@@ -1,0 +1,189 @@
+{
+  "id": "multi-interruption-stress-0034",
+  "archetype": "multi-interruption-stress",
+  "seed": 47130931,
+  "description": "Stress case: shifting + weather + weekend (and sometimes a strike) stacked in one WWDSHEX-EIU voyage.",
+  "claim": {
+    "vessel": "BLUE HORIZON",
+    "voyageRef": "V26-268",
+    "port": "Richards Bay",
+    "cargo": "Bauxite",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 77,
+    "load_rate": 8000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIPON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 33000,
+    "despatch_rate": 16500,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-08-22T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-08-22T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-08-22T14:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-08-22T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-08-22T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-08-22T16:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e7",
+      "occurred_at": "2025-08-22T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e8",
+      "occurred_at": "2025-08-23T02:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e9",
+      "occurred_at": "2025-08-23T14:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Port workers industrial action — operations suspended"
+    },
+    {
+      "id": "e10",
+      "occurred_at": "2025-08-23T17:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Strike ended — work resumed"
+    },
+    {
+      "id": "e11",
+      "occurred_at": "2025-08-28T04:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-08-22T12:00:00.000Z",
+          "end_time": "2025-08-22T14:00:00.000Z",
+          "duration_hours": 2,
+          "status": "shifting",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Non-WIBON: shifting does not count as laytime."
+        },
+        {
+          "start_time": "2025-08-22T14:00:00.000Z",
+          "end_time": "2025-08-22T23:00:00.000Z",
+          "duration_hours": 9,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-08-22T23:00:00.000Z",
+          "end_time": "2025-08-23T02:00:00.000Z",
+          "duration_hours": 3,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        },
+        {
+          "start_time": "2025-08-23T02:00:00.000Z",
+          "end_time": "2025-08-23T14:00:00.000Z",
+          "duration_hours": 12,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-08-23T14:00:00.000Z",
+          "end_time": "2025-08-23T17:00:00.000Z",
+          "duration_hours": 3,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-08-23T17:00:00.000Z",
+          "end_time": "2025-08-23T22:00:00.000Z",
+          "duration_hours": 5,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-08-23T22:00:00.000Z",
+          "end_time": "2025-08-24T22:00:00.000Z",
+          "duration_hours": 24,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2025-08-24T22:00:00.000Z",
+          "end_time": "2025-08-27T01:00:00.000Z",
+          "duration_hours": 51,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-08-27T01:00:00.000Z",
+          "end_time": "2025-08-28T04:00:00.000Z",
+          "duration_hours": 27,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 77,
+        "used_hours": 104,
+        "time_on_demurrage_hours": 27,
+        "time_saved_hours": 0,
+        "demurrage_amount": 37125,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

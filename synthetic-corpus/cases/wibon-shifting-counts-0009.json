@@ -1,0 +1,105 @@
+{
+  "id": "wibon-shifting-counts-0009",
+  "archetype": "wibon-shifting-counts",
+  "seed": 4144317815,
+  "description": "WIBON: shifting from anchorage to berth counts as laytime.",
+  "claim": {
+    "vessel": "STELLAR PIONEER",
+    "voyageRef": "V23-559",
+    "port": "Rotterdam",
+    "cargo": "Wheat in bulk",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 40,
+    "load_rate": 4000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 41500,
+    "despatch_rate": 20750,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-10-09T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-10-09T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Vessel shifting to working berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-10-09T17:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-10-09T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-10-09T20:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-10-13T01:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-10-09T12:00:00.000Z",
+          "end_time": "2023-10-09T17:00:00.000Z",
+          "duration_hours": 5,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2023-10-09T17:00:00.000Z",
+          "end_time": "2023-10-11T04:00:00.000Z",
+          "duration_hours": 35,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2023-10-11T04:00:00.000Z",
+          "end_time": "2023-10-13T01:00:00.000Z",
+          "duration_hours": 45,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 40,
+        "used_hours": 85,
+        "time_on_demurrage_hours": 45,
+        "time_saved_hours": 0,
+        "demurrage_amount": 77812.5,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

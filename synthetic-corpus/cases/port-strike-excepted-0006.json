@@ -1,0 +1,96 @@
+{
+  "id": "port-strike-excepted-0006",
+  "archetype": "port-strike-excepted",
+  "seed": 3357238960,
+  "description": "Stevedores' strike logged as an excepted period — excluded from laytime under SHEX.",
+  "claim": {
+    "vessel": "STELLAR PIONEER",
+    "voyageRef": "V24-166",
+    "port": "Singapore",
+    "cargo": "Soybeans",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 49,
+    "load_rate": 4000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHEX",
+    "demurrage_rate": 29000,
+    "despatch_rate": 14500,
+    "currency": "USD",
+    "port_timezone": "Asia/Singapore"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-01-16T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-01-16T04:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-01-16T05:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-01-16T12:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Stevedores' strike commenced — all work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-01-16T18:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Industrial action lifted, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-01-18T00:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-01-16T12:00:00.000Z",
+          "end_time": "2023-01-16T18:00:00.000Z",
+          "duration_hours": 6,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Excepted period excluded."
+        },
+        {
+          "start_time": "2023-01-16T18:00:00.000Z",
+          "end_time": "2023-01-18T00:00:00.000Z",
+          "duration_hours": 30,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 49,
+        "used_hours": 30,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 19,
+        "demurrage_amount": 0,
+        "despatch_amount": 11479.17,
+        "currency": "USD"
+      }
+    }
+  }
+}

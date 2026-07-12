@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-// Table-driven unit tests for the GENCON 94 laytime engine.
+// Table-driven unit tests for the laytime engine (GENCON 94 + ASBATANKVOY).
 // Run with: bun test src/lib/laytime/gencon94.test.ts
 
 import { describe, it, expect } from "bun:test";
@@ -660,6 +660,149 @@ const fixtures: Fixture[] = [
         time_saved_hours: 0,
         demurrage_amount: 4000.00,
         despatch_amount: 0,
+        currency: "USD",
+      },
+    },
+  },
+
+  // 10. ASBATANKVOY: berthing before turn-time expiry commences laytime early;
+  //     weather never stops the clock; demurrage during weather bills half rate.
+  {
+    name: "asba-berth-cuts-turn-time-half-rate-demurrage",
+    description:
+      "ASBATANKVOY: ALL_FAST at 10:00 beats NOR+6h (14:00) → laytime commences 10:00. Weather on demurrage 00:00-04:00 bills at half rate per Clause 8.",
+    events: [
+      { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
+      { id: "2", occurred_at: iso("2024-03-04T10:00:00Z"), event_type: "ALL_FAST" },
+      { id: "3", occurred_at: iso("2024-03-04T10:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "4", occurred_at: iso("2024-03-05T00:00:00Z"), event_type: "WEATHER_DELAY" },
+      { id: "5", occurred_at: iso("2024-03-05T04:00:00Z"), event_type: "WEATHER_DELAY_END" },
+      { id: "6", occurred_at: iso("2024-03-05T08:00:00Z"), event_type: "COMPLETED_LOADING" },
+    ],
+    cpTerms: {
+      cp_form: "ASBATANKVOY",
+      laytime_allowed_hours: 12,
+      turn_time_hours: 6,
+      nor_variant: "WIBON",
+      days_basis: "SHINC",
+      demurrage_rate: 48000,
+      despatch_rate: 24000,
+      currency: "USD",
+    },
+    expected: {
+      // Commences 10:00 (berth beats turn time).
+      // 10:00→22:00 laytime (12h, used 12) → allowance exhausted.
+      // 22:00→00:00 demurrage full rate (2h).
+      // 00:00→04:00 demurrage during weather — half rate (4h).
+      // 04:00→08:00 demurrage full rate (4h).
+      breakdown: [
+        {
+          start_time: iso("2024-03-04T10:00:00Z"),
+          end_time: iso("2024-03-04T22:00:00Z"),
+          duration_hours: 12,
+          status: "laytime",
+          counts: true,
+          clause_ref: "ASBA-II-7",
+          reasoning: "Laytime running (running hours, Sundays and holidays included).",
+        },
+        {
+          start_time: iso("2024-03-04T22:00:00Z"),
+          end_time: iso("2024-03-05T00:00:00Z"),
+          duration_hours: 2,
+          status: "demurrage",
+          counts: true,
+          clause_ref: "ASBA-II-8",
+          reasoning: "Demurrage per running hour, pro rata for part of an hour.",
+        },
+        {
+          start_time: iso("2024-03-05T00:00:00Z"),
+          end_time: iso("2024-03-05T04:00:00Z"),
+          duration_hours: 4,
+          status: "demurrage",
+          counts: true,
+          clause_ref: "ASBA-II-8",
+          reasoning: "Demurrage during storm/weather — rate reduced one-half.",
+        },
+        {
+          start_time: iso("2024-03-05T04:00:00Z"),
+          end_time: iso("2024-03-05T08:00:00Z"),
+          duration_hours: 4,
+          status: "demurrage",
+          counts: true,
+          clause_ref: "ASBA-II-8",
+          reasoning: "Demurrage per running hour, pro rata for part of an hour.",
+        },
+      ],
+      totals: {
+        allowed_hours: 12,
+        used_hours: 22,
+        time_on_demurrage_hours: 10,
+        time_saved_hours: 0,
+        demurrage_half_rate_hours: 4,
+        // 6h full + 4h half = 8 effective hours → 8/24 × 48000 = 16000.
+        demurrage_amount: 16000.00,
+        despatch_amount: 0,
+        currency: "USD",
+      },
+    },
+  },
+
+  // 11. ASBATANKVOY: delay getting into berth (shifting) after NOR does not
+  //     count as used laytime, regardless of NOR variant.
+  {
+    name: "asba-shifting-into-berth-excluded",
+    description:
+      "ASBATANKVOY: shifting 14:00-16:00 after NOR excluded per Clause 6 even under WIBON. Early completion → despatch.",
+    events: [
+      { id: "1", occurred_at: iso("2024-03-04T08:00:00Z"), event_type: "NOR_TENDERED" },
+      { id: "2", occurred_at: iso("2024-03-04T14:00:00Z"), event_type: "SHIFTING" },
+      { id: "3", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "SHIFTING_END" },
+      { id: "4", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "ALL_FAST" },
+      { id: "5", occurred_at: iso("2024-03-04T16:00:00Z"), event_type: "COMMENCED_LOADING" },
+      { id: "6", occurred_at: iso("2024-03-05T00:00:00Z"), event_type: "COMPLETED_LOADING" },
+    ],
+    cpTerms: {
+      cp_form: "ASBATANKVOY",
+      laytime_allowed_hours: 24,
+      turn_time_hours: 6,
+      nor_variant: "WIBON",
+      days_basis: "SHINC",
+      demurrage_rate: 48000,
+      despatch_rate: 24000,
+      currency: "USD",
+    },
+    expected: {
+      // Commences 14:00 (NOR+6h; berth at 16:00 is later).
+      // 14:00→16:00 shifting excluded (Clause 6 — delay getting into berth).
+      // 16:00→00:00 laytime (8h, used 8). Saved 16h → despatch.
+      breakdown: [
+        {
+          start_time: iso("2024-03-04T14:00:00Z"),
+          end_time: iso("2024-03-04T16:00:00Z"),
+          duration_hours: 2,
+          status: "shifting",
+          counts: false,
+          clause_ref: "ASBA-II-6",
+          reasoning: "Delay getting into berth after NOR, beyond Charterer's control — does not count as used laytime.",
+        },
+        {
+          start_time: iso("2024-03-04T16:00:00Z"),
+          end_time: iso("2024-03-05T00:00:00Z"),
+          duration_hours: 8,
+          status: "laytime",
+          counts: true,
+          clause_ref: "ASBA-II-7",
+          reasoning: "Laytime running (running hours, Sundays and holidays included).",
+        },
+      ],
+      totals: {
+        allowed_hours: 24,
+        used_hours: 8,
+        time_on_demurrage_hours: 0,
+        time_saved_hours: 16,
+        demurrage_half_rate_hours: 0,
+        despatch_amount: 16000.00,
+        demurrage_amount: 0,
         currency: "USD",
       },
     },

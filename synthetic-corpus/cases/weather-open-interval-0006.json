@@ -1,0 +1,81 @@
+{
+  "id": "weather-open-interval-0006",
+  "archetype": "weather-open-interval",
+  "seed": 4123593246,
+  "description": "Weather delay with no logged end: excluded all the way to completion, never cut short by unrelated events.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V24-102",
+    "port": "Qingdao",
+    "cargo": "Soybeans",
+    "portTimezone": "Asia/Shanghai"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 66,
+    "load_rate": 8000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "WWDSHEX-EIU",
+    "demurrage_rate": 42000,
+    "despatch_rate": 21000,
+    "currency": "USD",
+    "port_timezone": "Asia/Shanghai"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-10-23T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-10-23T04:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-10-23T05:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-10-23T11:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "Heavy swell, cargo operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-10-23T23:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-10-23T12:00:00.000Z",
+          "end_time": "2023-10-23T23:00:00.000Z",
+          "duration_hours": 11,
+          "status": "weather_delay",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Weather working day excluded — weather delays excluded from laytime."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 66,
+        "used_hours": 0,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 66,
+        "demurrage_amount": 0,
+        "despatch_amount": 57750,
+        "currency": "USD"
+      }
+    }
+  }
+}

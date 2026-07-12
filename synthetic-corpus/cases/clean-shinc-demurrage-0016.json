@@ -1,0 +1,90 @@
+{
+  "id": "clean-shinc-demurrage-0016",
+  "archetype": "clean-shinc-demurrage",
+  "seed": 2746540511,
+  "description": "Clean SHINC voyage overrunning its allowance — straight demurrage.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V25-163",
+    "port": "Newcastle",
+    "cargo": "Steam coal",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 29,
+    "load_rate": 10000,
+    "discharge_rate": 6000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 21500,
+    "despatch_rate": 10750,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-04-22T00:30:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-04-22T06:30:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-04-22T07:30:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "All hatches open, ready for cargo"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-04-22T08:30:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-04-26T13:30:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-04-22T06:30:00.000Z",
+          "end_time": "2026-04-23T11:30:00.000Z",
+          "duration_hours": 29,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-04-23T11:30:00.000Z",
+          "end_time": "2026-04-26T13:30:00.000Z",
+          "duration_hours": 74,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 29,
+        "used_hours": 103,
+        "time_on_demurrage_hours": 74,
+        "time_saved_hours": 0,
+        "demurrage_amount": 66291.67,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

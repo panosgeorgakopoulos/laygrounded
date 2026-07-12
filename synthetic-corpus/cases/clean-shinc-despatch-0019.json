@@ -1,0 +1,81 @@
+{
+  "id": "clean-shinc-despatch-0019",
+  "archetype": "clean-shinc-despatch",
+  "seed": 3410921076,
+  "description": "Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "CAPE MERIDIAN",
+    "voyageRef": "V23-907",
+    "port": "Newcastle",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 111,
+    "load_rate": 9000,
+    "discharge_rate": 10000,
+    "turn_time_hours": 12,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 35000,
+    "despatch_rate": 17500,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-30T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered and accepted by agents"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-07-01T00:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-07-01T01:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-07-01T02:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Commenced loading"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-07-04T11:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-07-01T10:00:00.000Z",
+          "end_time": "2025-07-04T11:00:00.000Z",
+          "duration_hours": 73,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 111,
+        "used_hours": 73,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 38,
+        "demurrage_amount": 0,
+        "despatch_amount": 27708.33,
+        "currency": "USD"
+      }
+    }
+  }
+}

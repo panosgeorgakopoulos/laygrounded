@@ -6,6 +6,7 @@ import styles from "./Claims.module.css";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { ClaimWithRelations, LaytimeCalculationRow } from "@/lib/database-types";
+import { computeTimeBar, TimeBarStatus } from "@/lib/time-bar";
 import { SeedDemoButton, CreateClaimButton, ClaimRow } from "./client-actions";
 
 export interface Claim {
@@ -19,6 +20,7 @@ export interface Claim {
   updatedAt: string;
   eventCount: number;
   documentCount: number;
+  timeBar: TimeBarStatus | null;
   exposure: {
     demurrageAmount: number;
     despatchAmount: number;
@@ -42,6 +44,21 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`${styles.badge} ${badgeClass}`}>
       {status.replace(/_/g, " ").toUpperCase()}
+    </span>
+  );
+}
+
+function TimeBarCell({ timeBar }: { timeBar: TimeBarStatus | null }) {
+  if (!timeBar || timeBar.state === "no_anchor" || timeBar.daysRemaining === null) {
+    return <span style={{ color: "var(--color-text-tertiary)" }}>—</span>;
+  }
+  let badgeClass = styles.badgeSuccess;
+  if (timeBar.state === "warning") badgeClass = styles.badgeWarning;
+  else if (timeBar.state === "critical" || timeBar.state === "expired") badgeClass = styles.badgeDanger;
+
+  return (
+    <span className={`${styles.badge} ${badgeClass} tnum`}>
+      {timeBar.state === "expired" ? "EXPIRED" : `${timeBar.daysRemaining}D LEFT`}
     </span>
   );
 }
@@ -84,20 +101,37 @@ async function ClaimsList() {
   const rawClaims = claimsData as unknown as DashboardClaimRow[];
   const claimIds = rawClaims.map((c) => c.id);
   const calculationsMap: Record<string, LaytimeCalculationRow> = {};
-  
+  // Confirmed milestone events per claim, batched — feeds the time-bar chip
+  // without an N+1.
+  const milestonesMap: Record<string, Array<{ event_type: string; occurred_at: string }>> = {};
+
   if (claimIds.length > 0) {
-    const { data: calculations } = await supabase
-      .from("laytime_calculations")
-      .select("claim_id, demurrage_amount, despatch_amount, currency, used_hours, allowed_hours, computed_at")
-      .in("claim_id", claimIds)
-      .order("computed_at", { ascending: false });
-      
+    const [{ data: calculations }, { data: milestones }] = await Promise.all([
+      supabase
+        .from("laytime_calculations")
+        .select("claim_id, demurrage_amount, despatch_amount, currency, used_hours, allowed_hours, computed_at")
+        .in("claim_id", claimIds)
+        .order("computed_at", { ascending: false }),
+      supabase
+        .from("sof_events")
+        .select("claim_id, event_type, occurred_at")
+        .in("claim_id", claimIds)
+        .in("event_type", ["COMPLETED_DISCHARGE", "COMPLETED_LOADING", "NOR_TENDERED"])
+        .in("status", ["accepted", "edited"]),
+    ]);
+
     if (calculations) {
       for (const calc of calculations as unknown as LaytimeCalculationRow[]) {
         if (!calculationsMap[calc.claim_id]) {
           calculationsMap[calc.claim_id] = calc;
         }
       }
+    }
+    for (const m of milestones || []) {
+      (milestonesMap[m.claim_id] ??= []).push({
+        event_type: m.event_type,
+        occurred_at: m.occurred_at,
+      });
     }
   }
 
@@ -110,6 +144,16 @@ async function ClaimsList() {
       return 0;
     };
 
+    const timeBar = computeTimeBar({
+      timeBarDays: c.time_bar_days ?? 90,
+      events: milestonesMap[c.id] ?? [],
+      // Only the deadline matters for the dashboard chip; the full
+      // completeness checklist lives in the workspace.
+      hasSofDocument: true,
+      hasValidCpTerms: true,
+      hasCalculation: !!calc,
+    });
+
     return {
       id: c.id,
       vessel: c.vessel,
@@ -121,6 +165,7 @@ async function ClaimsList() {
       updatedAt: c.updated_at,
       eventCount: getCount(c.sof_events),
       documentCount: getCount(c.documents),
+      timeBar,
       exposure: calc
         ? {
             demurrageAmount: calc.demurrage_amount,
@@ -159,6 +204,7 @@ async function ClaimsList() {
           <th>Voyage Ref</th>
           <th>Port</th>
           <th>Status</th>
+          <th>Time Bar</th>
           <th>Updated</th>
           <th style={{ textAlign: "right" }}>Exposure</th>
         </tr>
@@ -180,6 +226,9 @@ async function ClaimsList() {
             </td>
             <td>
               <StatusBadge status={c.status} />
+            </td>
+            <td>
+              <TimeBarCell timeBar={c.timeBar} />
             </td>
             <td>
               <span className="tnum" style={{ color: "var(--color-text-secondary)" }}>

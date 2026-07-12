@@ -1,0 +1,116 @@
+{
+  "id": "asba-half-rate-demurrage-0014",
+  "archetype": "asba-half-rate-demurrage",
+  "seed": 4146687736,
+  "description": "ASBATANKVOY Cl.8: storm while on demurrage — those hours bill at half the demurrage rate.",
+  "claim": {
+    "vessel": "OCEAN HARMONY",
+    "voyageRef": "V24-554",
+    "port": "Newcastle",
+    "cargo": "Crude oil",
+    "portTimezone": "Australia/Sydney"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 8,
+    "load_rate": 10000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 36000,
+    "despatch_rate": 18000,
+    "currency": "USD",
+    "port_timezone": "Australia/Sydney",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-09-11T22:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-09-12T00:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-09-12T00:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Discharge commenced"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-09-12T16:00:00.000Z",
+      "event_type": "WEATHER_DELAY",
+      "verbatim": "High winds, cranes secured — work stopped"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2023-09-12T23:00:00.000Z",
+      "event_type": "WEATHER_DELAY_END",
+      "verbatim": "Weather improved — work resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2023-09-13T12:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-09-12T00:00:00.000Z",
+          "end_time": "2023-09-12T08:00:00.000Z",
+          "duration_hours": 8,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        },
+        {
+          "start_time": "2023-09-12T08:00:00.000Z",
+          "end_time": "2023-09-12T16:00:00.000Z",
+          "duration_hours": 8,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        },
+        {
+          "start_time": "2023-09-12T16:00:00.000Z",
+          "end_time": "2023-09-12T23:00:00.000Z",
+          "duration_hours": 7,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage during storm/weather — rate reduced one-half."
+        },
+        {
+          "start_time": "2023-09-12T23:00:00.000Z",
+          "end_time": "2023-09-13T12:00:00.000Z",
+          "duration_hours": 13,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 8,
+        "used_hours": 36,
+        "time_on_demurrage_hours": 28,
+        "time_saved_hours": 0,
+        "demurrage_half_rate_hours": 7,
+        "demurrage_amount": 36750,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

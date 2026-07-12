@@ -1,0 +1,86 @@
+{
+  "id": "asba-berth-cuts-turn-time-0008",
+  "archetype": "asba-berth-cuts-turn-time",
+  "seed": 1757902248,
+  "description": "ASBATANKVOY Cl.6: berthing before the 6-hour turn time expires commences laytime immediately.",
+  "claim": {
+    "vessel": "POLARIS QUEEN",
+    "voyageRef": "V23-326",
+    "port": "Richards Bay",
+    "cargo": "Gasoil",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 20,
+    "load_rate": 7000,
+    "discharge_rate": 4000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 37500,
+    "despatch_rate": 18750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg",
+    "cp_form": "ASBATANKVOY"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2023-02-10T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2023-02-10T10:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2023-02-10T10:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2023-02-11T22:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Loading completed, cargo documents on board"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2023-02-10T10:00:00.000Z",
+          "end_time": "2023-02-11T06:00:00.000Z",
+          "duration_hours": 20,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "ASBA-II-7",
+          "reasoning": "Laytime running (running hours, Sundays and holidays included)."
+        },
+        {
+          "start_time": "2023-02-11T06:00:00.000Z",
+          "end_time": "2023-02-11T22:00:00.000Z",
+          "duration_hours": 16,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "ASBA-II-8",
+          "reasoning": "Demurrage per running hour, pro rata for part of an hour."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 20,
+        "used_hours": 36,
+        "time_on_demurrage_hours": 16,
+        "time_saved_hours": 0,
+        "demurrage_half_rate_hours": 0,
+        "demurrage_amount": 25000,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

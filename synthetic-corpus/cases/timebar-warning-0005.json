@@ -1,0 +1,90 @@
+{
+  "id": "timebar-warning-0005",
+  "archetype": "timebar-warning",
+  "seed": 665549421,
+  "description": "Time-bar countdown in the \"warning\" band (90-day bar). Clean SHINC voyage completing early — despatch payable.",
+  "claim": {
+    "vessel": "GRAND VOYAGER",
+    "voyageRef": "V24-704",
+    "port": "Houston",
+    "cargo": "Steam coal",
+    "portTimezone": "America/Chicago"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 127,
+    "load_rate": 12000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 34500,
+    "despatch_rate": 17250,
+    "currency": "USD",
+    "port_timezone": "America/Chicago"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-08-13T11:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-08-13T14:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-08-13T15:00:00.000Z",
+      "event_type": "HATCH_OPEN",
+      "verbatim": "Hatches opened"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-08-13T17:00:00.000Z",
+      "event_type": "COMMENCED_LOADING",
+      "verbatim": "Loading commenced all hatches"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-08-17T12:00:00.000Z",
+      "event_type": "COMPLETED_LOADING",
+      "verbatim": "Completed loading"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-08-13T17:00:00.000Z",
+          "end_time": "2024-08-17T12:00:00.000Z",
+          "duration_hours": 91,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 127,
+        "used_hours": 91,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 36,
+        "demurrage_amount": 0,
+        "despatch_amount": 25875,
+        "currency": "USD"
+      }
+    }
+  },
+  "timeBar": {
+    "asOf": "2024-10-29T00:00:00.000Z",
+    "timeBarDays": 90,
+    "expected": {
+      "state": "warning",
+      "deadline": "2024-11-15T12:00:00.000Z",
+      "daysRemaining": 17
+    }
+  }
+}

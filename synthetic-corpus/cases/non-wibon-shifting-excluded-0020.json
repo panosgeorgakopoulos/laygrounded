@@ -1,0 +1,105 @@
+{
+  "id": "non-wibon-shifting-excluded-0020",
+  "archetype": "non-wibon-shifting-excluded",
+  "seed": 2617765450,
+  "description": "WIPON/WICCON/WIFPON: shifting to berth does not count as laytime.",
+  "claim": {
+    "vessel": "PACIFIC CREST",
+    "voyageRef": "V26-735",
+    "port": "Rotterdam",
+    "cargo": "Soybeans",
+    "portTimezone": "Europe/Amsterdam"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 23,
+    "load_rate": 9000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIPON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 30000,
+    "despatch_rate": 15000,
+    "currency": "USD",
+    "port_timezone": "Europe/Amsterdam"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-07-01T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-07-01T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-07-01T17:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Shifting completed, vessel in position"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-07-01T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast alongside berth"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-07-01T19:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-07-03T07:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Completed discharge"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-07-01T12:00:00.000Z",
+          "end_time": "2024-07-01T17:00:00.000Z",
+          "duration_hours": 5,
+          "status": "shifting",
+          "counts": false,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "Non-WIBON: shifting does not count as laytime."
+        },
+        {
+          "start_time": "2024-07-01T17:00:00.000Z",
+          "end_time": "2024-07-02T16:00:00.000Z",
+          "duration_hours": 23,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-07-02T16:00:00.000Z",
+          "end_time": "2024-07-03T07:00:00.000Z",
+          "duration_hours": 15,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 23,
+        "used_hours": 38,
+        "time_on_demurrage_hours": 15,
+        "time_saved_hours": 0,
+        "demurrage_amount": 18750,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

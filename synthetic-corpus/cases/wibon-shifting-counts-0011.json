@@ -1,0 +1,105 @@
+{
+  "id": "wibon-shifting-counts-0011",
+  "archetype": "wibon-shifting-counts",
+  "seed": 3029612549,
+  "description": "WIBON: shifting from anchorage to berth counts as laytime.",
+  "claim": {
+    "vessel": "STELLAR PIONEER",
+    "voyageRef": "V26-215",
+    "port": "Richards Bay",
+    "cargo": "Iron ore fines",
+    "portTimezone": "Africa/Johannesburg"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 63,
+    "load_rate": 11000,
+    "discharge_rate": 7000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 39500,
+    "despatch_rate": 19750,
+    "currency": "USD",
+    "port_timezone": "Africa/Johannesburg"
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2025-06-02T06:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "Notice of Readiness tendered"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2025-06-02T12:00:00.000Z",
+      "event_type": "SHIFTING",
+      "verbatim": "Commenced shifting from anchorage to berth"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2025-06-02T17:00:00.000Z",
+      "event_type": "SHIFTING_END",
+      "verbatim": "Completed shifting"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2025-06-02T17:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2025-06-02T20:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2025-06-05T14:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2025-06-02T12:00:00.000Z",
+          "end_time": "2025-06-02T17:00:00.000Z",
+          "duration_hours": 5,
+          "status": "shifting",
+          "counts": true,
+          "clause_ref": "GENCON94-6c",
+          "reasoning": "WIBON: shifting counts as laytime (NOR valid before berth)."
+        },
+        {
+          "start_time": "2025-06-02T17:00:00.000Z",
+          "end_time": "2025-06-05T03:00:00.000Z",
+          "duration_hours": 58,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2025-06-05T03:00:00.000Z",
+          "end_time": "2025-06-05T14:00:00.000Z",
+          "duration_hours": 11,
+          "status": "demurrage",
+          "counts": true,
+          "clause_ref": "GENCON94-8",
+          "reasoning": "Once on demurrage — time counts continuously regardless of weather, weekends, or shifting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 63,
+        "used_hours": 74,
+        "time_on_demurrage_hours": 11,
+        "time_saved_hours": 0,
+        "demurrage_amount": 18104.17,
+        "despatch_amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}
