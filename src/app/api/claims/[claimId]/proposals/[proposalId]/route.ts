@@ -68,6 +68,19 @@ export async function PATCH(
     }
 
     if (parsed.data.decision === "accepted") {
+      // Locked events (charter-chain verified facts) cannot be amended or
+      // removed even by the claim owner — proposals against them are created
+      // blocked, but a pre-lock proposal could still be pending here.
+      if (proposal.event_id && (proposal.action === "amend" || proposal.action === "remove")) {
+        const { data: target } = await supabase
+          .from("sof_events")
+          .select("locked")
+          .eq("id", proposal.event_id)
+          .maybeSingle();
+        if (target?.locked) {
+          return NextResponse.json({ error: "EVENT_LOCKED" }, { status: 409 });
+        }
+      }
       if (proposal.action === "amend") {
         const patch: any = {
           status: "edited",

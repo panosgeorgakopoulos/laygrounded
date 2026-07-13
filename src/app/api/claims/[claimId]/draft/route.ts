@@ -6,7 +6,9 @@ import { generateDraft } from "@/lib/drafting/drafter";
 import { apiError } from "@/lib/api-errors";
 
 const DraftRequestSchema = z.object({
-  kind: z.enum(["demand_letter", "counter_argument", "settlement_proposal"]).default("demand_letter"),
+  kind: z
+    .enum(["demand_letter", "counter_argument", "settlement_proposal", "letter_of_protest"])
+    .default("demand_letter"),
   tone: z.enum(["firm", "neutral", "conciliatory"]).default("firm"),
 });
 

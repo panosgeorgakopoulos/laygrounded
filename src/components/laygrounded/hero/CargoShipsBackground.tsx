@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import styles from "./CargoShipsBackground.module.css";
 
 interface ShipProps {
@@ -14,28 +14,38 @@ interface ShipProps {
   bobDelay: number;
 }
 
+function generateShips(): ShipProps[] {
+  const newShips: ShipProps[] = [];
+  const numShips = 12 + Math.floor(Math.random() * 4); // 12-15 ships
+
+  for (let i = 0; i < numShips; i++) {
+    newShips.push({
+      id: i,
+      top: 10 + Math.random() * 80, // 10% to 90%
+      opacity: 0.4 + Math.random() * 0.4, // 0.4 to 0.8
+      scale: 0.5 + Math.random(), // 0.5 to 1.5
+      driftDuration: 40 + Math.random() * 80, // 40s to 120s
+      driftDelay: -(Math.random() * 80 + 20), // -20s to -100s
+      bobDuration: 3 + Math.random() * 3, // 3s to 6s
+      bobDelay: Math.random() * -6, // randomize bob starting point
+    });
+  }
+  return newShips;
+}
+
+const emptySubscribe = () => () => {};
+
 export function CargoShipsBackground() {
-  const [ships, setShips] = useState<ShipProps[]>([]);
-
-  useEffect(() => {
-    const newShips: ShipProps[] = [];
-    const numShips = 12 + Math.floor(Math.random() * 4); // 12-15 ships
-
-    for (let i = 0; i < numShips; i++) {
-      newShips.push({
-        id: i,
-        top: 10 + Math.random() * 80, // 10% to 90%
-        opacity: 0.4 + Math.random() * 0.4, // 0.4 to 0.8
-        scale: 0.5 + Math.random(), // 0.5 to 1.5
-        driftDuration: 40 + Math.random() * 80, // 40s to 120s
-        driftDelay: -(Math.random() * 80 + 20), // -20s to -100s
-        bobDuration: 3 + Math.random() * 3, // 3s to 6s
-        bobDelay: Math.random() * -6, // randomize bob starting point
-      });
-    }
-
-    setShips(newShips);
-  }, []);
+  // Random layouts are client-only: the server snapshot is false, so SSR and
+  // the hydration pass render no ships, and the layout is generated exactly
+  // once right after hydration — same behavior as the old effect, without
+  // the setState-in-effect render cascade.
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const ships = useMemo(() => (hydrated ? generateShips() : []), [hydrated]);
 
   return (
     <div className={styles.container}>

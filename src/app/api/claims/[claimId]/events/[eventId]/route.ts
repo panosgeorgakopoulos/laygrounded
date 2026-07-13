@@ -33,12 +33,21 @@ export async function PATCH(
     
     const { data: event } = await supabase
       .from("sof_events")
-      .select("claim_id")
+      .select("claim_id, locked, locked_reason")
       .eq("id", eventId)
       .single();
-      
+
     if (!event || event.claim_id !== claimId) {
       return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+    }
+
+    // Charter-chain verified facts are immutable at every tier — the lock
+    // would be meaningless if the claim owner could edit around it here.
+    if (event.locked) {
+      return NextResponse.json(
+        { error: "EVENT_LOCKED", reason: event.locked_reason ?? null },
+        { status: 409 }
+      );
     }
     
     const body = await req.json();

@@ -18,6 +18,7 @@ import {
   NormalizedVoyage,
 } from "./types";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
+import { logStructured, newTraceId } from "@/lib/observability/log";
 
 const MAX_JOB_ATTEMPTS = 6;
 
@@ -66,6 +67,7 @@ export async function runPendingSyncJobs(
   limit = 10
 ): Promise<SyncRunReport> {
   const report: SyncRunReport = { claimed: 0, succeeded: 0, failed: 0, dead: 0 };
+  const traceId = newTraceId(); // one trace per sweep; job_id disambiguates within it
 
   const { data: candidates } = await supabase
     .from("sync_jobs")
@@ -103,16 +105,32 @@ export async function runPendingSyncJobs(
       const message = e instanceof Error ? e.message : String(e);
       const attempts = job.attempts + 1;
       const isDead = attempts >= MAX_JOB_ATTEMPTS;
+      const nextAttemptAt = new Date(Date.now() + computeBackoffMs(attempts)).toISOString();
       await supabase
         .from("sync_jobs")
         .update({
           status: isDead ? "dead" : "pending",
           attempts,
           last_error: message.slice(0, 1000),
-          next_attempt_at: new Date(Date.now() + computeBackoffMs(attempts)).toISOString(),
+          next_attempt_at: nextAttemptAt,
           updated_at: new Date().toISOString(),
         })
         .eq("id", job.id);
+      logStructured(isDead ? "error" : "warn", "erp-sync", `sync job failed: ${message}`, {
+        trace_id: traceId,
+        job_id: job.id,
+        integration_id: job.integration_id,
+        claim_id: job.claim_id ?? null,
+        kind: job.kind,
+        attempts,
+        max_attempts: MAX_JOB_ATTEMPTS,
+        user_action_required: isDead
+          ? "Job is dead-lettered: inspect last_error on sync_jobs, fix the root cause (credentials/ERP availability/payload), then re-enqueue the push from the claim workspace."
+          : null,
+        retry_strategy: isDead
+          ? "none — dead-lettered after max attempts"
+          : `automatic jittered backoff; next attempt at ${nextAttemptAt}`,
+      });
       if (isDead) report.dead++;
       else report.failed++;
     }

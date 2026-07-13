@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   CpTerms,
   CpForm,
@@ -48,11 +48,15 @@ export function CalculationPane({
   const [localCp, setLocalCp] = useState<CpTerms>(cpTerms);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Sync localCp if parent changes it
-  useEffect(() => {
+  // Adopt new terms when the parent hands them down: state is adjusted
+  // during render (the React-recommended replacement for a props-sync
+  // effect) so there is no extra committed render with stale terms.
+  const [prevCpTerms, setPrevCpTerms] = useState(cpTerms);
+  if (prevCpTerms !== cpTerms) {
+    setPrevCpTerms(cpTerms);
     setLocalCp(cpTerms);
     setIsDirty(false);
-  }, [cpTerms]);
+  }
 
   const handleChange = (field: keyof CpTerms, val: any) => {
     setLocalCp((prev) => {

@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getAdapter } from "@/lib/integrations/registry";
 import { upsertVoyageClaim } from "@/lib/integrations/sync";
 import { IntegrationRow } from "@/lib/integrations/types";
+import { logStructured, newTraceId } from "@/lib/observability/log";
 
 // Inbound ERP webhook receiver.
 //
@@ -66,7 +67,15 @@ export async function POST(
     if (insertErr.code === "23505") {
       return NextResponse.json({ status: "skipped_duplicate" });
     }
-    console.error("[webhook] log insert failed:", insertErr);
+    logStructured("error", "erp-webhook", `idempotency ledger insert failed: ${insertErr.message}`, {
+      trace_id: newTraceId(),
+      integration_id: integrationId,
+      event_type: event.type,
+      idempotency_key: event.eventId,
+      user_action_required:
+        "webhook_logs insert failed for a non-duplicate reason — check database availability/constraints; the event was NOT processed.",
+      retry_strategy: "ERP receives 500 and will redeliver; no ledger row was written, so the retry is clean.",
+    });
     return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
 
@@ -86,7 +95,16 @@ export async function POST(
       .from("webhook_logs")
       .update({ status: "failed", error: message.slice(0, 1000) })
       .eq("id", log!.id);
-    console.error("[webhook] processing failed:", e);
+    logStructured("error", "erp-webhook", `inbound event processing failed: ${message}`, {
+      trace_id: newTraceId(),
+      integration_id: integrationId,
+      event_type: event.type,
+      idempotency_key: event.eventId,
+      user_action_required:
+        "If the ERP's redelivery also fails, inspect the voyage payload for schema drift against the adapter's parseInboundEvent mapping.",
+      retry_strategy:
+        "ERP receives 500 and will redeliver; the failed ledger row is deleted so the retry re-enters cleanly.",
+    });
     // 500 → the ERP retries; the retry dedupes against this failed row only
     // if we delete it, so clear the key for a clean retry.
     await supabase.from("webhook_logs").delete().eq("id", log!.id);

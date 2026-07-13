@@ -17,7 +17,11 @@ import { verifyDraftGrounding, GroundingResult } from "./grounding";
 
 export const DRAFTER_MODEL_ID = process.env.DRAFTER_MODEL_ID || "claude-opus-4-8";
 
-export type DraftKind = "demand_letter" | "counter_argument" | "settlement_proposal";
+export type DraftKind =
+  | "demand_letter"
+  | "counter_argument"
+  | "settlement_proposal"
+  | "letter_of_protest";
 export type DraftTone = "firm" | "neutral" | "conciliatory";
 
 export interface PositionAnalysis {
@@ -65,6 +69,8 @@ const KIND_BRIEFS: Record<DraftKind, string> = {
     "A point-by-point rebuttal of the counterparty's position (see their pending/rejected proposals and notes in the claim data), defending the calculation with clause citations and independent evidence.",
   settlement_proposal:
     "A commercially pragmatic settlement proposal: restate the claim's strength briefly, then propose settlement. Any settlement figure must be one of the amounts provided in the claim data — typically the computed demurrage amount; do not invent a compromise figure.",
+  letter_of_protest:
+    "A Letter of Protest for immediate service on the terminal/shippers by the Master or port agent, protesting a stoppage of cargo operations attributed to bad weather that independent evidence contradicts (see the evidence verdicts in the claim data — cite the contradicted weather checks explicitly, including the archive findings quoted in their summaries). Record the disputed window(s), state that the alleged weather conditions are not borne out by independent archive data, reserve all owners' rights to count the period as laytime or time on demurrage, and request the recipient note and countersign the protest. Do NOT demand payment — a protest preserves rights; it does not quantify a claim.",
 };
 
 const TONE_BRIEFS: Record<DraftTone, string> = {
@@ -118,7 +124,9 @@ export async function generateDraft(
   }
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const ctx = await assembleDraftContext(claimId, client);
-  if (!ctx.totals) throw new Error("NO_CALCULATION");
+  // A protest records disputed facts mid-voyage and quantifies nothing, so it
+  // is the one kind that may be drafted before a calculation exists.
+  if (!ctx.totals && kind !== "letter_of_protest") throw new Error("NO_CALCULATION");
 
   // --- Step 1: position analysis (structured) ---
   const analysisResponse = await anthropic.messages.create({

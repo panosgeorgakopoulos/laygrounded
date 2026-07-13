@@ -1,36 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import styles from "./OfflineIndicator.module.css";
 
+// navigator.onLine exposed as an external store: no state, no effect. The
+// server snapshot reports "online", so SSR renders nothing and the client
+// corrects itself immediately after hydration if actually offline.
+function subscribeToNetwork(onStoreChange: () => void): () => void {
+  window.addEventListener("online", onStoreChange);
+  window.addEventListener("offline", onStoreChange);
+  return () => {
+    window.removeEventListener("online", onStoreChange);
+    window.removeEventListener("offline", onStoreChange);
+  };
+}
+
 export function OfflineIndicator() {
-  const [isOffline, setIsOffline] = useState(false);
+  const isOnline = useSyncExternalStore(
+    subscribeToNetwork,
+    () => navigator.onLine,
+    () => true
+  );
 
-  useEffect(() => {
-    // Only run on the client side
-    if (typeof window === "undefined") return;
-
-    function handleOnline() {
-      setIsOffline(false);
-    }
-    
-    function handleOffline() {
-      setIsOffline(true);
-    }
-
-    // Set initial state
-    setIsOffline(!navigator.onLine);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
-  if (!isOffline) return null;
+  if (isOnline) return null;
 
   return (
     <div className={styles.container} role="alert">

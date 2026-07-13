@@ -55,16 +55,24 @@ export async function POST(
     const input = parsed.data;
 
     // A referenced event must belong to this claim — a foreign event id is
-    // either a stale link or a probe; both get the same rejection.
+    // either a stale link or a probe; both get the same rejection. Locked
+    // events are the charter chain's verified backbone: no amendment or
+    // removal may even be proposed against them.
     if (input.eventId) {
       const { data: event } = await supabase
         .from("sof_events")
-        .select("id")
+        .select("id, locked, locked_reason")
         .eq("id", input.eventId)
         .eq("claim_id", claim.id)
         .maybeSingle();
       if (!event) {
         return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      }
+      if (event.locked) {
+        return NextResponse.json(
+          { error: "EVENT_LOCKED", reason: event.locked_reason ?? null },
+          { status: 409 }
+        );
       }
     }
 

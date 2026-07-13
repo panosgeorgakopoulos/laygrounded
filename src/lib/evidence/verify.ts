@@ -12,6 +12,7 @@ import {
   WEATHER_THRESHOLDS,
 } from "./weather";
 import { checkVesselPosition } from "./ais";
+import { LineageRecorder } from "@/lib/observability/lineage";
 
 export interface EvidenceCheckRow {
   id: string;
@@ -79,6 +80,7 @@ export async function verifyClaimEvidence(
 
   const activeEvents = events || [];
   const checks: Array<Omit<EvidenceCheckRow, "id" | "checked_at">> = [];
+  const lineage = new LineageRecorder();
 
   // --- Resolve port coordinates (geocode once, cache on the claim) ---
   let lat: number | null = claim.port_lat;
@@ -86,6 +88,16 @@ export async function verifyClaimEvidence(
   let portLabel = claim.port;
   if (lat == null || lon == null) {
     const loc = await geocodePort(claim.port);
+    lineage.record({
+      source: "open-meteo-geocoding",
+      sourceRef: "https://geocoding-api.open-meteo.com/v1/search",
+      step: "geocode_port → cache port_lat/port_lon on claim",
+      inputs: { port: claim.port },
+      outputSummary: loc
+        ? { resolved: true, lat: loc.lat, lon: loc.lon, label: loc.label }
+        : { resolved: false },
+      output: loc,
+    });
     if (loc) {
       lat = loc.lat;
       lon = loc.lon;
@@ -123,10 +135,33 @@ export async function verifyClaimEvidence(
           "Weather archive has no readings for this window (reanalysis lags ~5 days behind real time).",
         data: { interval, port: portLabel, lat, lon },
       });
+      lineage.record({
+        source: "open-meteo-era5",
+        sourceRef: "https://archive-api.open-meteo.com/v1/era5",
+        step: "fetch_hourly_weather → no readings for window",
+        inputs: { lat, lon, interval },
+        outputSummary: { available: false },
+        output: null,
+        checkIndex: checks.length - 1,
+      });
       continue;
     }
 
     const a = assessWeatherWindow(window);
+    lineage.record({
+      source: "open-meteo-era5",
+      sourceRef: "https://archive-api.open-meteo.com/v1/era5",
+      step: "fetch_hourly_weather → assess_weather_window against WEATHER_THRESHOLDS",
+      inputs: { lat, lon, interval, thresholds: WEATHER_THRESHOLDS },
+      outputSummary: {
+        verdict: a.verdict,
+        max_precip_mm: a.maxPrecipMm,
+        max_wind_kn: a.maxWindKn,
+        max_gust_kn: a.maxGustKn,
+      },
+      output: window, // hashed — the exact archive payload the verdict rests on
+      checkIndex: checks.length, // the check pushed immediately below
+    });
     const range = `${interval.start.slice(0, 16).replace("T", " ")}–${interval.end.slice(0, 16).replace("T", " ")} UTC`;
     let summary: string;
     if (a.verdict === "corroborated") {
@@ -167,6 +202,15 @@ export async function verifyClaimEvidence(
       summary: pos.summary,
       data: pos.data,
     });
+    lineage.record({
+      source: "ais-provider",
+      sourceRef: process.env.AIS_PROVIDER_URL ?? "unconfigured",
+      step: "check_vessel_position at NOR_TENDERED timestamp",
+      inputs: { vessel: claim.vessel, at: nor.occurred_at },
+      outputSummary: { verdict: pos.verdict },
+      output: pos.data,
+      checkIndex: checks.length - 1,
+    });
   }
 
   // --- Persist snapshot ---
@@ -176,7 +220,11 @@ export async function verifyClaimEvidence(
     .eq("claim_id", claimId);
   if (delErr) throw new Error(`PERSIST_FAILED: ${delErr.message}`);
 
-  if (checks.length === 0) return [];
+  if (checks.length === 0) {
+    // Still persist provenance of any external calls made (e.g. geocoding).
+    await lineage.persist(supabase, claimId);
+    return [];
+  }
 
   const { data: inserted, error: insErr } = await supabase
     .from("evidence_checks")
@@ -184,5 +232,10 @@ export async function verifyClaimEvidence(
     .select("*");
   if (insErr) throw new Error(`PERSIST_FAILED: ${insErr.message}`);
 
-  return (inserted || []) as EvidenceCheckRow[];
+  const rows = (inserted || []) as EvidenceCheckRow[];
+  // Append-only provenance: link each lineage entry to the check row its
+  // data fed (rows come back in insert order).
+  await lineage.persist(supabase, claimId, rows.map((r) => r.id));
+
+  return rows;
 }
