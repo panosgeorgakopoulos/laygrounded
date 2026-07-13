@@ -26,6 +26,8 @@ const UpdateClaimSchema = z.object({
   cpTerms: CpTermsSchema.optional(),
   status: z.enum(["draft", "processing", "completed", "failed", "demurrage", "despatch", "in_progress"]).optional(),
   timeBarDays: z.number().int().min(1).max(365).optional(),
+  vesselImo: z.string().max(16).nullable().optional(),
+  counterpartyName: z.string().max(200).nullable().optional(),
   // Settlement recording: what the claim actually closed at. Null clears a
   // mistaken entry.
   settledAmount: z.number().min(0).nullable().optional(),
@@ -133,6 +135,8 @@ export async function GET(
       timeBarDays: claim.time_bar_days ?? 90,
       settledAmount: claim.settled_amount ?? null,
       settledAt: claim.settled_at ?? null,
+      vesselImo: claim.vessel_imo ?? null,
+      counterpartyName: claim.counterparty_name ?? null,
       timeBar,
       company: claim.companies,
       documents: documentsWithUrls,
@@ -214,6 +218,8 @@ export async function PATCH(
       data.cp_form = parsed.data.cpTerms.cp_form ?? "GENCON94";
     }
     if (parsed.data.timeBarDays !== undefined) data.time_bar_days = parsed.data.timeBarDays;
+    if (parsed.data.vesselImo !== undefined) data.vessel_imo = parsed.data.vesselImo;
+    if (parsed.data.counterpartyName !== undefined) data.counterparty_name = parsed.data.counterpartyName;
     if (parsed.data.settledAmount !== undefined) data.settled_amount = parsed.data.settledAmount;
     if (parsed.data.settledAt !== undefined) {
       data.settled_at = parsed.data.settledAt

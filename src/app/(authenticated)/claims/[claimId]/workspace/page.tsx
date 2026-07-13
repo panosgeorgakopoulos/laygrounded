@@ -35,6 +35,8 @@ interface ClaimData {
     timeBar: TimeBarView | null;
     settledAmount: number | null;
     settledAt: string | null;
+    vesselImo: string | null;
+    counterpartyName: string | null;
     documents: Array<{
       id: string;
       storagePath: string;
@@ -403,6 +405,8 @@ export default function WorkspacePage({
         settledAmount={data.claim.settledAmount ?? null}
         settledAt={data.claim.settledAt ?? null}
         currency={cpTerms.currency}
+        vesselImo={data.claim.vesselImo ?? null}
+        counterpartyName={data.claim.counterpartyName ?? null}
         onClaimChanged={fetchClaim}
       />
 

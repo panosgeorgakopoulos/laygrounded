@@ -51,12 +51,61 @@ interface DiffDelta {
   used_hours: number;
 }
 
+interface ComplianceCheck {
+  id: string;
+  subjectType: "vessel" | "counterparty";
+  subject: string;
+  verdict: "clear" | "possible_match" | "match" | "unavailable";
+  riskScore: number | null;
+}
+
+interface EtsView {
+  delayHours: number;
+  co2Tonnes: number;
+  estimatedCostEur: number;
+  euaPriceEur: number;
+}
+
+interface DraftView {
+  id: string;
+  kind: string;
+  tone: string;
+  subject: string;
+  contentMd: string;
+  grounding: { verified: boolean; issues: Array<{ message: string }> };
+  createdAt: string;
+}
+
+interface IntegrationView {
+  id: string;
+  provider: string;
+  displayName: string;
+  status: string;
+}
+
+interface SensitivityFinding {
+  id: string;
+  category: string;
+  label: string;
+  deltaNet: number;
+}
+
+interface SensitivityReport {
+  baselineNet: number;
+  currency: string;
+  vulnerabilities: SensitivityFinding[];
+  opportunities: SensitivityFinding[];
+  maxSingleLoss: number;
+}
+
 interface Props {
   claimId: string;
   timeBar: TimeBarView | null;
   settledAmount: number | null;
   settledAt: string | null;
   currency: string;
+  vesselImo: string | null;
+  counterpartyName: string | null;
   // Fired after a decision changes the underlying events/calculation so the
   // workspace can re-fetch.
   onClaimChanged: () => void;
@@ -76,12 +125,21 @@ function timeBarChipClass(state: TimeBarView["state"]): string {
   return "";
 }
 
+function complianceChipClass(verdict: ComplianceCheck["verdict"]): string {
+  if (verdict === "clear") return styles.chipOk;
+  if (verdict === "match") return styles.chipCrit;
+  if (verdict === "possible_match") return styles.chipWarn;
+  return "";
+}
+
 export function ClaimIntelPanel({
   claimId,
   timeBar,
   settledAmount,
   settledAt,
   currency,
+  vesselImo,
+  counterpartyName,
   onClaimChanged,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -96,12 +154,29 @@ export function ClaimIntelPanel({
   const [error, setError] = useState<string | null>(null);
   const [settleAmount, setSettleAmount] = useState(settledAmount?.toString() ?? "");
   const [savingSettle, setSavingSettle] = useState(false);
+  const [compliance, setCompliance] = useState<ComplianceCheck[]>([]);
+  const [ets, setEts] = useState<EtsView | null>(null);
+  const [drafts, setDrafts] = useState<DraftView[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationView[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [pushing, setPushing] = useState<string | null>(null);
+  const [draftKind, setDraftKind] = useState("demand_letter");
+  const [draftTone, setDraftTone] = useState("firm");
+  const [imoInput, setImoInput] = useState(vesselImo ?? "");
+  const [counterpartyInput, setCounterpartyInput] = useState(counterpartyName ?? "");
+  const [savingIdentity, setSavingIdentity] = useState(false);
+  const [sensitivity, setSensitivity] = useState<SensitivityReport | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [evRes, prRes, shRes] = await Promise.all([
+    const [evRes, prRes, shRes, coRes, drRes, inRes] = await Promise.all([
       fetch(`/api/claims/${claimId}/verify-evidence`),
       fetch(`/api/claims/${claimId}/proposals`),
       fetch(`/api/claims/${claimId}/share`),
+      fetch(`/api/claims/${claimId}/compliance`),
+      fetch(`/api/claims/${claimId}/draft`),
+      fetch(`/api/integrations`),
     ]);
     if (evRes.ok) setEvidence((await evRes.json()).checks || []);
     if (prRes.ok) {
@@ -110,6 +185,13 @@ export function ClaimIntelPanel({
       setDelta(d.diff?.delta ?? null);
     }
     if (shRes.ok) setShares((await shRes.json()).shares || []);
+    if (coRes.ok) {
+      const d = await coRes.json();
+      setCompliance(d.checks || []);
+      setEts(d.ets ?? null);
+    }
+    if (drRes.ok) setDrafts((await drRes.json()).drafts || []);
+    if (inRes.ok) setIntegrations((await inRes.json()).integrations || []);
   }, [claimId]);
 
   useEffect(() => {
@@ -224,10 +306,118 @@ export function ClaimIntelPanel({
     }
   };
 
+  const saveIdentity = async () => {
+    setSavingIdentity(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vesselImo: imoInput.trim() || null,
+          counterpartyName: counterpartyInput.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not save identity fields");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingIdentity(false);
+    }
+  };
+
+  const runScan = async () => {
+    setScanning(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/compliance`, { method: "POST" });
+      if (!res.ok) throw new Error("Compliance scan failed");
+      const d = await res.json();
+      setCompliance(d.checks || []);
+      setEts(d.ets ?? null);
+      setExpanded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const runDraft = async () => {
+    setDrafting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: draftKind, tone: draftTone }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Drafting failed");
+      }
+      const d = await res.json();
+      setDrafts((prev) => [d.draft, ...prev]);
+      setExpanded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  const pushToErp = async (integrationId: string) => {
+    setPushing(integrationId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integrationId, kind: "push_invoice" }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Push failed");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPushing(null);
+    }
+  };
+
+  const runSensitivity = async () => {
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/sensitivity`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Sensitivity analysis failed");
+      }
+      setSensitivity((await res.json()).report);
+      setExpanded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const copyDraft = async (d: DraftView) => {
+    try {
+      await navigator.clipboard.writeText(`Subject: ${d.subject}\n\n${d.contentMd}`);
+      setCopied(d.id);
+    } catch {
+      setError("Clipboard unavailable.");
+    }
+  };
+
   const pendingProposals = proposals.filter((p) => p.status === "pending");
   const contradicted = evidence.filter((c) => c.verdict === "contradicted").length;
   const corroborated = evidence.filter((c) => c.verdict === "corroborated").length;
   const activeShares = shares.filter((s) => !s.revokedAt);
+  const sanctionsHit = compliance.some((c) => c.verdict === "match" || c.verdict === "possible_match");
 
   return (
     <div className={styles.panel}>
@@ -273,6 +463,20 @@ export function ClaimIntelPanel({
         {settledAmount != null && (
           <span className={`${styles.chip} ${styles.chipOk} tnum`}>
             SETTLED {currency} {settledAmount.toLocaleString("en-US")}
+          </span>
+        )}
+
+        {compliance.length > 0 && (
+          <span
+            className={`${styles.chip} ${sanctionsHit ? styles.chipCrit : compliance.every((c) => c.verdict === "clear") ? styles.chipOk : ""} tnum`}
+          >
+            {sanctionsHit ? "SANCTIONS RISK" : compliance.every((c) => c.verdict === "clear") ? "SANCTIONS CLEAR" : "SANCTIONS ?"}
+          </span>
+        )}
+
+        {ets && ets.estimatedCostEur > 0 && (
+          <span className={`${styles.chip} ${styles.chipWarn} tnum`}>
+            ETS ~€{ets.estimatedCostEur.toLocaleString("en-US")}
           </span>
         )}
 
@@ -404,6 +608,50 @@ export function ClaimIntelPanel({
               </div>
             )}
 
+            <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
+              Negotiation intel
+              <button className={styles.smallBtn} onClick={runSensitivity} disabled={analyzing}>
+                {analyzing ? "ANALYZING…" : "FIND WEAK POINTS"}
+              </button>
+            </div>
+            {sensitivity ? (
+              <div className={styles.itemList}>
+                {sensitivity.vulnerabilities.length === 0 ? (
+                  <div className={styles.muted}>
+                    No material single-point attacks found — the claim is robust
+                    to the standard counterparty arguments.
+                  </div>
+                ) : (
+                  sensitivity.vulnerabilities.slice(0, 3).map((v) => (
+                    <div key={v.id} className={styles.item}>
+                      <div className={styles.itemHead}>
+                        <span className={`${styles.chip} ${styles.chipCrit} tnum`}>
+                          −{Math.abs(v.deltaNet).toLocaleString("en-US")} {sensitivity.currency}
+                        </span>
+                      </div>
+                      <div className={styles.itemNote}>{v.label}</div>
+                    </div>
+                  ))
+                )}
+                {sensitivity.opportunities.slice(0, 2).map((o) => (
+                  <div key={o.id} className={styles.item}>
+                    <div className={styles.itemHead}>
+                      <span className={`${styles.chip} ${styles.chipOk} tnum`}>
+                        +{o.deltaNet.toLocaleString("en-US")} {sensitivity.currency}
+                      </span>
+                    </div>
+                    <div className={styles.itemNote}>{o.label}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.muted}>
+                Simulates the amendments a counterparty would argue (late NOR,
+                earlier completion, longer weather) and ranks each by money at
+                stake — know your weakest point before they do.
+              </div>
+            )}
+
             {pendingProposals.length > 0 && (
               <>
                 <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
@@ -452,6 +700,154 @@ export function ClaimIntelPanel({
                       </div>
                     </div>
                   ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* --- Compliance & drafting --- */}
+          <div className={styles.column}>
+            <div className={styles.colTitle}>
+              Risk & compliance
+              <button className={styles.smallBtn} onClick={runScan} disabled={scanning}>
+                {scanning ? "SCANNING…" : "RUN SCAN"}
+              </button>
+            </div>
+            <div className={styles.formRow}>
+              <input
+                className={`${styles.input} tnum`}
+                type="text"
+                placeholder="Vessel IMO"
+                value={imoInput}
+                onChange={(e) => setImoInput(e.target.value)}
+              />
+              <input
+                className={styles.input}
+                type="text"
+                placeholder="Counterparty name"
+                value={counterpartyInput}
+                onChange={(e) => setCounterpartyInput(e.target.value)}
+                style={{ maxWidth: "200px" }}
+              />
+              <button className={styles.smallBtn} onClick={saveIdentity} disabled={savingIdentity}>
+                {savingIdentity ? "SAVING…" : "SAVE"}
+              </button>
+            </div>
+            {compliance.length === 0 ? (
+              <div className={styles.muted} style={{ marginTop: "0.5rem" }}>
+                Screens the vessel (IMO) and counterparty against OFAC/EU/UN
+                sanctions lists and estimates EU ETS carbon cost of the delay.
+              </div>
+            ) : (
+              <div className={styles.itemList} style={{ marginTop: "0.5rem" }}>
+                {compliance.map((c) => (
+                  <div key={c.id} className={styles.item}>
+                    <span className={`${styles.chip} ${complianceChipClass(c.verdict)} tnum`}>
+                      {c.subjectType.toUpperCase()} · {c.verdict.replace(/_/g, " ").toUpperCase()}
+                    </span>{" "}
+                    <span className={styles.itemNote}>{c.subject}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {ets && (
+              <div className={styles.muted} style={{ marginTop: "0.5rem" }}>
+                EU ETS exposure of the {ets.delayHours.toFixed(0)}h delay: ~
+                <strong className="tnum">
+                  {ets.co2Tonnes.toFixed(1)} tCO₂ ≈ €
+                  {ets.estimatedCostEur.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </strong>{" "}
+                (@ €{ets.euaPriceEur}/t, estimate — not MRV data).
+              </div>
+            )}
+
+            <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
+              Legal drafter
+              <button className={styles.smallBtn} onClick={runDraft} disabled={drafting}>
+                {drafting ? "DRAFTING… (≈1 MIN)" : "GENERATE"}
+              </button>
+            </div>
+            <div className={styles.formRow}>
+              <select
+                className={styles.input}
+                value={draftKind}
+                onChange={(e) => setDraftKind(e.target.value)}
+              >
+                <option value="demand_letter">Demand letter</option>
+                <option value="counter_argument">Counter-argument</option>
+                <option value="settlement_proposal">Settlement proposal</option>
+              </select>
+              <select
+                className={styles.input}
+                value={draftTone}
+                onChange={(e) => setDraftTone(e.target.value)}
+              >
+                <option value="firm">Firm</option>
+                <option value="neutral">Neutral</option>
+                <option value="conciliatory">Conciliatory</option>
+              </select>
+            </div>
+            {drafts.length > 0 && (
+              <div className={styles.itemList} style={{ marginTop: "0.5rem" }}>
+                {drafts.slice(0, 3).map((d) => (
+                  <div key={d.id} className={styles.item}>
+                    <div className={styles.itemHead}>
+                      <span
+                        className={`${styles.chip} ${d.grounding?.verified ? styles.chipOk : styles.chipWarn} tnum`}
+                      >
+                        {d.grounding?.verified ? "GROUNDED ✓" : "UNVERIFIED FIGURES"}
+                      </span>
+                      <button className={styles.smallBtn} onClick={() => copyDraft(d)}>
+                        {copied === d.id ? "COPIED ✓" : "COPY"}
+                      </button>
+                    </div>
+                    <div className={styles.itemNote}>
+                      <strong>{d.subject}</strong>
+                    </div>
+                    <details>
+                      <summary className={styles.muted}>
+                        {d.kind.replace(/_/g, " ")} · {d.tone} · {d.createdAt.slice(0, 16).replace("T", " ")}
+                      </summary>
+                      <pre
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          font: "inherit",
+                          fontSize: "0.8125rem",
+                          marginTop: "0.375rem",
+                        }}
+                      >
+                        {d.contentMd}
+                      </pre>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {integrations.length > 0 && (
+              <>
+                <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
+                  ERP sync
+                </div>
+                <div className={styles.itemList}>
+                  {integrations
+                    .filter((i) => i.status === "active")
+                    .map((i) => (
+                      <div key={i.id} className={styles.item}>
+                        <div className={styles.itemHead}>
+                          <span className={styles.itemNote}>
+                            {i.displayName || i.provider}
+                          </span>
+                          <button
+                            className={styles.smallBtn}
+                            onClick={() => pushToErp(i.id)}
+                            disabled={pushing === i.id}
+                          >
+                            {pushing === i.id ? "PUSHING…" : "PUSH INVOICE"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </>
             )}

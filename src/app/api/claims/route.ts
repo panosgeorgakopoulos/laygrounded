@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
+import { runComplianceScan } from "@/lib/compliance/service";
 
 const CreateClaimSchema = z.object({
   vessel: z.string().min(1),
@@ -10,6 +11,8 @@ const CreateClaimSchema = z.object({
   port: z.string().min(1),
   cargo: z.string().min(1),
   cpForm: z.string().default("GENCON94"),
+  vesselImo: z.string().max(16).optional(),
+  counterpartyName: z.string().max(200).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -115,6 +118,8 @@ export async function POST(req: NextRequest) {
         cargo: parsed.data.cargo,
         cp_form: parsed.data.cpForm,
         cp_terms: DEFAULT_CP_TERMS,
+        vessel_imo: parsed.data.vesselImo ?? null,
+        counterparty_name: parsed.data.counterpartyName ?? null,
         created_by: auth.userId,
         status: "draft",
       })
@@ -122,7 +127,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    
+
+    // Background compliance enrichment: every new claim/counterparty is
+    // screened automatically. Fire-and-forget — the response never waits on
+    // external sanctions APIs, and a scan failure only logs.
+    void runComplianceScan(claim.id, createServiceRoleClient()).catch((e) =>
+      console.error("[claims/POST] compliance scan failed:", e)
+    );
+
     return NextResponse.json({ 
       claim: {
         id: claim.id,
