@@ -61,3 +61,21 @@ corroborated | contradicted | inconclusive | unavailable), `event_proposals`,
 - Module 1 depends on migration 1's drafts CHECK before any LoP insert.
 - `evidence_checks` is replace-on-rerun ⇒ FKs into it must be ON DELETE SET
   NULL and consumers must never assume a check row survives a re-verify.
+
+### 20260715000002_frontier_expansion.sql (Frontier tier)
+- `claims` += is_locked bool default false (notarization freeze; set via
+  /api/v1/claims/[claimId]/notarize with lock:true).
+- `vessel_analytics_profiles` — company_id FK, vessel_imo (UNIQUE per
+  company), cii_rating A–E, attained/required CII, dwt, annual_distance_nm,
+  baseline_speed, consumption_curve jsonb ({at_berth_aux_tonnes_per_day,
+  sea_curve:[{speed_knots,tonnes_per_day}]}), last_hull_cleaning. Company RLS.
+- `compliance_ledger` — claim_id FK, entry_kind mrv_ets|cii_degradation|
+  biofouling|sftw_arbitration|green_twin|time_proof, scope3/mrv CO2 numerics,
+  eua_liability_eur, details jsonb, cryptographic_signature (Merkle root or
+  canonical sha256), signature_algo. APPEND-ONLY: SELECT+INSERT policies only.
+- `port_honesty_and_resilience_index` MATVIEW — grain (port_key, month):
+  weather decisive/contradicted counts + rate (month = checked event's month),
+  median/p90 NOR→berth congestion hours (confirmed events only). No end-user
+  grants (AD-002); `refresh_port_honesty_and_resilience_index()` service-role.
+- `drafts.kind` CHECK += 'arrest_dossier'; `pending_human_reviews.subject_type`
+  CHECK += 'arrest_dossier'.

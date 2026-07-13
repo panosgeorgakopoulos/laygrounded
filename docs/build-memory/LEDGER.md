@@ -69,3 +69,40 @@ Modules 2 and 4 were built by parallel subagents. Hard rule given to both: own
 only their module's new files; never touch `api-errors.ts`,
 `database-types.ts`, `types.ts`, or another module's migration. Orchestrator
 verifies their output at the module gate (tsc + bun test + import audit).
+
+## AD-011 — Frontier expansion consolidates into 3 pure libs + one migration (2026-07-14)
+CII degradation / biofouling / SFTW / MRV-ETS / green twin live in one pure
+module `src/lib/compliance/carbon.ts`; pre-fixture intelligence / clause-swap
+hedging / shock index / ROI / early warnings in `src/lib/analytics/predictive.ts`
+(reuses `percentile` + `MIN_SAMPLE_VOYAGES` from `oracle/pricing.ts`); Merkle
+notary + arrest pre-filing in `src/lib/legal/prosecution.ts`. Migration
+`20260715000002_frontier_expansion.sql`. AD-004 purity discipline holds: all
+three libs are I/O-free and unit-tested; routes own persistence.
+
+## AD-012 — The blueprint's chain_tier/parent_claim_id were NOT re-added
+`20260714000005` already carries parent_claim_id/chain_role/chain_depth
+(chain_depth IS the tier) and sof_events.locked. The frontier migration adds
+only `claims.is_locked` (claim-level notarization freeze). Multi-tier ripple
+is the existing `createSubClaim` called iteratively per tier by
+`/api/v1/claims/[claimId]/ripple`.
+
+## AD-013 — v1 routes live in the App Router, not src/pages
+The repo has no pages router; `/api/v1/*` handlers follow the existing
+`src/app/api` conventions (apiError sentinels, awaited params, RLS +
+explicit company check). M2M telemetry reuses the ERP webhook trust model
+verbatim: HMAC over raw body, webhook_logs idempotency (batch-level),
+claims upsert on (company_id, external_source='m2m', external_ref).
+
+## AD-014 — Arrest pre-filing is deterministic and HITL-gated, never filed
+`prepareArrestPreFiling` is template-based (no AI, no legal conclusions):
+eligibility gates (quantum > 0, unsettled, unpaid ≥ grace days), sister-ship
+LEADS only (registry proof is counsel's job), cautions for time-bar lapse and
+contradicted own evidence. Persisted as drafts kind 'arrest_dossier' +
+pending_human_reviews subject 'arrest_dossier'; every dossier embeds the
+counsel-review disclaimer.
+
+## AD-015 — Clause-basis multipliers in predictive.ts are ranking heuristics
+DAYS_BASIS_EXCLUSION_SHARE approximates SHEX/SSHEX/UU/EIU as calendar-share
+multipliers over SHINC-counted hours. Used ONLY to compare scenarios against
+each other on identical history — never as an engine substitute. Documented
+inline; anything wanting real precision replays the engine (diff.ts pattern).
