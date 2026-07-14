@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAisTrack } from "@/lib/evidence/ais";
+import { runGeofenceAudit } from "@/lib/ingestion/geofence-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const EXTRACTION_MODEL_ID = process.env.CLAUDE_MODEL_ID || "claude-sonnet-4-6";
 export const EXTRACTION_MODEL_FALLBACK_ID =
@@ -258,6 +261,47 @@ function computeQualityScore(events: ExtractedEvent[]): number {
   return completeCount / events.length;
 }
 
+// Pads the AIS request window either side of the SoF chronology so the track
+// brackets the first and last event rather than starting at them (positionAt
+// needs a fix on both sides to interpolate).
+const AIS_WINDOW_PAD_HOURS = 12;
+
+// Cross-verifies the freshly extracted timeline against the vessel's AIS
+// track. Best-effort by design: a missing provider, a thin track, or an
+// unreadable payload must never fail an otherwise-good extraction — it just
+// leaves ais_geofence_verified NULL ("never checked"), which the workspace
+// renders as unverified rather than as a pass. Mirrors the geofencing the
+// text-ingest route already does at the door.
+async function geofenceExtractedEvents(
+  supabase: SupabaseClient,
+  claimId: string,
+  events: ExtractedEvent[]
+): Promise<void> {
+  const { data: claim } = await supabase
+    .from("claims")
+    .select("vessel, vessel_imo")
+    .eq("id", claimId)
+    .maybeSingle();
+  const vesselRef = claim?.vessel_imo || claim?.vessel;
+  if (!vesselRef) return;
+
+  const times = events
+    .map((e) => new Date(e.occurred_at).getTime())
+    .filter((t) => !Number.isNaN(t))
+    .sort((a, b) => a - b);
+  if (times.length === 0) return;
+
+  const padMs = AIS_WINDOW_PAD_HOURS * 3600_000;
+  const track = await fetchAisTrack(
+    vesselRef,
+    new Date(times[0] - padMs).toISOString(),
+    new Date(times[times.length - 1] + padMs).toISOString()
+  );
+  if (!track) return; // No AIS to check against — honestly skipped.
+
+  await runGeofenceAudit({ claimId, aisHistory: track, client: supabase });
+}
+
 export async function uploadSofAndExtract(
   input: ExtractionInput
 ): Promise<ExtractionResult> {
@@ -358,10 +402,14 @@ export async function uploadSofAndExtract(
       });
     }
 
-    await supabase.from("documents").update({ 
-      extraction_status: "extracted", 
-      page_count: input.pageCount || pages.length 
+    await supabase.from("documents").update({
+      extraction_status: "extracted",
+      page_count: input.pageCount || pages.length
     }).eq("id", input.documentId);
+
+    await geofenceExtractedEvents(supabase, input.claimId, allEvents).catch((e) => {
+      console.warn("Geofence audit skipped:", (e as Error).message);
+    });
 
     return { ok: true, events: allEvents, qualityScore };
   } catch (e) {

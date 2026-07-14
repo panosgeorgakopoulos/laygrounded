@@ -7,12 +7,45 @@
 // Without configuration every check reports "unavailable" (never a guess) so
 // the rest of the evidence pipeline stays honest.
 
+import { normalizeAisTrack, type AisFix } from "@/lib/ingestion/multimodal";
+
 const FETCH_TIMEOUT_MS = 10_000;
 
 export interface AisPositionCheck {
   verdict: "corroborated" | "contradicted" | "inconclusive" | "unavailable";
   summary: string;
   data: Record<string, unknown>;
+}
+
+// Fetches the vessel's AIS track over a window, normalized to AisFix[] for
+// the geofence engine. Returns null — never [] — when the track cannot be
+// obtained (no provider configured, provider error, unreadable payload), so
+// callers can tell "no AIS to check against" apart from "AIS says the vessel
+// was nowhere near the port". An empty array is a real answer; null is not.
+export async function fetchAisTrack(
+  vesselRef: string,
+  fromISO: string,
+  toISO: string
+): Promise<AisFix[] | null> {
+  const providerUrl = process.env.AIS_PROVIDER_URL;
+  const providerKey = process.env.AIS_PROVIDER_KEY;
+  if (!providerUrl || !providerKey || !vesselRef) return null;
+
+  try {
+    const url = providerUrl
+      .replace("{imo}", encodeURIComponent(vesselRef))
+      .replace("{from}", encodeURIComponent(fromISO))
+      .replace("{to}", encodeURIComponent(toISO));
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${providerKey}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const track = normalizeAisTrack(await res.json());
+    return track.length > 0 ? track : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function checkVesselPosition(

@@ -121,6 +121,9 @@ behind pending_human_reviews subject 'autonomous_settlement'. Triage leans on
 sensitivity.ts's stable "struck out" label wording — pinned by a unit test.
 
 ## AD-017 — Geofence verdicts are three-state and AIS input is caller-supplied
+(The caller-supplied half is amended by AD-020: a track may now be fetched
+server-side when the caller has none. The three-state posture below stands.)
+
 `sof_events.ais_geofence_verified` is NULL (never checked) / true / false —
 a thin AIS track yields "unverifiable", never a silent pass (matches the
 sanctions/AIS honesty posture). The audit routes take the AIS track in the
@@ -148,3 +151,61 @@ ledgers every export as compliance_ledger entry_kind 'efti_export'
 (weather/shifting/hatch/excepted) never export — port-call milestones only.
 Token-federated authority access is future work; today the tenant forwards
 the signed packet through its own channel.
+
+## AD-020 — Autopilot geofences both ingestion paths; AIS input is now optional (amends AD-017)
+AD-017 kept AIS input caller-supplied so the audit stayed deterministic. That
+held for the text-ingest route but left the Claude-vision path (scanned PDFs,
+`/api/claims/[claimId]/documents`) never geofenced at all: a discrepancy meant
+something different depending on how the SoF arrived. Both paths now share
+`src/lib/ingestion/geofence-server.ts` (the DB half; `multimodal.ts` stays
+pure), so verdicts and AIS-GEOFENCE flags mean one thing.
+
+The determinism concern is answered by pure `normalizeAisTrack` rather than by
+refusing to fetch: it maps the known provider spellings (envelope keys,
+lat/latitude, epoch s vs ms) and *drops* rows it cannot read, so a garbled
+payload yields a thin track ("unverifiable") rather than a confident fix in
+the wrong place. `fetchAisTrack` returns null — never [] — when the track
+can't be had, keeping "no AIS to check against" distinct from "AIS says the
+vessel wasn't there". A caller-supplied track still wins and remains the
+deterministic path; `aisHistory` is merely optional now, and an unconfigured
+provider answers AIS_UNAVAILABLE (422), never a green all-clear.
+Geofencing in extraction is best-effort: it must never fail a good extraction,
+so a failure leaves the verdict NULL (never checked), which reads as
+unverified in the workspace.
+
+## AD-021 — OCR normalization collapses whitespace but never repairs words
+`extractSofTimeline` matches against whitespace-normalized text (nbsp, thin/
+zero-width, ideographic spaces; ragged runs) and accepts the hour/minute
+separators the wild produces (`14:30`, `1430`, `14.30`, `14h30`), because OCR
+noise that hides a real event is a silent failure — the operator gets no
+warning that it went missing. Character-level repair of garbled keywords
+("BERTHEO" → BERTHED) is deliberately refused: that is a guess, and this
+module's whole posture is that a guessed event is worse than a reported gap.
+raw_text keeps the verbatim line — the record an arbitrator sees.
+
+## AD-022 — The ROI calculator reports the SHEX swap with its sign, never as a "saving"
+The brief asked for "potential savings if SHEX was used instead of SHINC".
+On an owner's book there are none: SHEX excludes Sundays/holidays from
+laytime, so fewer hours count, so less demurrage is earned. Verified against
+the engine on a Sunday-spanning voyage — SHINC 70,833.33 vs SHEX 45,833.33,
+i.e. the swap COSTS the owner 25,000. The saving is the charterer's. So
+`RoiBasisFinding.deltaNet` preserves the sign (SHEX net − SHINC net, owner's
+perspective) instead of abs()'ing it, the tile reads its direction off that
+sign, and with no data it says nothing at all rather than defaulting to
+"(a saving)" — a default that would promise money that does not exist. A unit
+test pins the negative direction so a later "fix" can't quietly invert it.
+
+Disputed weather strikes only the windows an evidence check marks
+'contradicted', paired via the exported findPairs() from sensitivity.ts —
+reused, not re-implemented, because two pairing rules would give two answers
+to "what is this window worth?". Windowing is on the completion anchor (the
+same anchor the time bar uses); claims with no confirmed completion count as
+outOfWindow rather than vanishing.
+
+## AD-023 — An unpriceable claim still gets a time-bar deadline
+buildRoiReport first ran the engine and `continue`d on failure, which dropped
+the claim before its time bar was computed — silently hiding the claim most
+likely to be forgotten (the one whose numbers don't work). The time bar now
+runs independently of pricing: valueAtRisk goes null ("not computable" in the
+UI, never a 0 that reads as "nothing at stake") and the claim stays on the
+queue. Regression-tested with a voyage past the engine's 1440-iteration cap.

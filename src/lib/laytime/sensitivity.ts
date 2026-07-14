@@ -61,14 +61,17 @@ function removeIds(events: SofEventInput[], ids: string[]): SofEventInput[] {
   return events.filter((e) => !ids.includes(e.id));
 }
 
-interface EventPair {
+export interface EventPair {
   startId: string;
   endId: string | null; // open interval
 }
 
 // Pairs start/end events keeping their ids — mirrors the engine's interval
 // pairing so perturbations hit exactly what the engine would exclude.
-function findPairs(
+// Exported because the ROI report strikes individual disputed weather windows
+// and must pair them the same way this module does; two pairing rules would
+// mean two different answers to "what does this window cost?".
+export function findPairs(
   events: SofEventInput[],
   startType: EventTypeEnum,
   endType: EventTypeEnum

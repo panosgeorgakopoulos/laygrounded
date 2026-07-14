@@ -69,7 +69,23 @@ const ISO_WITH_OFFSET_RE =
   /\b(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)\s?(Z|[+-]\d{2}:?\d{2})/;
 const ISO_NAIVE_RE = /\b(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)\b/;
 // Maritime SoF convention: day first ("01.03.2026 14:30", "01/03/2026 1430").
-const DMY_RE = /\b(\d{1,2})[./](\d{1,2})[./](\d{4})\s+(\d{2}):?(\d{2})\b/;
+// The hour/minute separator is deliberately permissive — OCR and ships' agents
+// between them produce "14:30", "1430", "14.30" and "14h30" for the same time.
+const DMY_RE = /\b(\d{1,2})[./](\d{1,2})[./](\d{4})\s+(\d{2})[:.h]?(\d{2})\b/i;
+
+// OCR and PDF text layers emit non-breaking/figure spaces and ragged runs of
+// whitespace, which would otherwise break keyword rules that assume single
+// spaces ("ALL  FAST"). Collapsing whitespace is safe — it cannot invent an
+// event — unlike character-level repair of garbled words, which we refuse to
+// do: a misread word yields a warning, never a guessed event.
+function normalizeOcrWhitespace(line: string): string {
+  // U+00A0 nbsp, U+2000-U+200B en/em/thin/hair/zero-width, U+202F narrow
+  // nbsp, U+3000 ideographic — all seen in real PDF text layers.
+  return line
+    .replace(/[\t\u00A0\u2000-\u200B\u202F\u3000]/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -120,14 +136,17 @@ export function extractSofTimeline(
   let matchedLines = 0;
 
   for (let i = 0; i < lines.length; i++) {
+    // Match and parse against OCR-normalized text, but keep the original line
+    // as raw_text: the verbatim record is what an arbitrator sees.
     const raw = lines[i].trim();
-    if (!raw) continue;
-    const upper = raw.toUpperCase();
+    const normalized = normalizeOcrWhitespace(lines[i]);
+    if (!normalized) continue;
+    const upper = normalized.toUpperCase();
     const rule = EVENT_RULES.find((r) => r.re.test(upper));
     if (!rule) continue;
     matchedLines++;
 
-    const ts = parseLineTimestamp(raw, opts.defaultUtcOffset);
+    const ts = parseLineTimestamp(normalized, opts.defaultUtcOffset);
     if (!ts) {
       warnings.push(`line ${i + 1}: "${raw.slice(0, 60)}" looks like ${rule.event} but carries no timestamp`);
       continue;
@@ -159,6 +178,81 @@ export interface AisFix {
 export interface PortGeofence {
   lat: number;
   lon: number;
+}
+
+// Commercial AIS providers each shape their history payload differently
+// (MarineTraffic, Spire, Kpler…): the array may be top-level or nested under
+// data/positions/track, and every provider spells latitude and time its own
+// way. This normalizer is the reason auto-fetching a track is safe — it maps
+// the known spellings and *drops* anything it cannot read as a fix rather
+// than coercing it, so a garbled payload yields a thin track (verdict
+// "unverifiable") instead of a confident fix at the wrong place.
+const AIS_ARRAY_KEYS = ["data", "positions", "track", "history", "results"];
+const AIS_LAT_KEYS = ["lat", "latitude", "LAT", "y"];
+const AIS_LON_KEYS = ["lon", "lng", "long", "longitude", "LON", "x"];
+const AIS_TIME_KEYS = ["at", "timestamp", "time", "datetime", "ts", "received_at"];
+
+function pickNumber(row: Record<string, unknown>, keys: string[]): number | null {
+  for (const k of keys) {
+    const v = row[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    // Providers commonly serialize coordinates as strings.
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+// Epoch timestamps are ambiguous between seconds and milliseconds; anything
+// below this bound is far too old to be an AIS fix in ms, so it's seconds.
+const EPOCH_MS_THRESHOLD = 1e11;
+
+function pickTime(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const k of keys) {
+    const v = row[k];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      const ms = v < EPOCH_MS_THRESHOLD ? v * 1000 : v;
+      const d = new Date(ms);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    if (typeof v === "string" && v.trim() !== "") {
+      // A naive AIS timestamp is unusable: positionAt would read it in the
+      // host's zone and silently shift the fix. Require an explicit zone.
+      if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(v.trim())) continue;
+      const ms = Date.parse(v);
+      if (!Number.isNaN(ms)) return new Date(ms).toISOString();
+    }
+  }
+  return null;
+}
+
+export function normalizeAisTrack(payload: unknown): AisFix[] {
+  let rows: unknown = payload;
+  if (rows && !Array.isArray(rows) && typeof rows === "object") {
+    for (const k of AIS_ARRAY_KEYS) {
+      const nested = (rows as Record<string, unknown>)[k];
+      if (Array.isArray(nested)) {
+        rows = nested;
+        break;
+      }
+    }
+  }
+  if (!Array.isArray(rows)) return [];
+
+  const fixes: AisFix[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const r = row as Record<string, unknown>;
+    const lat = pickNumber(r, AIS_LAT_KEYS);
+    const lon = pickNumber(r, AIS_LON_KEYS);
+    const at = pickTime(r, AIS_TIME_KEYS);
+    if (lat === null || lon === null || at === null) continue;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+    fixes.push({ at, lat, lon });
+  }
+  return fixes.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 }
 
 export interface GeofenceOptions {

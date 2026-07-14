@@ -3,13 +3,9 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
-import { geocodePort } from "@/lib/evidence/weather";
-import {
-  auditTimelineAgainstAis,
-  GEOFENCE_CLAUSE_REF,
-  type AisFix,
-} from "@/lib/ingestion/multimodal";
-import type { EventTypeEnum } from "@/lib/laytime/types";
+import { runGeofenceAudit } from "@/lib/ingestion/geofence-server";
+import { fetchAisTrack } from "@/lib/evidence/ais";
+import type { AisFix } from "@/lib/ingestion/multimodal";
 
 const AisFixSchema = z.object({
   at: z.string().datetime({ offset: true }),
@@ -18,15 +14,60 @@ const AisFixSchema = z.object({
 });
 
 const GeofenceAuditSchema = z.object({
-  // The vessel's AIS track around the port call, supplied by the caller
-  // (owner's provider export, bridge stack download). Deliberately not
-  // fetched from AIS_PROVIDER_URL here: provider payload shapes differ and a
-  // deterministic audit needs deterministic input.
-  aisHistory: z.array(AisFixSchema).min(1).max(5000),
+  // The vessel's AIS track around the port call (owner's provider export,
+  // bridge stack download). A caller-supplied track is authoritative and
+  // keeps the audit deterministic; omit it and the server fetches one from
+  // AIS_PROVIDER_URL via the normalizer, which is what lets the workspace
+  // trigger an audit with no track of its own. Unconfigured provider →
+  // AIS_UNAVAILABLE, never a silent pass.
+  aisHistory: z.array(AisFixSchema).min(1).max(5000).optional(),
   portRadiusNm: z.number().min(0.1).max(50).optional(),
   anchorageRadiusNm: z.number().min(0.1).max(100).optional(),
   maxAisGapHours: z.number().min(0.5).max(48).optional(),
 });
+
+// Pads the AIS request window either side of the chronology so the track
+// brackets the first and last event rather than starting at them.
+const AIS_WINDOW_PAD_HOURS = 12;
+
+// Resolves the track to audit against: the caller's if supplied, else the
+// configured provider's over the claim's event window.
+async function resolveTrack(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  claimId: string,
+  supplied: AisFix[] | undefined
+): Promise<AisFix[]> {
+  if (supplied) return supplied;
+
+  const { data: claim } = await supabase
+    .from("claims")
+    .select("vessel, vessel_imo")
+    .eq("id", claimId)
+    .maybeSingle();
+  const vesselRef = claim?.vessel_imo || claim?.vessel;
+  if (!vesselRef) throw new Error("AIS_UNAVAILABLE");
+
+  const { data: events } = await supabase
+    .from("sof_events")
+    .select("occurred_at")
+    .eq("claim_id", claimId)
+    .neq("status", "rejected")
+    .order("occurred_at", { ascending: true });
+  if (!events || events.length === 0) throw new Error("NO_EVENTS");
+
+  const padMs = AIS_WINDOW_PAD_HOURS * 3600_000;
+  const first = new Date(events[0].occurred_at as string).getTime();
+  const last = new Date(events[events.length - 1].occurred_at as string).getTime();
+  if (Number.isNaN(first) || Number.isNaN(last)) throw new Error("AIS_UNAVAILABLE");
+
+  const track = await fetchAisTrack(
+    vesselRef,
+    new Date(first - padMs).toISOString(),
+    new Date(last + padMs).toISOString()
+  );
+  if (!track) throw new Error("AIS_UNAVAILABLE");
+  return track;
+}
 
 // AIS geofence audit: cross-references every position-bound event on the
 // claim against the vessel's AIS track. Verdicts persist three-state to
@@ -49,106 +90,39 @@ export async function POST(
       );
     }
 
+    // Tenancy check stays here (defense in depth alongside RLS); the bridge
+    // owns the audit itself and is shared with the extraction pipeline.
     const supabase = await createClient();
     const { data: claim } = await supabase
       .from("claims")
-      .select("id, company_id, port, port_lat, port_lon")
+      .select("id, company_id")
       .eq("id", claimId)
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
 
-    // Port geofence center: cached coordinates, else geocode once and cache
-    // (same policy as evidence verification).
-    let lat: number | null = claim.port_lat;
-    let lon: number | null = claim.port_lon;
-    if (lat == null || lon == null) {
-      const loc = await geocodePort(claim.port);
-      if (!loc) throw new Error("PORT_NOT_GEOCODED");
-      lat = loc.lat;
-      lon = loc.lon;
-      await supabase.from("claims").update({ port_lat: lat, port_lon: lon }).eq("id", claimId);
-    }
+    const aisHistory = await resolveTrack(
+      supabase,
+      claimId,
+      parsed.data.aisHistory as AisFix[] | undefined
+    );
 
-    // Suggested events are audited too — catching a discrepancy BEFORE a
-    // human confirms the event is the point of the exercise.
-    const { data: events } = await supabase
-      .from("sof_events")
-      .select("id, event_type, occurred_at")
-      .eq("claim_id", claimId)
-      .neq("status", "rejected")
-      .order("occurred_at", { ascending: true });
-    if (!events || events.length === 0) throw new Error("NO_EVENTS");
-
-    const audit = auditTimelineAgainstAis(
-      events.map((e) => ({
-        id: e.id as string,
-        event_type: e.event_type as EventTypeEnum,
-        occurred_at: e.occurred_at as string,
-      })),
-      parsed.data.aisHistory as AisFix[],
-      { lat, lon },
-      {
+    const audit = await runGeofenceAudit({
+      claimId,
+      aisHistory,
+      client: supabase,
+      geofence: {
         portRadiusNm: parsed.data.portRadiusNm,
         anchorageRadiusNm: parsed.data.anchorageRadiusNm,
         maxAisGapHours: parsed.data.maxAisGapHours,
-      }
-    );
-
-    // Persist verdicts by bucket; unchecked event types keep NULL.
-    const byVerdict = { verified: [] as string[], discrepancy: [] as string[], unverifiable: [] as string[] };
-    for (const { event, check } of audit.checks) byVerdict[check.verdict].push(event.id);
-    const buckets: Array<[string[], boolean | null]> = [
-      [byVerdict.verified, true],
-      [byVerdict.discrepancy, false],
-      [byVerdict.unverifiable, null],
-    ];
-    for (const [ids, value] of buckets) {
-      if (!ids.length) continue;
-      const { error } = await supabase
-        .from("sof_events")
-        .update({ ais_geofence_verified: value })
-        .in("id", ids);
-      if (error) throw new Error(`PERSIST_FAILED: ${error.message}`);
-    }
-
-    // Replace-on-rerun for the discrepancy flags.
-    const { error: delErr } = await supabase
-      .from("clause_flags")
-      .delete()
-      .in("event_id", events.map((e) => e.id))
-      .eq("clause_ref", GEOFENCE_CLAUSE_REF);
-    if (delErr) throw new Error(`PERSIST_FAILED: ${delErr.message}`);
-    if (audit.flags.length) {
-      const { error: flagErr } = await supabase.from("clause_flags").insert(
-        audit.flags.map((f) => ({
-          event_id: f.event.id,
-          clause_ref: f.clause_ref,
-          severity: f.severity,
-          note: f.note,
-        }))
-      );
-      if (flagErr) throw new Error(`PERSIST_FAILED: ${flagErr.message}`);
-    }
-
-    return NextResponse.json({
-      verified: audit.verified,
-      discrepancies: audit.discrepancies,
-      unverifiable: audit.unverifiable,
-      skipped: audit.skipped,
-      checks: audit.checks.map(({ event, check }) => ({
-        eventId: event.id,
-        eventType: event.event_type,
-        occurredAt: event.occurred_at,
-        verdict: check.verdict,
-        distanceNm: check.distanceNm,
-        allowedRadiusNm: check.allowedRadiusNm,
-        summary: check.summary,
-      })),
+      },
     });
+
+    return NextResponse.json(audit);
   } catch (e) {
     return apiError(e, "v1/claims/geofence-audit/POST", {
       PORT_NOT_GEOCODED: 422,
       NO_EVENTS: 409,
+      AIS_UNAVAILABLE: 422,
     });
   }
 }

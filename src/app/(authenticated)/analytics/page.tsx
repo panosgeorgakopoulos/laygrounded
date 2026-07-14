@@ -6,7 +6,9 @@ import { Card } from "@/components/core/Card";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { buildClausePnlReport, ClausePnlReport } from "@/lib/analytics/clause-pnl";
+import { loadRoiReport } from "@/lib/analytics/roi";
 import { PrefixtureIntel } from "@/components/laygrounded/prefixture-intel";
+import { RoiCalculator } from "@/components/laygrounded/roi-calculator";
 import styles from "./Analytics.module.css";
 
 export const dynamic = "force-dynamic";
@@ -76,21 +78,33 @@ function Tiles({ report }: { report: ClausePnlReport }) {
 async function AnalyticsBody() {
   const auth = await requireAuth();
   const supabase = await createClient();
-  const report = await buildClausePnlReport(auth.companyId, supabase);
+  // Both reports walk the same book; load them concurrently rather than
+  // paying for two sequential passes over the DB.
+  const [report, roi] = await Promise.all([
+    buildClausePnlReport(auth.companyId, supabase),
+    loadRoiReport(auth.companyId, supabase),
+  ]);
 
+  // The ROI calculator renders even when Clause P&L has nothing to say: its
+  // time-bar queue covers claims the engine cannot price, which is exactly
+  // the case that empties the report below.
   if (report.claims.length === 0) {
     return (
-      <Card>
-        <div className={styles.emptyState}>
-          No computable claims yet. Clause P&L needs at least one claim with
-          confirmed events and valid CP terms.
-        </div>
-      </Card>
+      <>
+        <RoiCalculator report={roi} />
+        <Card>
+          <div className={styles.emptyState}>
+            No computable claims yet. Clause P&L needs at least one claim with
+            confirmed events and valid CP terms.
+          </div>
+        </Card>
+      </>
     );
   }
 
   return (
     <>
+      <RoiCalculator report={roi} />
       <Tiles report={report} />
 
       <Card className={styles.sectionCard}>

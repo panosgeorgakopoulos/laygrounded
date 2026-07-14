@@ -1,0 +1,157 @@
+.wrap {
+  margin-bottom: 2rem;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.sub {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  max-width: 680px;
+}
+
+/* auto-fit + minmax: three tiles on desktop, two on tablet, one on phone,
+   with no breakpoint bookkeeping. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tile {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  min-width: 0; /* let long money strings shrink instead of forcing overflow */
+}
+
+.tileHero {
+  border-color: var(--color-border-hover);
+}
+
+.tileLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.heroValue {
+  margin-top: 0.375rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.tileNote {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.cardTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.cardDesc {
+  margin: 0.25rem 0 0.875rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  max-width: 680px;
+}
+
+/* The table scrolls inside its own box; the page never scrolls sideways. */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.table th {
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.right {
+  text-align: right;
+}
+
+.link {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.subtle {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+}
+
+/* Deadline urgency. The number and the "days left" label carry the meaning;
+   color only reinforces it. */
+.critical {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.warning {
+  color: #ca8a04;
+  font-weight: 500;
+}
+
+.ok {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.footnote {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  max-width: 680px;
+}

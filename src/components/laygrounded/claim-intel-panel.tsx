@@ -19,6 +19,23 @@ export interface TimeBarView {
   complete: boolean;
 }
 
+// Result of POST /api/v1/claims/[id]/geofence-audit.
+interface GeofenceSummary {
+  verified: number;
+  discrepancies: number;
+  unverifiable: number;
+  skipped: number;
+  checks: Array<{
+    eventId: string;
+    eventType: string;
+    occurredAt: string;
+    verdict: "verified" | "discrepancy" | "unverifiable";
+    distanceNm: number | null;
+    allowedRadiusNm: number | null;
+    summary: string;
+  }>;
+}
+
 interface EvidenceCheck {
   id: string;
   eventId: string | null;
@@ -167,6 +184,8 @@ export function ClaimIntelPanel({
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [sensitivity, setSensitivity] = useState<SensitivityReport | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [geofence, setGeofence] = useState<GeofenceSummary | null>(null);
+  const [geofencing, setGeofencing] = useState(false);
 
   const loadAll = useCallback(async () => {
     const [evRes, prRes, shRes, coRes, drRes, inRes] = await Promise.all([
@@ -196,6 +215,42 @@ export function ClaimIntelPanel({
   useEffect(() => {
     loadAll().catch(() => {});
   }, [loadAll]);
+
+  // AIS geofence audit. The route sources the track from the configured
+  // provider; with none configured it answers AIS_UNAVAILABLE, which we
+  // surface verbatim rather than showing a green "all clear".
+  const runGeofence = async () => {
+    setGeofencing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/claims/${claimId}/geofence-audit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          body.error === "AIS_UNAVAILABLE"
+            ? "No AIS track available for this vessel — set AIS_PROVIDER_URL/KEY, or POST a track to the audit endpoint."
+            : body.error === "PORT_NOT_GEOCODED"
+              ? "The claim's port could not be geocoded, so there is no geofence center to measure against."
+              : body.error === "NO_EVENTS"
+                ? "No events on this claim to audit yet."
+                : "Geofence audit failed"
+        );
+      }
+      setGeofence(body as GeofenceSummary);
+      setExpanded(true);
+      // Verdicts live on the events themselves — refresh the workspace so the
+      // timeline badges match this audit.
+      onClaimChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGeofencing(false);
+    }
+  };
 
   const runVerification = async () => {
     setVerifying(true);
@@ -550,6 +605,63 @@ export function ClaimIntelPanel({
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* --- AIS geofence --- */}
+          <div className={styles.column}>
+            <div className={styles.colTitle}>
+              AIS geofence
+              <button className={styles.smallBtn} onClick={runGeofence} disabled={geofencing}>
+                {geofencing ? "AUDITING…" : "AUDIT"}
+              </button>
+            </div>
+            {!geofence ? (
+              <div className={styles.muted}>
+                Cross-checks each position-bound event (NOR, berthed, all fast,
+                cargo ops) against the vessel&apos;s AIS track. Discrepancies are
+                flagged on the timeline before anyone relies on the timestamp.
+              </div>
+            ) : (
+              <>
+                <div className={styles.itemList}>
+                  <div className={styles.item}>
+                    <div className={styles.itemHead}>
+                      <span className={`${styles.chip} ${styles.chipOk} tnum`}>
+                        {geofence.verified} VERIFIED
+                      </span>
+                      {geofence.discrepancies > 0 && (
+                        <span className={`${styles.chip} ${styles.chipCrit} tnum`}>
+                          {geofence.discrepancies} DISCREPANCY
+                        </span>
+                      )}
+                      {geofence.unverifiable > 0 && (
+                        <span className={`${styles.chip} ${styles.chipWarn} tnum`}>
+                          {geofence.unverifiable} UNVERIFIABLE
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Lead with what the counterparty would attack. */}
+                  {geofence.checks
+                    .filter((c) => c.verdict === "discrepancy")
+                    .map((c) => (
+                      <div key={c.eventId} className={styles.item}>
+                        <div className={styles.itemHead}>
+                          <span className={`${styles.chip} ${styles.chipCrit} tnum`}>
+                            {c.eventType.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <div className={styles.itemNote}>{c.summary}</div>
+                      </div>
+                    ))}
+                </div>
+                {geofence.discrepancies === 0 && geofence.verified > 0 && (
+                  <div className={styles.muted}>
+                    AIS corroborates every position-bound event on this claim.
+                  </div>
+                )}
+              </>
             )}
           </div>
 
