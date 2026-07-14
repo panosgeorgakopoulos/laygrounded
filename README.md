@@ -16,15 +16,36 @@
 
 ---
 
-LayGrounded is an enterprise-grade SaaS platform built for the global dry bulk shipping industry. It autonomously ingests PDF Statements of Facts (SoF), extracts events using highly-resilient Vision-Language Models (VLMs), and processes them through a deterministic, hour-by-hour GENCON 94 rules engine to calculate precise demurrage and despatch financial totals.
+LayGrounded is an enterprise-grade, multi-tenant SaaS platform built for the global dry bulk and tanker shipping industries. It autonomously ingests PDF Statements of Facts (SoF), extracts timestamped events using highly-resilient Vision-Language Models (VLMs), and processes them through a pure, deterministic hour-by-hour rules engine (supporting both GENCON 94 and ASBATANKVOY) to calculate precise demurrage and despatch financial totals. 
+
+Beyond core calculations, LayGrounded features a sophisticated intelligence layer, agentic legal drafting, predictive risk oracles, and zero-day settlement clearing, positioning it as a Tier-1 financial network for maritime claims.
 
 ## ✨ Features
 
-- **Resilient AI Extraction pipeline:** Utilizes Anthropic's Claude to parse unstructured SoF documents. Features a fortified `withRetry` circuit breaker, jittered exponential backoff for rate limits, and zero-trust confidence gates.
-- **Deterministic Rules Engine:** Implements deep GENCON 94 hour-by-hour logic. Fully handles NOR validation, standard/SHEX turn time, working-hour advancement, and complex operational window detection.
+### 🧠 Core Engine & Extraction
+- **Resilient AI Extraction Pipeline:** Utilizes Anthropic's Claude vision models to parse unstructured SoF documents with built-in validation. Features a fortified `withRetry` circuit breaker, jittered exponential backoff, and strict Zod schema compliance.
+- **Deterministic Rules Engine:** Implements deep GENCON 94 and ASBATANKVOY hour-by-hour logic. Fully handles NOR validation, standard/SHEX turn time, working-hour advancement, and complex operational window detection completely independently of the AI layer.
 - **Intelligent Clause Flagging:** Automatically audits event chronologies and flags ambiguous triggers (e.g., NOR tendered at anchorage, shifting prior to ALL_FAST) based on standard maritime spec rules.
-- **Enterprise Data Layer:** Leverages strict PostgreSQL compound indexing and hyper-optimized Supabase Row Level Security (RLS) policies evaluated in-memory via custom JWT Auth Hooks.
-- **Modern Streaming UI:** Built heavily on React Server Components (RSC) and Suspense boundaries for zero-waterfall, instant data table renders with a polished financial terminal aesthetic.
+
+### 💼 Claim Intelligence & Collaboration
+- **Scenario Diffing & Sensitivity:** Computes financial deltas between owner and counterparty event proposals. The "attack surface" simulator proactively ranks vulnerabilities (e.g., weather extensions, NOR delays) by net financial impact.
+- **Counterparty Claim Rooms:** Secure, token-based guest access for negotiation. Shared ledger state allows transparent redlining and immediate visual recalculation of proposals.
+- **Evidence Verification:** Automatically cross-references claimed weather delays against the Open-Meteo ERA5 archive and NOR positions against AIS providers. Validates assertions with definitive, reproducible cryptographic snapshots.
+- **Honesty Index:** A cross-tenant material view that tracks contradiction rates per port/agent, surfacing behavioral patterns securely via k-anonymity floors.
+
+### ⚖️ Risk, Compliance & Legal
+- **Agentic Legal Drafter:** Powered by Claude Opus, this autonomous drafter analyzes the claim breakdown, evidence verdicts, and ETS data to generate structured legal correspondence (demand letters, counter-arguments, settlement proposals). **Every financial figure and clause citation is strictly grounded** against the database to prevent hallucinations.
+- **Sanctions & Compliance:** Integrated OpenSanctions screening for vessels and counterparties. Built-in EU ETS estimator to accurately price delay-driven carbon emissions (tCO₂) at berth.
+- **Time Bar & Fixture Risk Simulators:** Pre-fixture Monte Carlo simulations replay historical weather through hypothetical CP terms to project demurrage probability distributions. Real-time time bar tracking ensures no claim expires.
+
+### 🌐 Predictive & Financial Network
+- **In-Voyage Legal Shield:** Continuously monitors live claims, automatically detecting weather contradictions and autonomously drafting grounded Letters of Protest.
+- **Zero-Day Settlement Clearinghouse:** Clears verified, un-disputed claims instantly through simulated banking integrations, backed by immutable snapshots.
+- **Pre-Fixture Pricing & Insurance Oracles:** Uses historical verified voyage stats to benchmark broker allowances. Parametric insurance modules automatically detect continuous weather delays and trigger policy payouts via secure webhooks.
+- **Charter Chain ("Ripple"):** Safely clone confirmed claim events down the charterparty chain while enforcing event locks on corroborated evidence.
+
+### 🏢 Enterprise Integrations
+- **Bidirectional ERP Sync:** Resilient webhook adapters (e.g., Veson IMOS) with HMAC-SHA256 verification, optimistic CAS queueing, dead-letter fallbacks, and strict deduplication to ensure perfect ledger sync without race conditions.
 
 ---
 
@@ -32,9 +53,9 @@ LayGrounded is an enterprise-grade SaaS platform built for the global dry bulk s
 
 LayGrounded is heavily optimized for zero-downtime SaaS production:
 
-- **Frontend/API:** Next.js 16 (App Router, Turbopack, standalone output optimized for Node.js Alpine).
-- **Styling:** Tailwind CSS + custom shadcn/ui components utilizing Space Grotesk & JetBrains Mono typography.
-- **Database & Auth:** Supabase (PostgreSQL) with strictly typed schema generation and isolated tenant architectures.
+- **Frontend/API:** Next.js 16 (App Router, Turbopack, standalone output optimized for Node.js Alpine) featuring React Server Components and Suspense boundaries for zero-waterfall renders.
+- **Styling:** Tailwind CSS + custom shadcn/ui components utilizing Space Grotesk & JetBrains Mono typography for a polished financial terminal aesthetic.
+- **Database & Auth:** Supabase (PostgreSQL) with strictly typed schema generation. Hyper-optimized Row Level Security (RLS) policies evaluated in-memory via custom JWT Auth Hooks ensure absolute tenant isolation.
 - **Infrastructure:** Docker Compose orchestrated stack featuring a hardened Caddy reverse proxy (Zstandard compression, strict HSTS/CSP security headers).
 - **Telemetry:** Structured JSON global error boundaries designed for direct ingestion into Datadog/Sentry sinks.
 

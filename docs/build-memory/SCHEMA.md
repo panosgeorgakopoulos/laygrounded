@@ -79,3 +79,19 @@ corroborated | contradicted | inconclusive | unavailable), `event_proposals`,
   grants (AD-002); `refresh_port_honesty_and_resilience_index()` service-role.
 - `drafts.kind` CHECK += 'arrest_dossier'; `pending_human_reviews.subject_type`
   CHECK += 'arrest_dossier'.
+
+### 20260715000003_autonomous_expansion.sql (Autonomous tier)
+- `autonomous_negotiation_rooms` — claim_id + company_id FKs, status
+  completed|approved|rejected, max_concession_usd, hard_stop_clauses jsonb
+  (owner agent's mandate; charterer limits live inside the matrix json),
+  agent_rounds_completed, final_settlement_probability (0–1),
+  settlement_matrix jsonb. Company RLS; append per run (history preserved).
+- `vessel_telemetry_streams` — company_id, vessel_imo, optional claim_id,
+  destination_port, current_speed_knots, distance_to_port_nm,
+  predicted_congestion_delay_hours, source api|m2m, recorded_at. Company RLS;
+  optimizer reads latest per (company, vessel_imo).
+- `sof_events` += ais_geofence_verified bool NULL (three-state: NULL never
+  checked / true verified / false discrepancy + critical AIS-GEOFENCE flag).
+- `pending_human_reviews.subject_type` CHECK += 'autonomous_settlement';
+  `compliance_ledger.entry_kind` CHECK += 'efti_export'.
+- Ordering: must run AFTER 20260715000002 (extends its CHECK constraints).

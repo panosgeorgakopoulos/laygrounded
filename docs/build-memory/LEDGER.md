@@ -106,3 +106,45 @@ DAYS_BASIS_EXCLUSION_SHARE approximates SHEX/SSHEX/UU/EIU as calendar-share
 multipliers over SHINC-counted hours. Used ONLY to compare scenarios against
 each other on identical history — never as an engine substitute. Documented
 inline; anything wanting real precision replays the engine (diff.ts pattern).
+
+## AD-016 — Autonomous negotiation agents are deterministic strategy personas (2026-07-14)
+The blueprint asked for two LLM agents in a sandbox producing a
+"deterministic SettlementMatrix" — those requirements contradict, and money
+must not move on sampled text. `src/lib/negotiation/autonomous.ts` implements
+the agents as deterministic concession strategies over the sensitivity.ts
+agenda (every position is an engine number): evidence verdicts decide items
+outright (contradicted event + strike-out finding → forced fact, budget
+untouched; corroborated → argument dead), the rest trade cheapest-first,
+alternating, ≤ 50 rounds, capped by maxConcessionUsd and hard-stop
+categories. Runs persist to autonomous_negotiation_rooms; execution is gated
+behind pending_human_reviews subject 'autonomous_settlement'. Triage leans on
+sensitivity.ts's stable "struck out" label wording — pinned by a unit test.
+
+## AD-017 — Geofence verdicts are three-state and AIS input is caller-supplied
+`sof_events.ais_geofence_verified` is NULL (never checked) / true / false —
+a thin AIS track yields "unverifiable", never a silent pass (matches the
+sanctions/AIS honesty posture). The audit routes take the AIS track in the
+request body instead of calling AIS_PROVIDER_URL: provider payload shapes
+differ (see ais.ts), and a deterministic audit needs deterministic input.
+Discrepancies get critical clause_flags with clause_ref 'AIS-GEOFENCE',
+replace-on-rerun. NOR gets the wider anchorage fence (WIBON tenders at the
+roads legitimately); weather/shifting are not position-bound and stay NULL.
+
+## AD-018 — Eco-speed optimizer prices a FIFO queue, never reads the clock
+`src/lib/optimization/ecospeed.ts`: total(v) = sea fuel + at-sea ETS (0.5
+coverage) + anchorage waiting (aux fuel @ 100% ETS) + demurrage exposure
+beyond laytimeBufferHours + laycan penalty. Congestion model: berth ready at
+now + predicted delay, independent of own arrival. `nowISO` is an input
+(pure, deterministic); ties go to the slower/greener speed; slow-steaming
+recommendations carry a CP-UTMOST-DESPATCH consent caution. Route falls back
+to the resilience matview median (k-floor 5) when telemetry has no
+congestion figure and records the source in the response.
+
+## AD-019 — eFTI export is owner-initiated and ledgered, not a public node
+`/api/v1/interoperability/efti` signs a canonical consignment payload
+(sha256; anchored to the latest time_proof Merkle root when one exists) and
+ledgers every export as compliance_ledger entry_kind 'efti_export'
+(append-only receipt of exactly what left the tenant). Laytime internals
+(weather/shifting/hatch/excepted) never export — port-call milestones only.
+Token-federated authority access is future work; today the tenant forwards
+the signed packet through its own channel.
