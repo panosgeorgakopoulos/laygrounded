@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ScrollToTop } from "@/components/laygrounded/ScrollToTop";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -66,6 +67,7 @@ export default function RootLayout({
           {children}
           <ScrollToTop />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
