@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import styles from "@/app/Auth.module.css";
@@ -12,11 +12,6 @@ export function SignInForm() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
-
-  // Pre-create the demo user (idempotent) so the "Use demo credentials" button works.
-  useEffect(() => {
-    fetch("/api/init-demo", { method: "POST" }).catch(() => {});
-  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

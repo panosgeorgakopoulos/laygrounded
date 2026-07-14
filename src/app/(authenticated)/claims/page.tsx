@@ -28,6 +28,10 @@ export interface Claim {
     usedHours: number;
     allowedHours: number;
   } | null;
+  // Worst sanctions verdict across the claim's vessel + counterparty checks;
+  // null = never scanned.
+  sanctionsVerdict: "clear" | "possible_match" | "match" | "unavailable" | null;
+  etsCostEur: number | null;
 }
 
 interface DashboardClaimRow extends Omit<ClaimWithRelations, "sof_events" | "documents" | "companies" | "laytime_calculations"> {
@@ -52,13 +56,51 @@ function TimeBarCell({ timeBar }: { timeBar: TimeBarStatus | null }) {
   if (!timeBar || timeBar.state === "no_anchor" || timeBar.daysRemaining === null) {
     return <span style={{ color: "var(--color-text-tertiary)" }}>—</span>;
   }
+  // Green = comfortable, yellow = warning, red = critical (still actionable);
+  // an expired bar goes gray — the deadline has passed, urgency is over.
   let badgeClass = styles.badgeSuccess;
   if (timeBar.state === "warning") badgeClass = styles.badgeWarning;
-  else if (timeBar.state === "critical" || timeBar.state === "expired") badgeClass = styles.badgeDanger;
+  else if (timeBar.state === "critical") badgeClass = styles.badgeDanger;
+  else if (timeBar.state === "expired") badgeClass = styles.badgeMuted;
 
   return (
     <span className={`${styles.badge} ${badgeClass} tnum`}>
       {timeBar.state === "expired" ? "EXPIRED" : `${timeBar.daysRemaining}D LEFT`}
+    </span>
+  );
+}
+
+// Sanctions verdict + EU ETS exposure at a glance. Both come from the claim's
+// last compliance scan; an unscanned claim shows a quiet dash, never a false
+// "clear".
+function ComplianceCell({
+  verdict,
+  etsCostEur,
+}: {
+  verdict: Claim["sanctionsVerdict"];
+  etsCostEur: number | null;
+}) {
+  if (verdict === null && etsCostEur === null) {
+    return <span style={{ color: "var(--color-text-tertiary)" }}>—</span>;
+  }
+  let sanctionsBadge: React.ReactNode = null;
+  if (verdict === "clear") {
+    sanctionsBadge = <span className={`${styles.badge} ${styles.badgeSuccess}`}>CLEAR</span>;
+  } else if (verdict === "match") {
+    sanctionsBadge = <span className={`${styles.badge} ${styles.badgeDanger}`}>SANCTIONS RISK</span>;
+  } else if (verdict === "possible_match") {
+    sanctionsBadge = <span className={`${styles.badge} ${styles.badgeWarning}`}>REVIEW MATCH</span>;
+  } else if (verdict === "unavailable") {
+    sanctionsBadge = <span className={`${styles.badge} ${styles.badgeMuted}`}>UNSCREENED</span>;
+  }
+  return (
+    <span style={{ display: "inline-flex", gap: "0.375rem", alignItems: "center", flexWrap: "wrap" }}>
+      {sanctionsBadge}
+      {etsCostEur !== null && etsCostEur > 0 && (
+        <span className={`${styles.badge} ${styles.badgeInfo} tnum`}>
+          ETS ~€{Math.round(etsCostEur).toLocaleString("en-US")}
+        </span>
+      )}
     </span>
   );
 }
@@ -104,21 +146,33 @@ async function ClaimsList() {
   // Confirmed milestone events per claim, batched — feeds the time-bar chip
   // without an N+1.
   const milestonesMap: Record<string, Array<{ event_type: string; occurred_at: string }>> = {};
+  // Worst sanctions verdict + ETS estimate per claim, also batched.
+  const sanctionsMap: Record<string, Claim["sanctionsVerdict"]> = {};
+  const etsMap: Record<string, number> = {};
 
   if (claimIds.length > 0) {
-    const [{ data: calculations }, { data: milestones }] = await Promise.all([
-      supabase
-        .from("laytime_calculations")
-        .select("claim_id, demurrage_amount, despatch_amount, currency, used_hours, allowed_hours, computed_at")
-        .in("claim_id", claimIds)
-        .order("computed_at", { ascending: false }),
-      supabase
-        .from("sof_events")
-        .select("claim_id, event_type, occurred_at")
-        .in("claim_id", claimIds)
-        .in("event_type", ["COMPLETED_DISCHARGE", "COMPLETED_LOADING", "NOR_TENDERED"])
-        .in("status", ["accepted", "edited"]),
-    ]);
+    const [{ data: calculations }, { data: milestones }, { data: complianceRows }, { data: etsRows }] =
+      await Promise.all([
+        supabase
+          .from("laytime_calculations")
+          .select("claim_id, demurrage_amount, despatch_amount, currency, used_hours, allowed_hours, computed_at")
+          .in("claim_id", claimIds)
+          .order("computed_at", { ascending: false }),
+        supabase
+          .from("sof_events")
+          .select("claim_id, event_type, occurred_at")
+          .in("claim_id", claimIds)
+          .in("event_type", ["COMPLETED_DISCHARGE", "COMPLETED_LOADING", "NOR_TENDERED"])
+          .in("status", ["accepted", "edited"]),
+        supabase
+          .from("compliance_checks")
+          .select("claim_id, verdict")
+          .in("claim_id", claimIds),
+        supabase
+          .from("ets_estimates")
+          .select("claim_id, estimated_cost_eur")
+          .in("claim_id", claimIds),
+      ]);
 
     if (calculations) {
       for (const calc of calculations as unknown as LaytimeCalculationRow[]) {
@@ -132,6 +186,18 @@ async function ClaimsList() {
         event_type: m.event_type,
         occurred_at: m.occurred_at,
       });
+    }
+    // A claim's badge shows its WORST verdict across vessel + counterparty:
+    // one hit is a hit no matter how clean the other subject screens.
+    const severity: Record<string, number> = { match: 3, possible_match: 2, unavailable: 1, clear: 0 };
+    for (const row of complianceRows || []) {
+      const current = sanctionsMap[row.claim_id];
+      if (current == null || severity[row.verdict] > severity[current]) {
+        sanctionsMap[row.claim_id] = row.verdict as Claim["sanctionsVerdict"];
+      }
+    }
+    for (const row of etsRows || []) {
+      etsMap[row.claim_id] = row.estimated_cost_eur;
     }
   }
 
@@ -175,6 +241,8 @@ async function ClaimsList() {
             allowedHours: calc.allowed_hours,
           }
         : null,
+      sanctionsVerdict: sanctionsMap[c.id] ?? null,
+      etsCostEur: etsMap[c.id] ?? null,
     };
   });
 
@@ -205,6 +273,7 @@ async function ClaimsList() {
           <th>Port</th>
           <th>Status</th>
           <th>Time Bar</th>
+          <th>Compliance</th>
           <th>Updated</th>
           <th style={{ textAlign: "right" }}>Exposure</th>
         </tr>
@@ -229,6 +298,9 @@ async function ClaimsList() {
             </td>
             <td>
               <TimeBarCell timeBar={c.timeBar} />
+            </td>
+            <td>
+              <ComplianceCell verdict={c.sanctionsVerdict} etsCostEur={c.etsCostEur} />
             </td>
             <td>
               <span className="tnum" style={{ color: "var(--color-text-secondary)" }}>

@@ -150,6 +150,9 @@ export async function GET(
         aiReasoning: e.ai_reasoning,
         createdAt: e.created_at,
         updatedAt: e.updated_at,
+        locked: e.locked ?? false,
+        lockedReason: e.locked_reason ?? null,
+        aisGeofenceVerified: e.ais_geofence_verified ?? null,
       })),
       calculations: claim.laytime_calculations?.slice(0, 1).map((c: any) => ({
         ...c,

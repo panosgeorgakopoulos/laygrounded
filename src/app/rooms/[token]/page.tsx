@@ -46,9 +46,6 @@ export default async function ClaimRoomPage({
   const view = await loadRoomView(resolved);
   const { claim, room, diff } = view;
   const baseline = diff?.baseline ?? null;
-  const amended = diff?.amended ?? null;
-  const delta = diff?.delta ?? null;
-  const hasPending = view.proposals.some((p) => p.status === "pending");
   const currency = claim.cpTerms?.currency ?? "USD";
 
   return (
@@ -119,43 +116,6 @@ export default async function ClaimRoomPage({
                   </div>
                 </div>
               </div>
-
-              {hasPending && (
-                <div className={styles.deltaBar}>
-                  <span>With all pending proposals applied:</span>
-                  {amended ? (
-                    <>
-                      <span className="tnum">
-                        demurrage {money(amended.totals.demurrage_amount, currency)} ·
-                        despatch {money(amended.totals.despatch_amount, currency)}
-                      </span>
-                      {delta && (
-                        <span
-                          className={
-                            delta.net_amount < 0
-                              ? styles.deltaNeg
-                              : delta.net_amount > 0
-                                ? styles.deltaPos
-                                : styles.deltaZero
-                          }
-                        >
-                          net {delta.net_amount > 0 ? "+" : ""}
-                          {money(delta.net_amount, currency)}{" "}
-                          {delta.net_amount < 0
-                            ? "(in charterer's favour)"
-                            : delta.net_amount > 0
-                              ? "(in owner's favour)"
-                              : "(no change)"}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className={styles.errorText}>
-                      Cannot compute: {diff?.amendedError ?? "unknown error"}
-                    </span>
-                  )}
-                </div>
-              )}
             </>
           ) : (
             <div className={styles.emptyNote}>
@@ -165,7 +125,13 @@ export default async function ClaimRoomPage({
           )}
         </section>
 
-        <RoomClient token={token} events={view.events} proposals={view.proposals} />
+        <RoomClient
+          token={token}
+          events={view.events}
+          proposals={view.proposals}
+          initialDiff={diff}
+          currency={currency}
+        />
 
         <div className={styles.hint}>
           Powered by LayGrounded — both parties see the same deterministic,

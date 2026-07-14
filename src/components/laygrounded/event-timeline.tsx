@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Lock } from "lucide-react";
 import { EventTypeEnum, EVENT_TYPE_VALUES } from "@/lib/laytime/types";
 import styles from "./EventTimeline.module.css";
 import { Button } from "@/components/core/Button";
@@ -16,6 +17,13 @@ export interface SofEvent {
   source: string;
   status: string;
   aiReasoning: string | null;
+  // Chain-locked (ripple sub-claim backbone / notarized): the API rejects
+  // edits with EVENT_LOCKED, so the UI doesn't offer them.
+  locked?: boolean;
+  lockedReason?: string | null;
+  // Three-state AIS geofence verdict: true verified, false discrepancy,
+  // null/undefined never audited.
+  aisGeofenceVerified?: boolean | null;
 }
 
 interface EventTimelineProps {
@@ -130,6 +138,27 @@ export function EventTimeline({
                     >
                       {ev.eventType.replace(/_/g, " ")}
                     </span>
+                    {ev.aisGeofenceVerified === true && (
+                      <span className={`${styles.geofenceBadge} ${styles.geofenceOk} tnum`}>
+                        AIS ✓
+                      </span>
+                    )}
+                    {ev.aisGeofenceVerified === false && (
+                      <span
+                        className={`${styles.geofenceBadge} ${styles.geofenceBad} tnum`}
+                        title="AIS geofence discrepancy — the vessel's track contradicts this timestamp"
+                      >
+                        AIS ✗
+                      </span>
+                    )}
+                    {ev.locked && (
+                      <span
+                        className={`${styles.lockBadge} tnum`}
+                        title={ev.lockedReason ?? "Locked by the claim chain"}
+                      >
+                        <Lock size={10} aria-hidden="true" /> LOCKED
+                      </span>
+                    )}
                     <span
                       className={styles.eventSource}
                       style={{ color: ev.source === "ai" ? "var(--color-text-tertiary)" : "var(--color-primary)" }}
@@ -206,7 +235,12 @@ export function EventTimeline({
                       p.{ev.page}
                     </span>
 
-                    {editingId !== ev.id && (
+                    {editingId !== ev.id && ev.locked && (
+                      <span className={styles.lockedReasonText}>
+                        {ev.lockedReason ?? "Locked — verified by independent evidence."}
+                      </span>
+                    )}
+                    {editingId !== ev.id && !ev.locked && (
                       <div className={styles.eventItemActions}>
                         {ev.status !== "accepted" && (
                           <button

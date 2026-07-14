@@ -9,12 +9,12 @@ export function HeroSection() {
       <CargoShipsBackground />
       <div className={styles.content}>
         <h1 className={styles.title}>
-          Automate Demurrage Workflows
+          The Tier-1 Maritime Financial Network
         </h1>
         <p className={styles.subtitle}>
           Drop your Statement of Facts PDF into a claim workspace. 
-          Our vision models extract events, apply GENCON 94 logic, 
-          and generate arbitration-ready statements instantly.
+          Our vision models extract events, apply GENCON 94 & ASBATANKVOY logic, 
+          and leverage predictive oracles and agentic drafters to settle claims instantly.
         </p>
         <div className={styles.ctaWrapper}>
           <Link href="/sign-up" className={styles.primaryCta}>

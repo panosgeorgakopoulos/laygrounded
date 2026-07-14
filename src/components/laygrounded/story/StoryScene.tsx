@@ -24,31 +24,31 @@ const CHAPTERS = [
     align: "left" as const,
   },
   {
-    title: "Extract Events",
-    subtitle: "02 — AI Extraction",
+    title: "Verify & Extract",
+    subtitle: "02 — AI & Evidence",
     content:
-      "Each SoF line is classified into precise event types: NOR_TENDERED, ALL_FAST, COMMENCED_LOADING, WEATHER_DELAY, SHIFTING, and more. Automatic retries and deterministic fallbacks ensure 99.9% extraction fidelity.",
+      "Each SoF line is classified into precise event types. Our intelligence layer automatically cross-references claimed weather delays against the Open-Meteo ERA5 archive and NOR positions against AIS providers.",
     align: "right" as const,
   },
   {
     title: "Apply Clauses",
-    subtitle: "03 — GENCON 94 Engine",
+    subtitle: "03 — Deterministic Engine",
     content:
-      "The rules engine runs hour-by-hour laytime logic: NOR validation, WIBON/WIPON variants, turn time, SHEX working-hour advancement, and operational window detection — all with clause citations.",
+      "The pure rules engine runs hour-by-hour laytime logic for GENCON 94 and ASBATANKVOY. It handles NOR validation, standard/SHEX turn time, and complex operational windows independent of the AI layer.",
     align: "left" as const,
   },
   {
-    title: "Compute Claim",
-    subtitle: "04 — Demurrage & Despatch",
+    title: "Negotiate & Draft",
+    subtitle: "04 — Intelligence & Agents",
     content:
-      "Get a complete breakdown: allowed hours vs. used hours, time on demurrage, time saved, and final amounts in any currency. Ambiguous events are flagged automatically for review.",
+      "Share claim rooms for live redlining and instantly compute scenario diffs. Our Claude Opus-powered agentic drafter generates perfectly grounded legal correspondence and letters of protest.",
     align: "right" as const,
   },
   {
-    title: "Export & Resolve",
-    subtitle: "05 — Arbitration-Ready",
+    title: "Resolve & Clear",
+    subtitle: "05 — Zero-Day Settlement",
     content:
-      "Export defensible, fully formatted Laytime & Demurrage statements ready for counterparty negotiation or arbitration. Every calculation line cites the governing charterparty clause.",
+      "Clear verified claims instantly through our Zero-Day Settlement clearinghouse. Bidirectional ERP sync (Veson IMOS) ensures perfect ledger alignment across your organization.",
     align: "left" as const,
   },
 ];

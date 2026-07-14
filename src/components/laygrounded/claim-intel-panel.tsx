@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import styles from "./ClaimIntelPanel.module.css";
+import { DraftingStudio, GeneratedDraft } from "./drafting-studio";
 
 export interface TimeBarView {
   timeBarDays: number;
@@ -159,10 +160,8 @@ export function ClaimIntelPanel({
   const [drafts, setDrafts] = useState<DraftView[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationView[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [drafting, setDrafting] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [pushing, setPushing] = useState<string | null>(null);
-  const [draftKind, setDraftKind] = useState("demand_letter");
-  const [draftTone, setDraftTone] = useState("firm");
   const [imoInput, setImoInput] = useState(vesselImo ?? "");
   const [counterpartyInput, setCounterpartyInput] = useState(counterpartyName ?? "");
   const [savingIdentity, setSavingIdentity] = useState(false);
@@ -343,28 +342,10 @@ export function ClaimIntelPanel({
     }
   };
 
-  const runDraft = async () => {
-    setDrafting(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/claims/${claimId}/draft`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: draftKind, tone: draftTone }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Drafting failed");
-      }
-      const d = await res.json();
-      setDrafts((prev) => [d.draft, ...prev]);
-      setExpanded(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDrafting(false);
-    }
-  };
+  const onDrafted = useCallback((d: GeneratedDraft) => {
+    setDrafts((prev) => [d, ...prev]);
+    setExpanded(true);
+  }, []);
 
   const pushToErp = async (integrationId: string) => {
     setPushing(integrationId);
@@ -721,6 +702,14 @@ export function ClaimIntelPanel({
                 value={imoInput}
                 onChange={(e) => setImoInput(e.target.value)}
               />
+              {(() => {
+                const v = compliance.find((c) => c.subjectType === "vessel");
+                return v ? (
+                  <span className={`${styles.chip} ${complianceChipClass(v.verdict)} tnum`}>
+                    {v.verdict === "clear" ? "CLEAR" : v.verdict.replace(/_/g, " ").toUpperCase()}
+                  </span>
+                ) : null;
+              })()}
               <input
                 className={styles.input}
                 type="text"
@@ -729,6 +718,14 @@ export function ClaimIntelPanel({
                 onChange={(e) => setCounterpartyInput(e.target.value)}
                 style={{ maxWidth: "200px" }}
               />
+              {(() => {
+                const c = compliance.find((c) => c.subjectType === "counterparty");
+                return c ? (
+                  <span className={`${styles.chip} ${complianceChipClass(c.verdict)} tnum`}>
+                    {c.verdict === "clear" ? "CLEAR" : c.verdict.replace(/_/g, " ").toUpperCase()}
+                  </span>
+                ) : null;
+              })()}
               <button className={styles.smallBtn} onClick={saveIdentity} disabled={savingIdentity}>
                 {savingIdentity ? "SAVING…" : "SAVE"}
               </button>
@@ -763,30 +760,17 @@ export function ClaimIntelPanel({
 
             <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
               Legal drafter
-              <button className={styles.smallBtn} onClick={runDraft} disabled={drafting}>
-                {drafting ? "DRAFTING… (≈1 MIN)" : "GENERATE"}
+              <button className={styles.smallBtn} onClick={() => setStudioOpen(true)}>
+                OPEN STUDIO
               </button>
             </div>
-            <div className={styles.formRow}>
-              <select
-                className={styles.input}
-                value={draftKind}
-                onChange={(e) => setDraftKind(e.target.value)}
-              >
-                <option value="demand_letter">Demand letter</option>
-                <option value="counter_argument">Counter-argument</option>
-                <option value="settlement_proposal">Settlement proposal</option>
-              </select>
-              <select
-                className={styles.input}
-                value={draftTone}
-                onChange={(e) => setDraftTone(e.target.value)}
-              >
-                <option value="firm">Firm</option>
-                <option value="neutral">Neutral</option>
-                <option value="conciliatory">Conciliatory</option>
-              </select>
-            </div>
+            {drafts.length === 0 && (
+              <div className={styles.muted}>
+                Generates clause-cited correspondence (demand letter, protest,
+                counter-argument, settlement proposal) and verifies every figure
+                against the claim record before you send it.
+              </div>
+            )}
             {drafts.length > 0 && (
               <div className={styles.itemList} style={{ marginTop: "0.5rem" }}>
                 {drafts.slice(0, 3).map((d) => (
@@ -855,6 +839,13 @@ export function ClaimIntelPanel({
           </div>
         </div>
       )}
+
+      <DraftingStudio
+        claimId={claimId}
+        open={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        onDrafted={onDrafted}
+      />
     </div>
   );
 }

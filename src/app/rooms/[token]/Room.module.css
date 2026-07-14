@@ -301,3 +301,49 @@
   background: var(--color-background);
   color: var(--color-text-primary);
 }
+
+.whatIfList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.whatIfRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+}
+
+.whatIfRow:hover {
+  border-color: var(--color-border);
+}
+
+.whatIfRow input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+}
+
+.lockIcon {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 0.25rem;
+  color: var(--color-text-tertiary);
+}
+
+.lockedNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  max-width: 280px;
+  white-space: normal;
+  text-align: right;
+}

@@ -13,12 +13,12 @@ export default function ContactPage() {
         <div className={styles.card}>
           <h1 className={styles.title}>Contact Us</h1>
           <p className={styles.subtitle}>
-            We're here to help you streamline your maritime claims.
+            We're here to help you streamline your maritime claims and financial settlements.
           </p>
           <div className={styles.prose}>
             <h2>Get in Touch</h2>
             <p>
-              Whether you have a question about enterprise pricing, need technical support, or want to explore custom API integrations for your fleet, our team is ready to assist.
+              Whether you have a question about enterprise pricing, need technical support, or want to explore our Zero-Day Settlement APIs and ERP integrations for your fleet, our team is ready to assist.
             </p>
 
             <div style={{ marginTop: "2rem", marginBottom: "2rem" }}>
@@ -32,7 +32,7 @@ export default function ContactPage() {
             <div style={{ marginBottom: "2rem" }}>
               <h3>Enterprise Sales</h3>
               <p>
-                For high-volume processing and dedicated account management:<br/>
+                For high-volume processing, dedicated account management, and API access (Veson IMOS sync, Predictive Oracles):<br/>
                 <a href="mailto:panosgeorgakopoulos@icloud.com">panosgeorgakopoulos@icloud.com</a>
               </p>
             </div>

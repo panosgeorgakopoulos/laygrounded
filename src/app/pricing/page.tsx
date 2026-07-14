@@ -13,39 +13,40 @@ export default function PricingPage() {
         <div className={styles.card}>
           <h1 className={styles.title}>Simple, Transparent Pricing</h1>
           <p className={styles.subtitle}>
-            Scale your demurrage workflows without unpredictable costs. Whether you manage a small fleet or global operations, LayGrounded scales with your cargo volume.
+            Scale your demurrage workflows and financial settlements without unpredictable costs. LayGrounded scales with your cargo volume and intelligence requirements.
           </p>
           <div className={styles.prose}>
             <h2>Free Trial</h2>
             <p>
-              Experience the power of automated SoF parsing at zero risk. Ideal for independent operators and small maritime teams looking to validate our engine.
+              Experience the power of automated SoF parsing and deterministic logic at zero risk. Ideal for independent operators looking to validate our engine.
             </p>
             <ul>
               <li>Up to 5 Laytime/Demurrage Calculations per month</li>
-              <li>Basic GENCON 94 clause logic</li>
+              <li>GENCON 94 and ASBATANKVOY clause logic</li>
               <li>PDF exporting</li>
             </ul>
 
             <h2>Professional</h2>
             <p>
-              Built for commercial shipping companies, shipbrokers, and charterers who process high volumes of laytime claims and demand arbitration-grade accuracy.
+              Built for commercial shipping companies and brokers who process high volumes of claims and require intelligence tools like weather verification and scenario diffing.
             </p>
             <ul>
               <li>Unlimited Laytime/Demurrage Calculations</li>
-              <li>Advanced Custom Charter Party Clause configuration (SHEX/SHINC, Weather exceptions)</li>
+              <li>Advanced Evidence Verification (AIS & Open-Meteo)</li>
+              <li>Shared Counterparty Claim Rooms & Scenario Diffing</li>
               <li>Excel & PDF Arbitration-Ready Exports</li>
-              <li>Priority Email Support</li>
             </ul>
 
             <h2>Enterprise</h2>
             <p>
-              For global fleet managers requiring deep integration, dedicated account management, and advanced workspace permissions.
+              For global fleet managers requiring deep integration, predictive oracles, zero-day settlement clearing, and automated agentic legal drafting.
             </p>
             <ul>
               <li>Everything in Professional</li>
-              <li>SSO / SAML Security integration</li>
-              <li>Dedicated Success Manager</li>
-              <li>Custom API Integration for internal systems</li>
+              <li>Agentic Legal Drafter & In-Voyage Legal Shield</li>
+              <li>Zero-Day Settlement Clearinghouse & Veson IMOS ERP Sync</li>
+              <li>Pre-Fixture Pricing & Parametric Insurance Oracles</li>
+              <li>SSO / SAML Security integration & Dedicated Success Manager</li>
             </ul>
 
             <div style={{ marginTop: "2rem" }}>

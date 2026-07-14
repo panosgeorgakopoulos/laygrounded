@@ -85,6 +85,10 @@ export interface RoomEvent {
   eventType: string;
   rawText: string;
   source: string;
+  // Chain-locked events (verified backbone of a ripple sub-claim) cannot be
+  // amended or disputed; the UI disables the propose actions and shows why.
+  locked: boolean;
+  lockedReason: string | null;
 }
 
 export interface RoomProposal {
@@ -117,16 +121,20 @@ export interface RoomView {
 // Assembles the full shared negotiation state for a validated share: claim
 // summary, confirmed events, every proposal, and the redline diff with all
 // pending proposals applied. Used by both the public API and the room page.
+// options.proposalFilter narrows the diff to a subset of pending proposal ids
+// (the room's interactive what-if toggles) — everything else in the view is
+// unaffected by the filter.
 export async function loadRoomView(
   resolved: ResolvedShare,
-  client?: SupabaseClient
+  client?: SupabaseClient,
+  options?: { proposalFilter?: string[] }
 ): Promise<RoomView> {
   const supabase = client ?? createServiceRoleClient();
   const { share, claim } = resolved;
 
   const { data: events } = await supabase
     .from("sof_events")
-    .select("id, occurred_at, event_type, raw_text, source, status")
+    .select("id, occurred_at, event_type, raw_text, source, status, locked, locked_reason")
     .eq("claim_id", claim.id)
     .in("status", ["accepted", "edited"])
     .order("occurred_at", { ascending: true });
@@ -142,8 +150,10 @@ export async function loadRoomView(
   try {
     const inputs = await loadClaimComputationInputs(claim.id, supabase);
     cpTerms = inputs.cpTerms;
+    const filter = options?.proposalFilter;
     const pending: ProposalInput[] = (proposals || [])
       .filter((p) => p.status === "pending")
+      .filter((p) => !filter || filter.includes(p.id))
       .map((p) => ({
         id: p.id,
         action: p.action,
@@ -174,6 +184,8 @@ export async function loadRoomView(
       eventType: e.event_type,
       rawText: e.raw_text,
       source: e.source,
+      locked: e.locked ?? false,
+      lockedReason: e.locked_reason ?? null,
     })),
     proposals: (proposals || []).map((p) => ({
       id: p.id,

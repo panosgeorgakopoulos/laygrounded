@@ -30,7 +30,7 @@ export default function SignInPage() {
           <div className={styles.demoBox}>
             <div className={`${styles.demoBoxTitle} tnum`}>Demo access</div>
             <div>
-              Email: <span className={styles.demoBoxValue}>demo@laygrounded.io</span>
+              Email: <span className={styles.demoBoxValue}>demo2@laygrounded.com</span>
             </div>
             <div>
               Password: <span className={styles.demoBoxValue}>demo1234</span>

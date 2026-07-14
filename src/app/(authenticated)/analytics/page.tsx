@@ -6,6 +6,7 @@ import { Card } from "@/components/core/Card";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { buildClausePnlReport, ClausePnlReport } from "@/lib/analytics/clause-pnl";
+import { PrefixtureIntel } from "@/components/laygrounded/prefixture-intel";
 import styles from "./Analytics.module.css";
 
 export const dynamic = "force-dynamic";
@@ -212,6 +213,12 @@ export default function AnalyticsPage() {
       <Suspense fallback={<Card><div className={styles.emptyState}>Computing counterfactuals…</div></Card>}>
         <AnalyticsBody />
       </Suspense>
+
+      <Card className={styles.sectionCard}>
+        <div className={styles.cardPad}>
+          <PrefixtureIntel />
+        </div>
+      </Card>
     </div>
   );
 }

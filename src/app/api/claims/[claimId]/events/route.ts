@@ -51,6 +51,9 @@ export async function GET(
         aiReasoning: e.ai_reasoning,
         createdAt: e.created_at,
         updatedAt: e.updated_at,
+        locked: e.locked ?? false,
+        lockedReason: e.locked_reason ?? null,
+        aisGeofenceVerified: e.ais_geofence_verified ?? null,
         clauseFlags: e.clause_flags?.map((f: any) => ({
           ...f,
           eventId: f.event_id,

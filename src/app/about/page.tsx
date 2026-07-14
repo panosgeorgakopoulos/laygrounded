@@ -13,12 +13,12 @@ export default function AboutPage() {
         <div className={styles.card}>
           <h1 className={styles.title}>About LayGrounded</h1>
           <p className={styles.subtitle}>
-            Digitizing the multi-billion dollar maritime demurrage industry.
+            Digitizing and settling the multi-billion dollar maritime demurrage industry.
           </p>
           <div className={styles.prose}>
             <h2>Our Mission</h2>
             <p>
-              Dry bulk shipping moves the world, yet the multi-billion dollar demurrage industry remains stuck in the past—reliant on manual data entry, physical papers, and subjective interpretation of complex charter party clauses. LayGrounded was founded to eliminate these inefficiencies by providing a precise, automated, and legally auditable laytime calculation engine.
+              Dry bulk and tanker shipping move the world, yet the multi-billion dollar demurrage industry remains stuck in the past—reliant on manual data entry, physical papers, and subjective interpretation of complex charter party clauses. LayGrounded was founded to eliminate these inefficiencies by providing a precise, automated, and legally auditable laytime calculation engine paired with a predictive financial network.
             </p>
 
             <h2>The Founder</h2>
@@ -38,7 +38,7 @@ export default function AboutPage() {
 
             <h2 style={{ marginTop: "3rem" }}>Why LayGrounded?</h2>
             <p>
-              We believe that commercial shipping deserves software that is as robust as the vessels moving the cargo. By focusing specifically on the nuances of laytime and demurrage—from shifting time to rain delays and weekend working hours—LayGrounded ensures that every claim is computationally perfect and arbitration-ready.
+              We believe that commercial shipping deserves software that is as robust as the vessels moving the cargo. By focusing specifically on the nuances of laytime, demurrage, predictive risk, and automated settlement—from AI-driven evidence verification to agentic legal drafting and ERP synchronization—LayGrounded ensures that every claim is computationally perfect, arbitration-ready, and instantly actionable.
             </p>
           </div>
         </div>

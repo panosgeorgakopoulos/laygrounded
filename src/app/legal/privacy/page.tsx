@@ -21,7 +21,7 @@ export default function PrivacyPage() {
 
             <h2>1. Important Information and Who We Are</h2>
             <p>
-              LayGrounded is the data controller and is responsible for your personal data. We are a B2B SaaS platform designed to automate laytime and demurrage calculations for the maritime shipping industry. If you have any questions about this Privacy Policy, including any requests to exercise your legal rights, please contact us at panosgeorgakopoulos@icloud.com.
+              LayGrounded is the data controller and is responsible for your personal data. We are a B2B SaaS platform designed to automate laytime and demurrage calculations for the dry bulk and tanker maritime shipping industry. If you have any questions about this Privacy Policy, including any requests to exercise your legal rights, please contact us at panosgeorgakopoulos@icloud.com.
             </p>
 
             <h2>2. The Data We Collect About You</h2>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
               We will only use your data when the law allows us to. Most commonly, we will use your personal and commercial data in the following circumstances:
             </p>
             <ul>
-              <li>Where we need to perform the contract we are about to enter into or have entered into with you (e.g., parsing your SoFs and calculating demurrage).</li>
+              <li>Where we need to perform the contract we are about to enter into or have entered into with you (e.g., parsing your SoFs, verifying evidence via AIS, drafting agentic legal letters, and calculating demurrage).</li>
               <li>Where it is necessary for our legitimate interests (or those of a third party) and your interests and fundamental rights do not override those interests (e.g., to study how customers use our products/services, to develop them, and to grow our business).</li>
               <li>Where we need to comply with a legal or regulatory obligation.</li>
             </ul>
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
 
             <h2>5. Data Sharing and Third-Party Processors</h2>
             <p>
-              We do not sell your personal or commercial data. We may share your data with strictly vetted third-party service providers acting as processors based within the EU and US who provide IT and system administration services (e.g., secure cloud hosting providers). We require all third parties to respect the security of your data and to treat it in accordance with the law. We do not allow our third-party service providers to use your data for their own purposes.
+              We do not sell your personal or commercial data. We may share your data with strictly vetted third-party service providers acting as processors based within the EU and US who provide IT and system administration services (e.g., secure cloud hosting providers, LLM API providers like Anthropic). We require all third parties to respect the security of your data and to treat it in accordance with the law. We do not allow our third-party service providers to use your data for their own purposes.
             </p>
 
             <h2>6. Data Retention</h2>
