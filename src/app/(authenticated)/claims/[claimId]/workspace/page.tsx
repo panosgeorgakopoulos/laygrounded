@@ -7,6 +7,7 @@ import { CalculationPane } from "@/components/laygrounded/calculation-pane";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
+import { ClaimActionsPanel } from "@/components/laygrounded/claim-actions-panel";
 import styles from "./Workspace.module.css";
 import { Button } from "@/components/core/Button";
 
@@ -409,6 +410,9 @@ export default function WorkspacePage({
         counterpartyName={data.claim.counterpartyName ?? null}
         onClaimChanged={fetchClaim}
       />
+
+      {/* Legal, settlement, notary, charter-chain & interoperability actions */}
+      <ClaimActionsPanel claimId={claimId} onClaimChanged={fetchClaim} />
 
       {/* Mobile tab bar */}
       <div className={styles.mobileTabBar} role="tablist" aria-label="Workspace panes">

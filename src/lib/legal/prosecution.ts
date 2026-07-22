@@ -127,7 +127,14 @@ export interface TimeProofSnapshot {
 
 // Domain-prefixed leaf material: two leaves of different kinds can never
 // collide even if their JSON bodies coincide.
-function leafMaterial(kind: SnapshotLeaf["kind"], ref: string, body: unknown): string {
+//
+// Exported (with `kind` widened to string) so other sealed artifacts — the
+// MRV annual report — hash leaves by the identical convention. Two hashing
+// conventions would mean two incompatible notions of "the same data", and an
+// auditor could not re-verify one with the other's method. The string format
+// is byte-stable on purpose: changing it would invalidate every root already
+// notarized in compliance_ledger.
+export function leafMaterial(kind: string, ref: string, body: unknown): string {
   return `${kind}|${ref}|${canonicalJson(body)}`;
 }
 

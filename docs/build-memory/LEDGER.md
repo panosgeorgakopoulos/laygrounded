@@ -209,3 +209,227 @@ likely to be forgotten (the one whose numbers don't work). The time bar now
 runs independently of pricing: valueAtRisk goes null ("not computable" in the
 UI, never a 0 that reads as "nothing at stake") and the claim stays on the
 queue. Regression-tested with a voyage past the engine's 1440-iteration cap.
+
+## AD-024 — Grounding is re-verified at publish time, not read off the drafts row
+The stored `drafts.grounding` records whether a letter was true when it was
+*generated*. A claim is a living record: accepting a proposal or recomputing
+leaves a week-old letter quoting a figure the claim no longer says. So
+`prepareGroundedLetter` (src/lib/drafting/publish-server.ts) reassembles the
+context and re-runs verifyDraftGrounding at the moment of publishing — the
+moment that matters — and corrects the stored verdict if it has drifted
+(otherwise the workspace keeps badging "VERIFICATION PASSED" on a letter we
+just refused to render). Re-verification is a pure function over data already
+loaded; being right costs nothing. Both the PDF and send routes go through
+this one gate, so a refusal means the same thing whichever door you tried.
+DraftNotGroundedError carries the issues → 422 lists which figure drifted.
+
+## AD-025 — CLAUSE_RE could not match its own sub-clause refs (bug fix)
+`/\b(?:GENCON94-[\w()]+|ASBA-II-\d+)\b/` truncated the trailing ")" — \b
+cannot sit after a non-word character — so a letter correctly citing
+GENCON94-7(d) (a ref the engine really emits, and which the demo book
+genuinely uses) was looked up as "GENCON94-7(d" and reported as a
+hallucinated clause. Latent while grounding was advisory; AD-024 makes it
+fatal, since a false positive now blocks legitimate correspondence. Pattern is
+now `/\bGENCON94-\w+(?:\(\w+\))?|\bASBA-II-\w+/` — parens as an explicit
+optional group. Also fixes ASBA-II-\d+ never matching non-numeric Part II
+refs. Regression-tested both directions (real ref passes, fake ref still
+caught, and the issue now quotes the full ref).
+
+## AD-026 — Delivery refuses rather than simulates (departs from banking.ts)
+settlement/banking.ts returns a clearly-labeled *simulated* clearing when no
+provider is set. delivery.ts deliberately does NOT follow that precedent: a
+simulated clearing is a useful demo, whereas a simulated send would tell an
+operator the charterer has their demand letter when it is sitting in nobody's
+inbox — and time bars run on that belief. With no EMAIL_PROVIDER_API_KEY /
+EMAIL_FROM_ADDRESS it reports sent:false / not_configured, and the route
+answers 503 DELIVERY_UNAVAILABLE (the letter is valid; the channel isn't
+there) pointing the operator at the PDF. Sending also requires an explicit
+`confirm: true` per request — no default — because it is an outward-facing
+legal act that must never be the by-product of a mis-click or a replay.
+
+## AD-027 — The letter renderer paginates; the claim-pack exporter does not
+export.ts's generatePDF adds exactly one page and lets overflow run off the
+bottom (pre-existing; long claim packs silently lose content). A letter is
+prose, so drafting/pdf.ts owns a Cursor that starts a new page when it runs
+out of vertical space, reserving room for the footer. It reuses export.ts's
+loadPdfFonts (now exported) rather than growing a second font story. NB those
+Roboto TTFs in public/fonts are 14-byte "404: Not Found" placeholders, so the
+WinAnsi fallback is the path that actually runs and non-ASCII renders as "?";
+dropping real TTFs in fixes both consumers with no code change. Only the
+letter body is model text — the reference block, calculation and timeline are
+read straight off DraftContext, so they cannot drift whatever the model wrote.
+
+## AD-028 — The MRV report emits the format but refuses to fabricate it
+The brief asked for "exact EU ETS carbon allowance liabilities per voyage" and
+a "verified EU MRV annual report ... audit-proof for European regulators".
+None of those three claims survives contact with the data. Reg (EU) 2015/757
+reports per-voyage FUEL CONSUMPTION measured by an Annex I Part B method (BDN
++ tank stocktakes, tank monitoring, flow meters, direct CO2). This system
+holds no bunker data, no gross tonnage, no cargo mass, no voyage distance —
+only laytime events and ets.ts's ASSUMED 4 t/day at-berth burn, whose own
+header calls it "not a verified MRV figure". Filling MRV fields from that
+assumption would put un-measured numbers in a regulatory format, and
+misreporting under MRV/ETS carries penalties for the operator relying on it.
+
+So mrv.ts emits the real Annex I/II structure with one rule: a fuel or CO2
+figure appears ONLY where measured bunker data was supplied (with its
+monitoring method — an unattributed number is not monitoring data). Every
+other field reports NOT MONITORED, never 0 and never an estimate. Aggregates
+stay null unless EVERY voyage in the period is measured: a total over the
+measured subset reads as the period's emissions and understates them by
+exactly the unmonitored part. `submittable` is false until all gaps close —
+and stays false even with full bunker data, because the monitoring plan and
+ship particulars are out of scope, which the report says. It is a map of the
+distance to a submittable report, not a substitute for one.
+
+`verification.status` is hard-coded "unverified" with no code path to change
+it, and mrv_reports.verification_status carries a CHECK pinning it — so not
+even a future bug can self-certify a report into the database (dry-run
+confirmed the CHECK rejects 'verified'). Only an accredited verifier can
+verify, via THETIS-MRV.
+
+## AD-029 — Sealing is integrity, not verification, and not audit-proofing
+The Merkle seal (sealMrvReport) proves the report has not been altered since
+`asOf`, and mrvVoyageProof discloses one port call to a counterparty without
+revealing the rest of the book. That is all it does. It says nothing about
+whether a figure was measured — an unmonitored field seals exactly as well as
+a monitored one; sealing an unmonitored report yields tamper-evident proof
+that it is unmonitored. No cryptography makes a report audit-proof for
+regulators; an accredited verifier does. The seal restates
+verificationStatus/submittable inside itself so a detached root can never be
+waved as proof of a verified report.
+
+Leaves hash via prosecution.ts's leafMaterial (now exported, `kind` widened to
+string, format byte-identical so existing notarized roots stay valid) — one
+hashing convention across both sealed artifacts, or an auditor could not
+re-verify one with the other's method.
+
+## AD-030 — MRV reports get their own table; seals append, never replace
+compliance_ledger is claim-scoped (claim_id NOT NULL) and its entry_kind CHECK
+is claim-level carbon findings; an annual report spans a company's whole book
+for a period. Hence `mrv_reports` (20260716000001). Append-only, departing
+from the replace-on-rerun pattern used for evidence/compliance snapshots: each
+row is a seal of what the book looked like at that instant, and replacing it
+destroys the proof that the earlier state existed — the only thing a seal is
+for. Read latest by (company_id, reporting_period, sealed_at DESC).
+
+EEA scope reuses `claims.ets_applicable` rather than adding a second input for
+the same judgement. It is nullable and unset by default; null means unknown
+and the report declines to assert scope either way — "Port Hedland, AU" is
+free text and nothing derives that it isn't an EEA call. NB computeEtsEstimate
+does NOT gate on it: it applies COVERAGE_PCT 1.0 unconditionally, so an ETS
+estimate for a non-EEA port call would be asserted at full EU coverage. The
+MRV module does not inherit that behaviour.
+
+## AD-031 — Anchoring: RFC 3161 is the real path; EBSI refuses rather than fakes
+The notary proves record INTEGRITY but not TIME: the snapshot's `asOf` is
+asserted by LayGrounded, so nothing in the ledger stops a backdated root and
+an auditor must trust our clock. Anchoring closes exactly that gap.
+
+EBSI was asked for and is deliberately NOT implemented. It is a permissioned
+network: writing requires onboarding as a participant, a DID in the EBSI
+registry, and accreditation via the European Blockchain Partnership. We hold
+no credentials and would be inventing endpoint shapes; a fabricated "anchored
+on EBSI" claim is fabricated legal evidence — the worst failure available to
+this product. ANCHOR_PROVIDER=ebsi returns unsupported with the onboarding
+requirements spelled out and points at rfc3161.
+
+RFC 3161 (`ANCHOR_PROVIDER=rfc3161`, `TSA_URL`) is implemented and works. From
+a QTSP under eIDAS a qualified electronic time stamp carries a legal
+presumption as to date and time across the EU — stronger evidence in a
+charterparty dispute than an unqualified chain entry, and no onboarding. No
+ASN.1 dependency: anchor.ts encodes TimeStampReq and reads PKIStatusInfo
+directly (~120 lines). Verified against OpenSSL 3.6.2 — our TimeStampReq is
+byte-identical to `openssl ts -query` (golden vectors pinned in
+anchor.test.ts), and a live freetsa.org round trip returned status 0 with a
+4634-byte token whose signed imprint equalled the submitted root exactly.
+
+We deliberately do NOT parse TSTInfo to extract genTime: that means parsing
+CMS SignedData, and a half-right parser would let us *assert* a signed time we
+had not verified. The token is stored whole (base64) and the dossier gives the
+`openssl ts -verify` recipe — verification never routes through us.
+
+## AD-032 — Hourly cadence, but proofs only on content CHANGE
+The sweep runs hourly; it writes a proof only when the record changed. Caught
+by running the sweep twice against the live DB: dedupe on the Merkle root can
+NEVER fire, because generateCryptographicSnapshot embeds as_of in its header
+leaf, so the root differs every pass even on an untouched claim. Unfixed, the
+hourly sweep writes 24 substantively-identical proofs per claim per day and
+spends a TSA request on each. `contentHashOf()` hashes cpTerms/totals/
+breakdown/events/clauseFlags — the record, not the instant we looked — and is
+stored in details.content_hash; the next sweep compares that. Pinned by a test
+asserting the content hash is stable across as-of times while the root is not.
+
+Dedupe costs nothing evidentially: unchanged root ⇒ unchanged record ⇒ the
+previous proof already covers every instant since. So "state at 14:00" is
+answered by proofAsOf() taking the latest proof at or before 14:00. It never
+falls forward to a later proof (that would attest a state which did not exist
+at the instant asked about) — no proof at or before ⇒ 404 NO_PROOF_AS_OF.
+Proofs written before this change carry no content_hash and never dedupe,
+erring toward writing rather than skipping a real change.
+
+## AD-033 — The dossier states what the proof does NOT establish
+buildAuditDossier already covered the fingerprint, leaf inventory and manual
+re-verification. /api/v1/claims/[id]/dossier adds the anchor section, and when
+there is no anchor it says so in those words: integrity yes, time no, the
+as-of rests on LayGrounded's clock, and a relying party is trusting our good
+faith. `independentlyTimestamped` is an explicit boolean in the JSON rather
+than something a client infers from anchor===null.
+
+## AD-034 — Audit API quotas are per KEY, in Postgres, and fail closed
+src/middleware.ts limits by IP in an in-memory Map: per-instance (N instances
+⇒ N× the limit), reset on cold start, and keyed on the wrong subject — an ERP
+behind NAT is one IP for many tenants, one tenant may call from many. A
+contractual quota cannot rest on that. api_rate_limits + the
+consume_api_rate_limit() SECURITY DEFINER function give a shared, per-key
+counter; INSERT … ON CONFLICT DO UPDATE … RETURNING is one statement, so
+concurrent requests across instances cannot both read the same count and both
+decide they are under quota (an application-side read-then-write would).
+Verified by dry-run: 1,2,3 allowed at limit 3, 4th refused, next window resets.
+
+Fixed window (one row per key per clock minute), so a caller can burst to 2×
+across a boundary. Stated in the OpenAPI description rather than hidden — a
+sliding window is the fix if that ever matters.
+
+Fails CLOSED: if the limiter errors we cannot know whether the request is
+within quota, and an API that stops limiting under database trouble is what
+turns a hammering client into an outage. 429 RATE_LIMIT_UNAVAILABLE.
+
+The middleware IP ceiling had to be raised for /api/v1/audit (2000/min, its
+own bucket): at 100/min a key licensed for more would be silently capped and
+the quota would be a lie. It remains as a crude anti-flood net for the
+unauthenticated case — bad keys are rejected on shape before any DB hit.
+
+## AD-035 — Pushed events are 'suggested'; key management is session-only
+A voyage push lands events as status 'suggested', following the SoF ingestion
+route's precedent verbatim ("zero-touch data entry, not zero-touch trust").
+Load-bearing: confirmed events are what the time bar anchors to and what the
+notary and the MRV report treat as evidence. An event no human reviewed must
+not acquire that standing merely by arriving over an API. The push response
+says so, and the OpenAPI description says so, because an integrator who learns
+it in production learns it expensively.
+
+Keys are minted only through a SESSION-authenticated route: you cannot
+bootstrap the first key with a key, and a leaked integration key must not be
+able to mint more or widen its own scope. Revoke ≠ delete — the row is the
+record of what that credential could do and when it was last used, which is
+exactly what you want after a leak. Scopes are granted explicitly (no default,
+no wildcard); scope failure is 403 naming the scope, while unknown/revoked/
+expired/malformed keys are all an identical opaque 401 so the endpoint is not
+an oracle for which keys exist. SHA-256 not bcrypt: 192-bit random tokens have
+no dictionary to slow, and this path runs on every request.
+
+## AD-036 — The OpenAPI document is generated, and an external validator gates it
+buildOpenApiSpec() derives from API_SCOPES, TIME_BAR_EVENTS and
+EVENT_TYPE_VALUES, so the document cannot describe a scope or event the code
+does not have; tests assert exactly that. Hand-written YAML drifts the first
+time a scope is added and nobody notices.
+
+Generating it is not enough. `redocly lint` found 4 errors our own structural
+tests passed happily: the spec declared openapi 3.1.0 while using 3.0's
+`nullable` keyword, which JSON Schema 2020-12 removed — generated clients
+would mis-handle precisely the fields whose null carries meaning (calculation:
+null means "not computed", not "nothing owed"). Now type unions, with a test
+asserting `nullable` never appears. Remaining redocly warning: info.license —
+left alone deliberately, since the repo declares no license and inventing
+legal metadata about the product is not ours to do.

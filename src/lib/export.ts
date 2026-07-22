@@ -23,7 +23,7 @@ function transliterate(s: string): string {
     .replace(/™/g, "(TM)");
 }
 
-interface PdfFontSet {
+export interface PdfFontSet {
   regular: PDFFont;
   bold: PDFFont;
   mono: PDFFont;
@@ -37,7 +37,16 @@ interface PdfFontSet {
 // so international vessel/port names and OCR'd text don't crash the exporter.
 // Falls back to the standard WinAnsi fonts (with transliteration + stripping)
 // if the font assets aren't available, guaranteeing the export still succeeds.
-async function loadPdfFonts(pdf: PDFDocument): Promise<PdfFontSet> {
+//
+// NOTE: as of writing, public/fonts/Roboto-*.ttf are 14-byte placeholders
+// containing the text "404: Not Found" (a failed download was committed), so
+// embedFont throws and the WinAnsi fallback is the path that actually runs —
+// non-ASCII vessel/port names render as "?". Dropping real TTFs in that
+// directory restores the Unicode path with no code change.
+//
+// Exported so the demand-letter renderer (drafting/pdf.ts) shares one font
+// story with the claim pack rather than growing a second one.
+export async function loadPdfFonts(pdf: PDFDocument): Promise<PdfFontSet> {
   try {
     const dir = path.join(process.cwd(), "public", "fonts");
     const regularBytes = fs.readFileSync(path.join(dir, "Roboto-Regular.ttf"));

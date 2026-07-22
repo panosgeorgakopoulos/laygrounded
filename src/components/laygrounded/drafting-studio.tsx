@@ -76,6 +76,15 @@ export function DraftingStudio({ claimId, open, onClose, onDrafted }: Props) {
   const [draft, setDraft] = useState<GeneratedDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendTo, setSendTo] = useState("");
+  const [sendBusy, setSendBusy] = useState(false);
+  // Publishing outcomes are reported separately from `error` so a failed send
+  // never looks like a failed draft.
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishIssues, setPublishIssues] = useState<string[]>([]);
+  const [publishNote, setPublishNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (phase !== "generating") return;
@@ -123,6 +132,67 @@ export function DraftingStudio({ claimId, open, onClose, onDrafted }: Props) {
       setPhase("error");
     }
   }, [claimId, kind, tone, onDrafted]);
+
+  // Shared handling for both publishing routes: a drifted letter comes back
+  // 422 with the specific violations, which are worth showing verbatim —
+  // "figure X no longer matches" is actionable, "failed" is not.
+  const publishFailure = async (res: Response): Promise<string> => {
+    const body = await res.json().catch(() => ({} as Record<string, unknown>));
+    setPublishIssues(
+      Array.isArray(body.issues)
+        ? (body.issues as Array<{ message: string }>).map((i) => i.message)
+        : []
+    );
+    return (
+      (body.message as string) ||
+      (body.error as string) ||
+      `Request failed (${res.status})`
+    );
+  };
+
+  const makePdf = async () => {
+    if (!draft) return;
+    setPdfBusy(true);
+    setPublishError(null);
+    setPublishIssues([]);
+    setPublishNote(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/draft/${draft.id}/pdf`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error(await publishFailure(res));
+      const body = await res.json();
+      if (body.url) window.open(body.url, "_blank", "noopener,noreferrer");
+      else setPublishNote("PDF generated, but no download link was returned.");
+    } catch (e) {
+      setPublishError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const send = async () => {
+    if (!draft) return;
+    setSendBusy(true);
+    setPublishError(null);
+    setPublishIssues([]);
+    setPublishNote(null);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/draft/${draft.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: sendTo.trim(), confirm: true }),
+      });
+      if (!res.ok) throw new Error(await publishFailure(res));
+      const body = await res.json();
+      setSendOpen(false);
+      setPublishNote(`Sent to ${body.to}.`);
+    } catch (e) {
+      setPublishError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSendBusy(false);
+    }
+  };
 
   const copy = async () => {
     if (!draft) return;
@@ -277,6 +347,59 @@ export function DraftingStudio({ claimId, open, onClose, onDrafted }: Props) {
             </div>
             <pre className={styles.letterBody}>{draft.contentMd}</pre>
 
+            {/* Publishing outcomes: a drifted letter lists what drifted. */}
+            {publishError && (
+              <div className={styles.groundingFail} role="alert">
+                <span>{publishError}</span>
+                {publishIssues.length > 0 && (
+                  <ul className={styles.issueList}>
+                    {publishIssues.map((m, i) => (
+                      <li key={i}>{m}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {publishNote && (
+              <div className={styles.groundingPass} role="status">
+                <span>{publishNote}</span>
+              </div>
+            )}
+
+            {/* Email is an outward-facing legal act, so it takes a deliberate
+                second step: name the recipient, then confirm. */}
+            {sendOpen && (
+              <div className={styles.sendRow}>
+                <label className={styles.sendLabel} htmlFor="send-to">
+                  Send this letter to the counterparty
+                </label>
+                <div className={styles.sendControls}>
+                  <input
+                    id="send-to"
+                    className={styles.sendInput}
+                    type="email"
+                    placeholder="claims@counterparty.com"
+                    value={sendTo}
+                    onChange={(e) => setSendTo(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <button
+                    className={styles.primaryBtn}
+                    onClick={send}
+                    disabled={sendBusy || sendTo.trim().length < 3}
+                  >
+                    {sendBusy ? "SENDING…" : "CONFIRM & SEND"}
+                  </button>
+                  <button className={styles.secondaryBtn} onClick={() => setSendOpen(false)}>
+                    CANCEL
+                  </button>
+                </div>
+                <span className={styles.sendHint}>
+                  The signed PDF is attached. This cannot be recalled.
+                </span>
+              </div>
+            )}
+
             <div className={styles.footerRow}>
               <button className={styles.secondaryBtn} onClick={() => setPhase("configure")}>
                 DRAFT ANOTHER
@@ -287,6 +410,37 @@ export function DraftingStudio({ claimId, open, onClose, onDrafted }: Props) {
                 </button>
                 <button className={styles.primaryBtn} onClick={copy}>
                   {copied ? "COPIED ✓" : "COPY LETTER"}
+                </button>
+                {/* Only a verified letter is offered for issue. The server
+                    re-checks and refuses regardless — this just avoids
+                    inviting an action that cannot succeed. */}
+                <button
+                  className={styles.secondaryBtn}
+                  onClick={makePdf}
+                  disabled={pdfBusy || !grounding?.verified}
+                  title={
+                    grounding?.verified
+                      ? "Render this letter as a formal PDF"
+                      : "Verification failed — regenerate the draft before issuing it"
+                  }
+                >
+                  {pdfBusy ? "RENDERING…" : "GENERATE PDF"}
+                </button>
+                <button
+                  className={styles.primaryBtn}
+                  onClick={() => {
+                    setSendOpen((v) => !v);
+                    setPublishError(null);
+                    setPublishNote(null);
+                  }}
+                  disabled={!grounding?.verified}
+                  title={
+                    grounding?.verified
+                      ? "Email this letter to the counterparty"
+                      : "Verification failed — regenerate the draft before issuing it"
+                  }
+                >
+                  EMAIL TO COUNTERPARTY
                 </button>
               </span>
             </div>

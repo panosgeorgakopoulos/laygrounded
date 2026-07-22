@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: "New Claim",  href: "/claims/new" },
   { label: "Analytics",  href: "/analytics" },
   { label: "Simulator",  href: "/simulator" },
+  { label: "Compliance", href: "/compliance" },
   { label: "Settings",  href: "/settings" },
 ];
 

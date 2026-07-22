@@ -84,6 +84,35 @@ describe("verifyDraftGrounding", () => {
     );
     expect(r.issues.map((i) => i.type)).toEqual(["clause"]);
     expect(r.amountsChecked).toBe(1); // reversed format still parsed and passed
+    // Reported in full: the operator has to recognise the clause to judge it.
+    expect(r.issues[0].value).toBe("GENCON94-7(b)");
+  });
+
+  // Regression: the clause pattern used to be closed by \b, which cannot sit
+  // after ")", so a sub-clause citation was truncated to "GENCON94-7(d" and
+  // never matched the allowed set — a letter citing a clause the claim really
+  // uses was reported as hallucinated. Publishing now refuses ungrounded
+  // letters, so this false positive would block correct correspondence.
+  it("accepts a sub-clause citation the claim actually uses", () => {
+    const subClauseCtx = {
+      ...ctx,
+      breakdown: [{ ...ctx.breakdown[0], clause_ref: "GENCON94-7(d)" }],
+    };
+    const r = verifyDraftGrounding("Laytime is calculated per GENCON94-7(d).", subClauseCtx);
+    expect(r.clausesChecked).toBe(1);
+    expect(r.issues).toEqual([]);
+    expect(r.verified).toBe(true);
+  });
+
+  it("still checks Asbatankvoy Part II citations", () => {
+    const asbaCtx = {
+      ...ctx,
+      breakdown: [{ ...ctx.breakdown[0], clause_ref: "ASBA-II-8" }],
+    };
+    expect(verifyDraftGrounding("Per ASBA-II-8 laytime runs.", asbaCtx).verified).toBe(true);
+    const bad = verifyDraftGrounding("Per ASBA-II-99 laytime runs.", asbaCtx);
+    expect(bad.verified).toBe(false);
+    expect(bad.issues[0].value).toBe("ASBA-II-99");
   });
 
   it("ignores non-monetary numbers like hours and dates", () => {

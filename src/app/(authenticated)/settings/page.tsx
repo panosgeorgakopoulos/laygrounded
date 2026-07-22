@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/core/Card";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
-import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert } from "lucide-react";
+import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, KeyRound } from "lucide-react";
+import { DeveloperSettings } from "@/components/laygrounded/developer-settings";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/components/providers";
 import { createClient } from "@/lib/supabase/client";
@@ -28,7 +29,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const [data, setData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "system">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "api" | "system">("account");
   
   // Personal Account State
   const [displayName, setDisplayName] = useState("");
@@ -217,7 +218,14 @@ export default function SettingsPage() {
           <UserPlus size={16} />
           <span>Team Members</span>
         </button>
-        <button 
+        <button
+          className={`${styles.tabTrigger} ${activeTab === "api" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("api")}
+        >
+          <KeyRound size={16} />
+          <span>API &amp; Developers</span>
+        </button>
+        <button
           className={`${styles.tabTrigger} ${activeTab === "system" ? styles.tabActive : ""}`}
           onClick={() => setActiveTab("system")}
         >
@@ -461,6 +469,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
+
+      {activeTab === "api" && <DeveloperSettings />}
 
       {activeTab === "system" && (
         <Card>

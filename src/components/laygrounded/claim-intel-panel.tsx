@@ -169,6 +169,8 @@ export function ClaimIntelPanel({
   const [sharing, setSharing] = useState(false);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [draftBusy, setDraftBusy] = useState<string | null>(null);
+  const [sentDraft, setSentDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settleAmount, setSettleAmount] = useState(settledAmount?.toString() ?? "");
   const [savingSettle, setSavingSettle] = useState(false);
@@ -446,6 +448,58 @@ export function ClaimIntelPanel({
       setCopied(d.id);
     } catch {
       setError("Clipboard unavailable.");
+    }
+  };
+
+  // Renders a grounded draft to a formal PDF (grounding is re-verified server-
+  // side at publish time — a drifted letter is refused, not printed) and opens
+  // the signed URL.
+  const downloadDraftPdf = async (d: DraftView) => {
+    setError(null);
+    setDraftBusy(d.id);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/draft/${d.id}/pdf`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(
+          json?.error === "DRAFT_NOT_GROUNDED"
+            ? "Refused: a figure in this letter no longer matches the claim record."
+            : json?.error || `PDF unavailable (${res.status}).`
+        );
+        return;
+      }
+      if (json?.url) window.open(json.url, "_blank");
+    } finally {
+      setDraftBusy(null);
+    }
+  };
+
+  // Emails a grounded demand letter to the counterparty. Requires an explicit
+  // recipient and confirmation; with no email provider configured the route
+  // answers 503 and the operator falls back to the PDF.
+  const sendDraft = async (d: DraftView) => {
+    const to = window.prompt("Send this letter to (recipient email):");
+    if (!to) return;
+    setError(null);
+    setDraftBusy(d.id);
+    try {
+      const res = await fetch(`/api/claims/${claimId}/draft/${d.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, confirm: true }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(
+          json?.error === "DELIVERY_UNAVAILABLE"
+            ? "No email provider configured — download the PDF and send it through your own channel."
+            : json?.message || json?.error || `Send failed (${res.status}).`
+        );
+        return;
+      }
+      setSentDraft(d.id);
+    } finally {
+      setDraftBusy(null);
     }
   };
 
@@ -893,9 +947,25 @@ export function ClaimIntelPanel({
                       >
                         {d.grounding?.verified ? "GROUNDED ✓" : "UNVERIFIED FIGURES"}
                       </span>
-                      <button className={styles.smallBtn} onClick={() => copyDraft(d)}>
-                        {copied === d.id ? "COPIED ✓" : "COPY"}
-                      </button>
+                      <span className={styles.smallBtnRow}>
+                        <button className={styles.smallBtn} onClick={() => copyDraft(d)}>
+                          {copied === d.id ? "COPIED ✓" : "COPY"}
+                        </button>
+                        <button
+                          className={styles.smallBtn}
+                          onClick={() => downloadDraftPdf(d)}
+                          disabled={draftBusy === d.id}
+                        >
+                          {draftBusy === d.id ? "…" : "PDF"}
+                        </button>
+                        <button
+                          className={styles.smallBtn}
+                          onClick={() => sendDraft(d)}
+                          disabled={draftBusy === d.id}
+                        >
+                          {sentDraft === d.id ? "SENT ✓" : "SEND"}
+                        </button>
+                      </span>
                     </div>
                     <div className={styles.itemNote}>
                       <strong>{d.subject}</strong>

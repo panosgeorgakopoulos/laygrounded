@@ -9,6 +9,19 @@ const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 100; // per minute
 
+// The Audit Trail API carries its own per-KEY quota, counted in Postgres so
+// it holds across instances (src/lib/api/authenticate.ts). This IP ceiling
+// must therefore sit well above it, or the contract a key is sold is a lie:
+// at 100/min per IP, a key licensed for 1000/min gets 100, and several
+// tenants behind one corporate NAT would share a single budget — the exact
+// reasons quotas here are keyed by API key rather than by address.
+//
+// It stays in place as a crude anti-flood net for the unauthenticated case
+// (bad keys are rejected on shape before touching the database, so they are
+// cheap — but not free).
+const AUDIT_API_PREFIX = '/api/v1/audit';
+const MAX_REQUESTS_AUDIT = 2000; // per minute, per IP — DoS floor, not a quota
+
 // CORS allowlist. Cross-origin API access is denied by default; add trusted
 // external origins via ALLOWED_ORIGINS (comma-separated). Same-origin requests
 // from the app itself never need an Access-Control-Allow-Origin header, so the
@@ -44,7 +57,7 @@ function clientKey(request: NextRequest): string {
   return 'anonymous';
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
   const isApi = request.nextUrl.pathname.startsWith('/api');
 
@@ -57,7 +70,11 @@ export function middleware(request: NextRequest) {
 
   // Rate limiting (API only).
   if (isApi) {
-    const key = clientKey(request);
+    const isAuditApi = request.nextUrl.pathname.startsWith(AUDIT_API_PREFIX);
+    const ceiling = isAuditApi ? MAX_REQUESTS_AUDIT : MAX_REQUESTS;
+    // Separate bucket: audit traffic must not consume the app's IP budget,
+    // and vice versa.
+    const key = `${isAuditApi ? 'audit:' : 'app:'}${clientKey(request)}`;
     const now = Date.now();
     const record = rateLimitMap.get(key) || { count: 0, lastReset: now };
 
@@ -69,7 +86,7 @@ export function middleware(request: NextRequest) {
     }
     rateLimitMap.set(key, record);
 
-    if (record.count > MAX_REQUESTS) {
+    if (record.count > ceiling) {
       const res = new NextResponse(JSON.stringify({ error: 'TOO_MANY_REQUESTS' }), {
         status: 429,
         headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },

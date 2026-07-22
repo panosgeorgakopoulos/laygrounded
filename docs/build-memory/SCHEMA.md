@@ -95,3 +95,44 @@ corroborated | contradicted | inconclusive | unavailable), `event_proposals`,
 - `pending_human_reviews.subject_type` CHECK += 'autonomous_settlement';
   `compliance_ledger.entry_kind` CHECK += 'efti_export'.
 - Ordering: must run AFTER 20260715000002 (extends its CHECK constraints).
+
+## 20260716000001_mrv_reports.sql (PENDING — user must apply)
+- `mrv_reports` — company_id, reporting_period int (CHECK 2015..2100), report
+  jsonb (the full MrvAnnualReport), merkle_root, signature_algo
+  ('sha256-merkle-v1', same as the legal notary), leaf_count, submittable
+  bool, verification_status text CHECK (= 'unverified' — pins out
+  self-certification at the DB level), generated_by, sealed_at. Company RLS
+  (JWT app_metadata style). Index (company_id, reporting_period, sealed_at
+  DESC).
+- Append-only: each row seals what the book looked like at sealed_at; never
+  replace-on-rerun (that would destroy the proof of the earlier state).
+- Not compliance_ledger: that is claim-scoped (claim_id NOT NULL) and its
+  entry_kind CHECK covers claim-level carbon findings, not period reports.
+- Validated by BEGIN…ROLLBACK dry-run against the hosted DB: the
+  verification_status CHECK rejects 'verified', the period CHECK rejects 1999,
+  a valid insert defaults to unverified/false.
+- Apply with:
+  psql "$DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260716000001_mrv_reports.sql
+
+## 20260716000002_audit_trail_api.sql (PENDING — user must apply)
+- `api_keys` — company_id, label, key_hash UNIQUE (sha256; plaintext shown
+  once, never stored), key_prefix (non-secret display fragment), scopes text[],
+  status active|revoked, rate_limit_per_minute (CHECK 1..100000), last_used_at,
+  expires_at, created_by, revoked_at. Company RLS.
+- `api_webhooks` — company_id, url, secret (returned once), event_types text[],
+  status active|paused, last_error. Company RLS.
+- `api_webhook_deliveries` — webhook_id, claim_id, event_type,
+  idempotency_key, payload, status, attempts, response_status, delivered_at.
+  UNIQUE (webhook_id, idempotency_key) ⇒ at-most-once per time-bar crossing.
+  SELECT-only RLS via the parent webhook's company.
+- `api_rate_limits` — (api_key_id, window_start) PK, request_count. RLS ON with
+  ZERO policies: service-role only. A tenant must not read or tamper with its
+  own quota counters.
+- `consume_api_rate_limit(uuid, timestamptz, int)` — SECURITY DEFINER, atomic
+  INSERT … ON CONFLICT DO UPDATE … RETURNING; EXECUTE revoked from
+  public/anon/authenticated, granted to service_role only.
+- Dry-run validated against the hosted DB: limit 3 ⇒ requests 1,2,3 allowed,
+  4th refused, next window resets; rate_limit_per_minute=0 and duplicate
+  key_hash both rejected.
+- Apply with:
+  psql "$DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260716000002_audit_trail_api.sql

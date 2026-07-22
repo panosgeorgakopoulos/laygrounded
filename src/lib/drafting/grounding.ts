@@ -27,7 +27,17 @@ const AMOUNT_TOLERANCE = 0.005;
 const AMOUNT_RE =
   /(?:(?:USD|EUR|GBP|€|\$)\s?)(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)|(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)\s?(?:USD|EUR|GBP)/g;
 
-const CLAUSE_RE = /\b(?:GENCON94-[\w()]+|ASBA-II-\d+)\b/g;
+// Clause refs as the engine emits them: GENCON94-6, GENCON94-6c,
+// GENCON94-7(d), ASBA-II-8.
+//
+// The sub-clause parens are matched as an explicit optional group rather than
+// folded into a character class closed by \b. The previous form
+// (/\b(?:GENCON94-[\w()]+|ASBA-II-\d+)\b/) truncated the trailing ")" —
+// \b cannot sit after a non-word character — so a letter correctly citing
+// GENCON94-7(d) was looked up as "GENCON94-7(d" and reported as a
+// hallucinated clause. That false positive now blocks publishing, so the
+// pattern has to be exact: it decides whether real letters can be issued.
+const CLAUSE_RE = /\bGENCON94-\w+(?:\(\w+\))?|\bASBA-II-\w+/g;
 
 function parseAmount(s: string): number {
   return parseFloat(s.replace(/[,\s]/g, ""));
