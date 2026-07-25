@@ -194,6 +194,8 @@ async function deliverWebhook(
         "x-laygrounded-signature": signPayload(body, policy.webhook_secret),
       },
       body,
+      // A validated URL can still 3xx to an internal address; refuse to follow.
+      redirect: "error",
       signal: controller.signal,
     });
     if (!res.ok) return { status: "failed", error: `insurer endpoint responded ${res.status}` };

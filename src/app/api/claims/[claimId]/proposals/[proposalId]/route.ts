@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { apiError } from "@/lib/api-errors";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const DecisionSchema = z.object({
   decision: z.enum(["accepted", "rejected"]),
@@ -153,6 +154,28 @@ export async function PATCH(
       .select("*")
       .single();
     if (decideErr || !decided) throw new Error(`PERSIST_FAILED: ${decideErr?.message}`);
+
+    // Accepting an amendment rewrites the evidentiary record the whole claim
+    // rests on — who agreed to a counterparty's version of events, and when,
+    // is a question that gets asked in arbitration.
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: parsed.data.decision === "accepted" ? "proposal.accepted" : "proposal.rejected",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "claim",
+      resourceId: claimId,
+      metadata: {
+        proposalId,
+        decision: parsed.data.decision,
+        proposalAction: proposal.action,
+        eventId: proposal.event_id,
+        proposedBy: proposal.proposed_by_label,
+        proposedOccurredAt: proposal.proposed_occurred_at,
+        proposedEventType: proposal.proposed_event_type,
+      },
+      ...requestAttribution(req),
+    });
 
     // Recompute after acceptance; a failed recompute (e.g. proposal removed
     // the NOR) is reported alongside the decision rather than rolling it back.

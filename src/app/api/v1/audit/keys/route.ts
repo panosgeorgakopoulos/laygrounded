@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
 import { API_SCOPES, generateApiKey } from "@/lib/api/keys";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 // Key management is SESSION-authenticated, not key-authenticated: you cannot
 // bootstrap the first key with a key, and a leaked integration key must not be
@@ -47,6 +48,28 @@ export async function POST(req: NextRequest) {
       .single();
     if (error || !data) throw new Error(`KEY_CREATE_FAILED: ${error?.message}`);
 
+    // critical: a machine credential now exists that can act on this tenant's
+    // data. Which scopes it carries, and who granted them, is precisely what
+    // an incident review needs — so the key is not handed over until the
+    // grant is on the record. Only the non-secret prefix is logged.
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "api_key.created",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "api_key",
+      resourceId: data.id,
+      critical: true,
+      metadata: {
+        label: data.label,
+        keyPrefix: data.key_prefix,
+        scopes: data.scopes,
+        rateLimitPerMinute: data.rate_limit_per_minute,
+        expiresAt: data.expires_at,
+      },
+      ...requestAttribution(req),
+    });
+
     return NextResponse.json(
       {
         id: data.id,
@@ -64,7 +87,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
-    return apiError(e, "v1/audit/keys/POST");
+    return apiError(e, "v1/audit/keys/POST", { AUDIT_WRITE_FAILED: 503 });
   }
 }
 

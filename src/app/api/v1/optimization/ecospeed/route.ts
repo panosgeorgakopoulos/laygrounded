@@ -9,6 +9,38 @@ import {
 } from "@/lib/optimization/ecospeed";
 import type { ConsumptionCurve } from "@/lib/compliance/carbon";
 import { DEFAULT_CP_TERMS, type CpTerms } from "@/lib/laytime/types";
+import { fetchAisTrack } from "@/lib/evidence/ais";
+import { deriveTelemetryFromAisTrack, type DerivedTelemetry } from "@/lib/market/ais-telemetry";
+import { fetchBunkerPrice } from "@/lib/market/bunker";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Live-AIS telemetry fallback: derive current speed + distance-to-port from the
+// vessel's recent AIS track and the claim's cached port coordinates. Returns
+// null (→ TELEMETRY_NOT_FOUND) when there's no claim/port fix or no AIS.
+async function deriveTelemetryFromAis(
+  supabase: SupabaseClient,
+  companyId: string,
+  vesselImo: string,
+  claimId: string | undefined
+): Promise<DerivedTelemetry | null> {
+  if (!claimId) return null;
+  const { data: claim } = await supabase
+    .from("claims")
+    .select("company_id, port_lat, port_lon")
+    .eq("id", claimId)
+    .maybeSingle();
+  if (!claim || claim.company_id !== companyId || claim.port_lat == null || claim.port_lon == null) {
+    return null;
+  }
+  const now = Date.now();
+  const track = await fetchAisTrack(
+    vesselImo,
+    new Date(now - 12 * 3600_000).toISOString(),
+    new Date(now).toISOString()
+  );
+  if (!track) return null;
+  return deriveTelemetryFromAisTrack(track, { lat: claim.port_lat, lon: claim.port_lon });
+}
 
 const TelemetrySchema = z.object({
   currentSpeedKnots: z.number().positive().max(40),
@@ -90,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Telemetry: inline (persisted as a new stream reading) or latest stored.
-    let telemetrySource: "inline" | "stored";
+    let telemetrySource: "inline" | "stored" | "live_ais";
     let speedKnots: number;
     let distanceNm: number;
     let congestionHours: number | null;
@@ -111,12 +143,27 @@ export async function POST(req: NextRequest) {
         .order("recorded_at", { ascending: false })
         .limit(1)
         .maybeSingle<TelemetryRow>();
-      if (!row) throw new Error("TELEMETRY_NOT_FOUND");
-      telemetrySource = "stored";
-      speedKnots = row.current_speed_knots;
-      distanceNm = row.distance_to_port_nm;
-      congestionHours = row.predicted_congestion_delay_hours;
-      destinationPort = destinationPort ?? row.destination_port;
+      if (row) {
+        telemetrySource = "stored";
+        speedKnots = row.current_speed_knots;
+        distanceNm = row.distance_to_port_nm;
+        congestionHours = row.predicted_congestion_delay_hours;
+        destinationPort = destinationPort ?? row.destination_port;
+      } else {
+        // No inline reading and no stored stream — try deriving live telemetry
+        // from the vessel's AIS track before giving up.
+        const derived = await deriveTelemetryFromAis(
+          supabase,
+          auth.companyId,
+          input.vesselImo,
+          input.claimId
+        );
+        if (!derived) throw new Error("TELEMETRY_NOT_FOUND");
+        telemetrySource = "live_ais";
+        speedKnots = derived.currentSpeedKnots;
+        distanceNm = derived.distanceToPortNm;
+        congestionHours = null; // AIS carries no congestion → port-index fallback
+      }
     }
 
     // Congestion fallback: the port resilience index (cross-tenant matview,
@@ -163,6 +210,19 @@ export async function POST(req: NextRequest) {
     }
     demurrageRatePerDay = demurrageRatePerDay ?? DEFAULT_CP_TERMS.demurrage_rate;
 
+    // Fuel price: explicit → live bunker feed (VLSFO at the destination port) →
+    // ecospeed's documented static default. Honest source label in the response.
+    let fuelPriceUsdPerTonne = input.fuelPriceUsdPerTonne ?? null;
+    let fuelPriceSource: "inline" | "bunker_feed" | "default" =
+      fuelPriceUsdPerTonne != null ? "inline" : "default";
+    if (fuelPriceUsdPerTonne == null) {
+      const quote = await fetchBunkerPrice({ fuel: "VLSFO", port: destinationPort ?? undefined });
+      if (quote) {
+        fuelPriceUsdPerTonne = quote.pricePerTonneUsd;
+        fuelPriceSource = "bunker_feed";
+      }
+    }
+
     const recommendation = calculateOptimalArrivalSpeed({
       telemetry,
       consumptionCurve: curve as ConsumptionCurve,
@@ -171,7 +231,7 @@ export async function POST(req: NextRequest) {
       laytimeBufferHours: input.laytimeBufferHours,
       cancellingAt: input.cancellingAt,
       fixtureLossUsd: input.fixtureLossUsd,
-      fuelPriceUsdPerTonne: input.fuelPriceUsdPerTonne,
+      fuelPriceUsdPerTonne: fuelPriceUsdPerTonne ?? undefined,
       euaPriceEur: input.euaPriceEur,
       eurUsd: input.eurUsd,
       minSpeedKnots: input.minSpeedKnots,
@@ -198,6 +258,7 @@ export async function POST(req: NextRequest) {
       recommendation,
       telemetrySource,
       congestionSource,
+      fuelPriceSource,
       demurrageRatePerDay,
     });
   } catch (e) {

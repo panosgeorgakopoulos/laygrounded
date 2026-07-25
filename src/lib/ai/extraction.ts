@@ -3,45 +3,15 @@ import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAisTrack } from "@/lib/evidence/ais";
 import { runGeofenceAudit } from "@/lib/ingestion/geofence-server";
+import { generateWithFallback } from "@/lib/ai/gemini";
+import { pdfjsServerAssets } from "@/lib/pdf/assets-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-export const EXTRACTION_MODEL_ID = process.env.CLAUDE_MODEL_ID || "claude-sonnet-4-6";
-export const EXTRACTION_MODEL_FALLBACK_ID =
-  process.env.CLAUDE_FALLBACK_MODEL_ID || "claude-haiku-4-5-20251001";
 
 export class ExtractionError extends Error {
   constructor(message: string, public readonly cause?: any) {
     super(message);
     this.name = "ExtractionError";
   }
-}
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  retries: number = 3
-): Promise<T> {
-  let attempt = 0;
-  while (attempt < retries) {
-    try {
-      return await operation();
-    } catch (e: any) {
-      if (e.status === 400 || e.status === 401) {
-        throw new ExtractionError(`Non-retriable error: ${e.status} ${e.message}`, e);
-      }
-      
-      const isRetriable = !e.status || e.status === 429 || e.status >= 500;
-      
-      if (!isRetriable || attempt === retries - 1) {
-        throw new ExtractionError(`Extraction failed after ${attempt + 1} attempts`, e);
-      }
-      
-      const baseMs = 1000;
-      const delay = (baseMs * Math.pow(2, attempt)) + (Math.random() * baseMs);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      attempt++;
-    }
-  }
-  throw new ExtractionError("Extraction failed");
 }
 
 const BboxSchema = z.object({
@@ -138,6 +108,12 @@ export interface ExtractionResult {
 
 async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Character maps, standard fonts and the JBIG2/JPEG2000 WASM decoders.
+  // Without these a SCANNED Statement of Facts — the common case for documents
+  // emailed by a port agent — rasterises blank or throws, and the extraction
+  // would then be run against an empty page. Filesystem paths here, not URLs:
+  // pdf.js reads them with fs.readFile under Node.
+  const assets = pdfjsServerAssets();
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(data),
     // @ts-ignore
@@ -145,6 +121,7 @@ async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
     // @ts-ignore
     useWorkerFetch: false,
     isEvalSupported: false,
+    ...(assets ?? {}),
   }).promise;
   const pages: Buffer[] = [];
   // AI-5: Enforce token budget by capping pages
@@ -165,49 +142,38 @@ async function pdfToPngs(data: Buffer): Promise<Buffer[]> {
 async function extractFromImage(
   imageBuffer: Buffer,
   mime: string,
-  pageNumber: number,
-  retries = 3
+  pageNumber: number
 ): Promise<ExtractedEvent[]> {
-  let zai: any;
-  try {
-    const Anthropic = await import("@anthropic-ai/sdk");
-    zai = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
-  } catch (e) {
-    throw new Error(`Anthropic SDK unavailable: ${(e as Error).message}`);
-  }
-
   const base64 = imageBuffer.toString("base64");
   const mediaType = mime === "image/png" ? "image/png" : mime === "image/jpeg" ? "image/jpeg" : "image/webp";
 
-  return withRetry(async () => {
-    const response = await zai.messages.create({
-      model: EXTRACTION_MODEL_ID,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
-            },
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType as "image/jpeg" | "image/png" | "image/webp",
-                data: base64,
-              }
-            }
-          ],
-        },
-      ],
-    });
+  // generateWithFallback handles transient retries and the primary→fallback
+  // model chain (gemini-2.5-pro → gemini-2.0-flash) in one place.
+  const response = await generateWithFallback({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Extract all Statement of Facts events from this page (page ${pageNumber}). Return ONLY the JSON object { "events": [...] }`,
+          },
+          {
+            inlineData: { mimeType: mediaType, data: base64 },
+          },
+        ],
+      },
+    ],
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      // Gemini 2.5 Pro reasons before answering; the budget covers those
+      // thinking tokens plus the JSON so the response is not truncated.
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      temperature: 0,
+    },
+  });
 
-    const raw = (response.content[0] as any).text ?? "";
-    return parseExtractionResponse(raw, pageNumber);
-  }, retries);
+  return parseExtractionResponse(response.text ?? "", pageNumber);
 }
 
 function parseExtractionResponse(

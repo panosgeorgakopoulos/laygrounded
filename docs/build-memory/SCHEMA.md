@@ -136,3 +136,89 @@ corroborated | contradicted | inconclusive | unavailable), `event_proposals`,
   key_hash both rejected.
 - Apply with:
   psql "$DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260716000002_audit_trail_api.sql
+
+## 20260717000000_security_audit_log.sql (PENDING — user must apply)
+
+Tamper-evident tenant audit trail. One table, one function, one policy.
+
+**security_events** — append-only, hash-chained per company.
+- `company_id` → companies (CASCADE), `seq bigint`, UNIQUE (company_id, seq).
+  The unique key is what stops two concurrent appends forking the chain.
+- `occurred_at` (application clock, part of the hashed body) and `recorded_at`
+  (database clock, DEFAULT now(), NOT hashed) — a wide gap between the two is
+  itself a signal.
+- `actor_type` CHECK IN (user, api_key, guest, system, cron), `actor_id` uuid
+  (nullable — a machine credential has no user id), `actor_label`.
+- `action`, `resource_type`, `resource_id`, `outcome` CHECK IN (allowed,
+  denied, error).
+- `metadata jsonb` + `metadata_hash` — hashed indirectly so a jsonb key
+  reordering cannot masquerade as a broken chain.
+- `prev_hash`, `entry_hash` — sha256(seq ‖ chr(31) ‖ prev_hash ‖ chr(31) ‖
+  body), genesis = 64 zeros.
+- Indexes: (company_id, occurred_at DESC), (company_id, action, occurred_at
+  DESC), (company_id, resource_type, resource_id).
+
+**append_security_event(...)** — SECURITY DEFINER, the only writer. Takes a
+per-company `pg_advisory_xact_lock` so appends serialise, reads the head,
+computes the hash with the BUILT-IN `sha256(bytea)` (no pgcrypto dependency),
+inserts. OUT params `event_id, event_seq, event_hash` — named distinctly to
+avoid plpgsql column/variable ambiguity. EXECUTE revoked from
+public/anon/authenticated, granted to service_role only.
+
+**RLS** — SELECT policy on the JWT's company_id. Deliberately NO insert,
+update or delete policy: absent policies deny, which is the mechanism that
+makes the table append-only for every client that is not the service role.
+Do not add one.
+
+Verified against Postgres 17 before shipping: migration applies clean; SQL and
+TypeScript produce identical hashes (incl. unicode, apostrophes, reordered
+jsonb); a company member can read all rows and gets UPDATE 0 / DELETE 0; and
+direct superuser edits are caught as metadata_mismatch / hash_mismatch /
+sequence_gap.
+
+Consumed by `GET /api/security/events` (list, keyset-paginated on seq) and
+`GET /api/security/verify` (full-chain recomputation), surfaced in Settings →
+Security Trail.
+
+## 20260718000000_oauth_mcp.sql (PENDING — user must apply)
+
+OAuth 2.1 + PKCE authorization server for the MCP endpoint. Five tables, all
+service-role only (RLS on, no policy) except a user-readable consent view.
+Codes and tokens stored as SHA-256 hashes only.
+
+**oauth_clients** — self-registered (RFC 7591). client_id UNIQUE, NOT a secret;
+client_secret_hash nullable (public clients). redirect_uris text[] NOT NULL,
+cardinality > 0, EXACT match only (no wildcard — OAuth 2.1). token_endpoint_
+auth_method CHECK in (none, client_secret_post, client_secret_basic).
+**oauth_authorization_codes** — the PKCE store. code_hash UNIQUE; code_challenge
++ code_challenge_method CHECK (= 'S256', blocks downgrade to plain); redirect_uri
+(must match /authorize exactly); resource (RFC 8707 audience binding);
+consumed_at (single-use; replay SHOULD revoke descendants); short expires_at;
+FKs to oauth_clients / auth.users / companies.
+**oauth_access_tokens** — token_hash UNIQUE, denormalised company_id (one-lookup
+tenant resolution + can't be widened if the user later moves company), scope,
+resource (audience the MCP endpoint must match), authorization_code_id.
+**oauth_refresh_tokens** — rotation WITH reuse detection: family_id + consumed_at
++ rotated_to_id; a reused token revokes the whole family.
+**oauth_consents** — user_id/client_id UNIQUE; the ONLY OAuth table a logged-in
+user can read (SELECT policy on auth.uid()); revocation goes through a route
+that also kills tokens.
+
+**purge_expired_oauth_artifacts()** — SECURITY DEFINER, service_role-only;
+drops dead codes (>1d) and expired access/refresh (>30d, kept briefly for
+audit). Wire to the cron sweep.
+
+Verified on throwaway Postgres 17: migration applies clean; all five
+constraints reject their unsafe states (plain PKCE, dup code_hash, empty
+redirect_uris, orphan client FK, bogus auth method); RLS gives authenticated 0
+token/code/client rows + 1 own-consent row, and denies both a forged INSERT and
+the purge EXECUTE.
+
+Discovery endpoints (no DB): /.well-known/oauth-protected-resource[/...] and
+/.well-known/oauth-authorization-server[/...], both optional-catch-all, both
+public + wildcard-CORS + 1h cache. Issuer from OAUTH_ISSUER_URL (NOT the Host
+header). Metadata builders + 18 tests in src/lib/oauth/metadata.ts.
+
+STILL TO BUILD (endpoints the metadata already advertises): /oauth/authorize
+(consent screen, session-gated), /oauth/token (code→token with PKCE verify),
+/oauth/register (RFC 7591), /oauth/revoke, and the /api/mcp transport itself.

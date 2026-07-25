@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
 import { loadEligibility, settleClaim } from "@/lib/settlement/clearinghouse";
 import { apiError } from "@/lib/api-errors";
+import { requireOwnedClaim } from "@/lib/audit/claim-access";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 // HITL contract: funds never move without an explicit, literal
 // human_approved: true in the request body — a defaulted/absent flag is a
@@ -13,27 +13,15 @@ const SettleSchema = z.object({
   note: z.string().max(2000).optional(),
 });
 
-async function requireOwnedClaim(claimId: string) {
-  const auth = await requireAuth();
-  const supabase = await createClient();
-  const { data: claim } = await supabase
-    .from("claims")
-    .select("id, company_id")
-    .eq("id", claimId)
-    .maybeSingle();
-  if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
-  return { supabase, auth };
-}
-
 // Dry run: the eligibility verdict with per-criterion detail, so the UI can
 // show exactly what still blocks a zero-day clearing.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ claimId: string }> }
 ) {
   try {
     const { claimId } = await params;
-    const { supabase } = await requireOwnedClaim(claimId);
+    const { supabase } = await requireOwnedClaim(claimId, "id, company_id", req);
     const { result } = await loadEligibility(supabase, claimId);
     return NextResponse.json({ eligibility: result });
   } catch (e) {
@@ -49,7 +37,7 @@ export async function POST(
 ) {
   try {
     const { claimId } = await params;
-    const { supabase, auth } = await requireOwnedClaim(claimId);
+    const { supabase, auth } = await requireOwnedClaim(claimId, "id, company_id", req);
 
     const parsed = SettleSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
@@ -64,12 +52,41 @@ export async function POST(
       approvedBy: auth.userId,
       note: parsed.data.note,
     });
+
+    // critical: funds have moved. If the trail cannot record who authorised
+    // that, the caller is told the write failed rather than being handed a
+    // silent, unattributable settlement. The money movement is already done
+    // and idempotent (UNIQUE claim_id), so a retry reconciles rather than
+    // double-paying — which is what makes failing loudly here the safe choice.
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "settlement.cleared",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "claim",
+      resourceId: claimId,
+      outcome: outcome.status === "cleared" ? "allowed" : "error",
+      critical: true,
+      metadata: {
+        settlementId: outcome.settlementId,
+        status: outcome.status,
+        amount: outcome.amount,
+        currency: outcome.currency,
+        direction: outcome.direction,
+        provider: outcome.provider,
+        simulated: outcome.simulated,
+        humanApproved: parsed.data.human_approved,
+      },
+      ...requestAttribution(req),
+    });
+
     return NextResponse.json({ settlement: outcome }, { status: 201 });
   } catch (e) {
     return apiError(e, "settle/POST", {
       NOT_ELIGIBLE: 409,
       ALREADY_SETTLED: 409,
       HUMAN_APPROVAL_REQUIRED: 428,
+      AUDIT_WRITE_FAILED: 503,
     });
   }
 }

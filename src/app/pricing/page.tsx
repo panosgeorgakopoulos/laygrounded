@@ -11,47 +11,36 @@ export default function PricingPage() {
       <LandingNav theme="light" />
       <main className={styles.mainContent}>
         <div className={styles.card}>
-          <h1 className={styles.title}>Simple, Transparent Pricing</h1>
+          <h1 className={styles.title}>One plan. Everything included. Free.</h1>
           <p className={styles.subtitle}>
-            Scale your demurrage workflows and financial settlements without unpredictable costs. LayGrounded scales with your cargo volume and intelligence requirements.
+            LayGrounded is free. Every feature — the deterministic laytime engine, evidence
+            verification, collaborative claim rooms, the agentic legal drafter, settlement,
+            compliance, and the AI / MCP integration — is available to every account. No tiers, no
+            usage caps, no paywalls, no &ldquo;contact sales&rdquo;.
           </p>
           <div className={styles.prose}>
-            <h2>Free Trial</h2>
+            <h2>Everything, for everyone</h2>
             <p>
-              Experience the power of automated SoF parsing and deterministic logic at zero risk. Ideal for independent operators looking to validate our engine.
+              Whether you are an independent operator validating a single claim or a fleet manager
+              running a whole book, you get the entire platform from day one.
             </p>
             <ul>
-              <li>Up to 5 Laytime/Demurrage Calculations per month</li>
-              <li>GENCON 94 and ASBATANKVOY clause logic</li>
-              <li>PDF exporting</li>
-            </ul>
-
-            <h2>Professional</h2>
-            <p>
-              Built for commercial shipping companies and brokers who process high volumes of claims and require intelligence tools like weather verification and scenario diffing.
-            </p>
-            <ul>
-              <li>Unlimited Laytime/Demurrage Calculations</li>
-              <li>Advanced Evidence Verification (AIS & Open-Meteo)</li>
-              <li>Shared Counterparty Claim Rooms & Scenario Diffing</li>
-              <li>Excel & PDF Arbitration-Ready Exports</li>
-            </ul>
-
-            <h2>Enterprise</h2>
-            <p>
-              For global fleet managers requiring deep integration, predictive oracles, zero-day settlement clearing, and automated agentic legal drafting.
-            </p>
-            <ul>
-              <li>Everything in Professional</li>
-              <li>Agentic Legal Drafter & In-Voyage Legal Shield</li>
-              <li>Zero-Day Settlement Clearinghouse & Veson IMOS ERP Sync</li>
-              <li>Pre-Fixture Pricing & Parametric Insurance Oracles</li>
-              <li>SSO / SAML Security integration & Dedicated Success Manager</li>
+              <li>Unlimited laytime / demurrage calculations</li>
+              <li>GENCON 94 and ASBATANKVOY clause logic, hour-resolution breakdowns</li>
+              <li>AI Statement-of-Facts extraction and deterministic recomputation</li>
+              <li>Evidence verification against AIS and the Open-Meteo / ERA5 weather archive</li>
+              <li>Shared counterparty claim rooms, scenario diffing, dispute-sensitivity intel</li>
+              <li>Excel &amp; PDF arbitration-ready exports</li>
+              <li>Agentic legal drafter and the in-voyage Legal Shield</li>
+              <li>Zero-day settlement clearinghouse and Veson IMOS ERP sync</li>
+              <li>Pre-fixture pricing and parametric-insurance oracles</li>
+              <li>EU MRV / ETS reporting, FuelEU Maritime, and the carbon cost of delay</li>
+              <li>Connect any AI assistant to your claims over the secure MCP endpoint</li>
             </ul>
 
             <div style={{ marginTop: "2rem" }}>
-              <Link href="/contact" className="bg-slate-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-slate-800 transition-colors inline-block">
-                Contact Sales
+              <Link href="/sign-up" className="bg-slate-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-slate-800 transition-colors inline-block">
+                Get started free
               </Link>
             </div>
           </div>

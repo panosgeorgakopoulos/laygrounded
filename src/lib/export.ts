@@ -33,59 +33,85 @@ export interface PdfFontSet {
   sanitize: (s: string) => string;
 }
 
-// Load a Unicode-capable font (Roboto: Latin, Latin-Extended, Greek, Cyrillic)
-// so international vessel/port names and OCR'd text don't crash the exporter.
-// Falls back to the standard WinAnsi fonts (with transliteration + stripping)
-// if the font assets aren't available, guaranteeing the export still succeeds.
-//
-// NOTE: as of writing, public/fonts/Roboto-*.ttf are 14-byte placeholders
-// containing the text "404: Not Found" (a failed download was committed), so
-// embedFont throws and the WinAnsi fallback is the path that actually runs —
-// non-ASCII vessel/port names render as "?". Dropping real TTFs in that
-// directory restores the Unicode path with no code change.
+// Candidate (regular, bold) font-file pairs, tried in order. LiberationSans is
+// a full Unicode face (Latin, Latin-Extended, Greek, Cyrillic and the currency
+// symbols — €, £, ¥) that ships inside pdfjs-dist; scripts/sync-pdfjs-assets.ts
+// copies it into public/pdfjs/ at build time, and it is always present in
+// node_modules with the deps installed. The legacy public/fonts slot is kept
+// last so a real TTF dropped there still wins (the committed Roboto files are
+// 14-byte "404: Not Found" placeholders and are skipped by the size guard).
+function fontCandidates(): Array<[string, string]> {
+  const cwd = process.cwd();
+  const synced = path.join(cwd, "public", "pdfjs", "standard_fonts");
+  const bundled = path.join(cwd, "node_modules", "pdfjs-dist", "standard_fonts");
+  const legacy = path.join(cwd, "public", "fonts");
+  return [
+    [path.join(synced, "LiberationSans-Regular.ttf"), path.join(synced, "LiberationSans-Bold.ttf")],
+    [path.join(bundled, "LiberationSans-Regular.ttf"), path.join(bundled, "LiberationSans-Bold.ttf")],
+    [path.join(legacy, "Roboto-Regular.ttf"), path.join(legacy, "Roboto-Bold.ttf")],
+  ];
+}
+
+// Load a Unicode-capable font so international vessel/port names, OCR'd text and
+// currency symbols (the € from the ETS / FuelEU figures) render correctly
+// instead of collapsing to "?" in the single-byte WinAnsi fallback. Glyphs the
+// face genuinely lacks (e.g. CJK) are filtered to "?" by sanitize so drawText
+// can never throw. If every candidate fails we fall back to the WinAnsi
+// standard fonts, transliterating what we can (and € → "EUR").
 //
 // Exported so the demand-letter renderer (drafting/pdf.ts) shares one font
 // story with the claim pack rather than growing a second one.
 export async function loadPdfFonts(pdf: PDFDocument): Promise<PdfFontSet> {
-  try {
-    const dir = path.join(process.cwd(), "public", "fonts");
-    const regularBytes = fs.readFileSync(path.join(dir, "Roboto-Regular.ttf"));
-    const boldBytes = fs.readFileSync(path.join(dir, "Roboto-Bold.ttf"));
+  pdf.registerFontkit(fontkit);
 
-    pdf.registerFontkit(fontkit);
-    const regular = await pdf.embedFont(regularBytes, { subset: true });
-    const bold = await pdf.embedFont(boldBytes, { subset: true });
+  for (const [regularPath, boldPath] of fontCandidates()) {
+    try {
+      const regularBytes = fs.readFileSync(regularPath);
+      const boldBytes = fs.readFileSync(boldPath);
+      // A committed placeholder ("404: Not Found") is ~14 bytes; a real TTF is
+      // tens of KB. Skip obvious junk rather than letting embedFont throw deep
+      // inside fontkit.
+      if (regularBytes.length < 1024 || boldBytes.length < 1024) continue;
 
-    // Filter to codepoints the embedded font can actually render.
-    const fk = (regular as unknown as { embedder?: { font?: { hasGlyphForCodePoint?: (cp: number) => boolean } } })
-      .embedder?.font;
-    const canRender = (cp: number): boolean => {
-      try {
-        return fk?.hasGlyphForCodePoint ? fk.hasGlyphForCodePoint(cp) : true;
-      } catch {
-        return true;
-      }
-    };
-    const sanitize = (s: string): string =>
-      Array.from(transliterate(s))
-        .map((ch) => {
-          if (ch === "\n" || ch === "\t") return ch;
-          const cp = ch.codePointAt(0);
-          return cp !== undefined && canRender(cp) ? ch : "?";
-        })
-        .join("");
+      const regular = await pdf.embedFont(regularBytes, { subset: true });
+      const bold = await pdf.embedFont(boldBytes, { subset: true });
 
-    return { regular, bold, mono: regular, sanitize };
-  } catch {
-    // Fallback: standard fonts only encode WinAnsi. Transliterate what we can
-    // and replace anything else with "?" so drawText can never throw.
-    const regular = await pdf.embedFont(StandardFonts.Helvetica);
-    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-    const mono = await pdf.embedFont(StandardFonts.Courier);
-    const sanitize = (s: string): string =>
-      transliterate(s).replace(/[^\x20-\x7E\n\t]/g, "?");
-    return { regular, bold, mono, sanitize };
+      // Filter to codepoints the embedded font can actually render.
+      const fk = (regular as unknown as { embedder?: { font?: { hasGlyphForCodePoint?: (cp: number) => boolean } } })
+        .embedder?.font;
+      const canRender = (cp: number): boolean => {
+        try {
+          return fk?.hasGlyphForCodePoint ? fk.hasGlyphForCodePoint(cp) : true;
+        } catch {
+          return true;
+        }
+      };
+      const sanitize = (s: string): string =>
+        Array.from(transliterate(s))
+          .map((ch) => {
+            if (ch === "\n" || ch === "\t") return ch;
+            const cp = ch.codePointAt(0);
+            return cp !== undefined && canRender(cp) ? ch : "?";
+          })
+          .join("");
+
+      return { regular, bold, mono: regular, sanitize };
+    } catch {
+      // Corrupt or unreadable — try the next candidate.
+    }
   }
+
+  // Fallback: standard fonts only encode WinAnsi. Transliterate what we can,
+  // spell out the euro sign, and replace anything else with "?" so drawText can
+  // never throw.
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const mono = await pdf.embedFont(StandardFonts.Courier);
+  const sanitize = (s: string): string =>
+    transliterate(s)
+      .replace(/€/g, "EUR")
+      .replace(/[^\x20-\x7E\n\t]/g, "?");
+  return { regular, bold, mono, sanitize };
 }
 
 interface ExportPayload {
@@ -247,7 +273,7 @@ export interface ExportClauseFlag {
   note: string;
 }
 
-async function generatePDF(
+export async function generatePDF(
   claim: ExportClaim,
   cpTerms: CpTerms | null,
   events: ExportEvent[],
@@ -258,12 +284,26 @@ async function generatePDF(
   const pdf = await PDFDocument.create();
   const { regular: font, bold, mono, sanitize } = await loadPdfFonts(pdf);
 
-  const page = pdf.addPage([595.28, 841.89]);
-  const { width, height } = page.getSize();
+  const PAGE_W = 595.28;
+  const PAGE_H = 841.89;
   const margin = 40;
-  let y = height - margin;
-
+  const bottomMargin = 50; // keep content clear of the footer at y≈28
   const lineHeight = 14;
+  const width = PAGE_W;
+
+  let page = pdf.addPage([PAGE_W, PAGE_H]);
+  let y = PAGE_H - margin;
+
+  // Page-aware layout. Without this, the single page silently swallowed
+  // everything below the fold on a long claim pack — a legal document losing
+  // its own evidence. Now the cursor spills onto a fresh page instead.
+  const newPage = () => {
+    page = pdf.addPage([PAGE_W, PAGE_H]);
+    y = PAGE_H - margin;
+  };
+  const ensureSpace = (need = lineHeight) => {
+    if (y - need < bottomMargin) newPage();
+  };
   const gap = (n = 1) => {
     y -= n * lineHeight;
   };
@@ -279,20 +319,29 @@ async function generatePDF(
     const maxWidth = width - margin * 2 - indent;
     const words = safeText.split(" ");
     let line = "";
+    const flush = () => {
+      ensureSpace(lineHeight);
+      page.drawText(line, { x: margin + indent, y, size: sz, font: f, color: col });
+      y -= lineHeight;
+    };
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
-      if (f.widthOfTextAtSize(test, sz) > maxWidth) {
-        page.drawText(line, { x: margin + indent, y, size: sz, font: f, color: col });
-        y -= lineHeight;
+      // Wrap only when there is already something on the line, so a single
+      // over-wide token still gets drawn instead of looping on an empty line.
+      if (line && f.widthOfTextAtSize(test, sz) > maxWidth) {
+        flush();
         line = word;
       } else {
         line = test;
       }
     }
-    if (line) {
-      page.drawText(line, { x: margin + indent, y, size: sz, font: f, color: col });
-      y -= lineHeight;
-    }
+    if (line) flush();
+  };
+  // A section heading that won't be orphaned at the very bottom of a page:
+  // reserve a few lines so it stays with the content it introduces.
+  const heading = (text: string, size = 12) => {
+    ensureSpace(lineHeight * 3);
+    writeLine(text, { font: bold, size });
   };
 
   page.drawText("LAYGROUNDED", {
@@ -322,7 +371,7 @@ async function generatePDF(
   gap();
 
   if (cpTerms) {
-    writeLine("Charterparty Terms Summary", { font: bold, size: 12 });
+    heading("Charterparty Terms Summary");
     writeLine(`- Laytime allowed: ${cpTerms.laytime_allowed_hours} hours`, { indent: 10 });
     writeLine(`- Turn time: ${cpTerms.turn_time_hours} hours`, { indent: 10 });
     writeLine(`- NOR variant: ${cpTerms.nor_variant}`, { indent: 10 });
@@ -332,7 +381,7 @@ async function generatePDF(
     gap();
   }
 
-  writeLine("Statement of Facts — Event Timeline", { font: bold, size: 12 });
+  heading("Statement of Facts — Event Timeline");
   for (const ev of events) {
     const ts = new Date(ev.occurredAt).toISOString();
     writeLine(`[${ts}] ${ev.eventType} (page ${ev.page}, conf ${(ev.confidence * 100).toFixed(0)}%)`, {
@@ -350,7 +399,7 @@ async function generatePDF(
   gap();
 
   if (breakdown.length > 0) {
-    writeLine("Hour-Resolution Breakdown (with clause citations)", { font: bold, size: 12 });
+    heading("Hour-Resolution Breakdown (with clause citations)");
     for (const row of breakdown) {
       writeLine(
         `[${row.start_time} → ${row.end_time}] ${row.duration_hours}h | ${row.status} | counts=${row.counts} | ${row.clause_ref}`,
@@ -362,7 +411,7 @@ async function generatePDF(
   }
 
   if (totals) {
-    writeLine("Totals", { font: bold, size: 12 });
+    heading("Totals");
     writeLine(`- Allowed: ${totals.allowed_hours.toFixed(2)} hours`, { indent: 10 });
     writeLine(`- Used: ${totals.used_hours.toFixed(2)} hours`, { indent: 10 });
     writeLine(`- Time on demurrage: ${totals.time_on_demurrage_hours.toFixed(2)} hours`, { indent: 10 });
@@ -379,7 +428,7 @@ async function generatePDF(
   }
 
   if (clauseFlags.length > 0) {
-    writeLine("Clause Flags", { font: bold, size: 12 });
+    heading("Clause Flags");
     for (const f of clauseFlags) {
       const ev = events.find((e: ExportEvent) => e.id === f.eventId);
       writeLine(`[${f.severity.toUpperCase()}] ${f.clauseRef}`, {
@@ -400,12 +449,21 @@ async function generatePDF(
     }
   }
 
-  page.drawText(sanitize(`Generated by LayGrounded - ${new Date().toISOString()}`), {
-    x: margin,
-    y: 30,
-    size: 8,
-    font: font,
-    color: rgb(0.5, 0.5, 0.5),
+  // Footer on EVERY page — provenance plus page numbers — stamped last, once
+  // the total page count is known.
+  const pages = pdf.getPages();
+  const stamp = sanitize(`Generated by LayGrounded - ${new Date().toISOString()}`);
+  const footerColor = rgb(0.5, 0.5, 0.5);
+  pages.forEach((pg, i) => {
+    pg.drawText(stamp, { x: margin, y: 28, size: 8, font, color: footerColor });
+    const label = `Page ${i + 1} / ${pages.length}`;
+    pg.drawText(label, {
+      x: PAGE_W - margin - font.widthOfTextAtSize(label, 8),
+      y: 28,
+      size: 8,
+      font,
+      color: footerColor,
+    });
   });
 
   const bytes = await pdf.save();

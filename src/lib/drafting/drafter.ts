@@ -1,7 +1,7 @@
 // The agentic legal drafter: structured claim data in, grounded legal
 // correspondence out.
 //
-// Two-step prompt chain, both on the API's most capable drafting model:
+// Two-step prompt chain, both on the Gemini drafting model:
 //   1. Position analysis — structured JSON (strongest points, weaknesses,
 //      recommended ask) so argumentation is deliberate, not improvised.
 //   2. Letter generation — the analysis + full claim context become a
@@ -10,12 +10,20 @@
 // draft gets exactly one repair round with the specific violations quoted,
 // and the final grounding verdict is stored with the draft either way.
 
-import Anthropic from "@anthropic-ai/sdk";
+import { type GenerateContentResponse } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assembleDraftContext, DraftContext } from "./context";
 import { verifyDraftGrounding, GroundingResult } from "./grounding";
+import { generateWithFallback, geminiModelChain, GEMINI_FALLBACK_MODEL } from "@/lib/ai/gemini";
 
-export const DRAFTER_MODEL_ID = process.env.DRAFTER_MODEL_ID || "claude-opus-4-8";
+export const DRAFTER_MODEL_ID =
+  process.env.DRAFTER_MODEL_ID || process.env.GEMINI_MODEL || "gemini-2.5-pro";
+
+// If a drafter-specific model is pinned, still fall back to the cheap model on
+// quota; otherwise use the shared primary→fallback chain.
+const DRAFTER_MODELS = process.env.DRAFTER_MODEL_ID
+  ? [...new Set([process.env.DRAFTER_MODEL_ID, GEMINI_FALLBACK_MODEL])]
+  : geminiModelChain();
 
 export type DraftKind =
   | "demand_letter"
@@ -106,11 +114,10 @@ function contextBlock(ctx: DraftContext, analysis?: PositionAnalysis): string {
   return parts.join("\n\n");
 }
 
-function firstText(response: Anthropic.Message): string {
-  for (const block of response.content) {
-    if (block.type === "text") return block.text;
-  }
-  throw new Error("DRAFTING_FAILED: model returned no text");
+function firstText(response: GenerateContentResponse): string {
+  const text = response.text;
+  if (!text || !text.trim()) throw new Error("DRAFTING_FAILED: model returned no text");
+  return text;
 }
 
 export async function generateDraft(
@@ -119,46 +126,37 @@ export async function generateDraft(
   tone: DraftTone,
   client?: SupabaseClient
 ): Promise<GeneratedDraft> {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     throw new Error("DRAFTING_UNAVAILABLE");
   }
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const ctx = await assembleDraftContext(claimId, client);
   // A protest records disputed facts mid-voyage and quantifies nothing, so it
   // is the one kind that may be drafted before a calculation exists.
   if (!ctx.totals && kind !== "letter_of_protest") throw new Error("NO_CALCULATION");
 
   // --- Step 1: position analysis (structured) ---
-  const analysisResponse = await anthropic.messages.create({
-    model: DRAFTER_MODEL_ID,
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
-    system:
-      "You are senior maritime claims counsel. Analyze the dispute position strictly from the provided claim data; cite only clauses and evidence present in it. Be candid about weaknesses — the letter drafted from this analysis must not overreach.",
-    messages: [
-      {
-        role: "user",
-        content: `${contextBlock(ctx)}\n\nProduce the position analysis for a ${kind.replace(/_/g, " ")}.`,
-      },
-    ],
-    output_config: {
-      format: { type: "json_schema", schema: ANALYSIS_SCHEMA as unknown as Record<string, unknown> },
+  const analysisResponse = await generateWithFallback({
+    models: DRAFTER_MODELS,
+    contents: `${contextBlock(ctx)}\n\nProduce the position analysis for a ${kind.replace(/_/g, " ")}.`,
+    config: {
+      systemInstruction:
+        "You are senior maritime claims counsel. Analyze the dispute position strictly from the provided claim data; cite only clauses and evidence present in it. Be candid about weaknesses — the letter drafted from this analysis must not overreach.",
+      // Budget covers Gemini 2.5 Pro's thinking tokens plus the JSON payload.
+      maxOutputTokens: 32000,
+      responseMimeType: "application/json",
+      responseJsonSchema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>,
     },
   });
   const analysis: PositionAnalysis = JSON.parse(firstText(analysisResponse));
 
   // --- Step 2: letter generation ---
-  const letterResponse = await anthropic.messages.create({
-    model: DRAFTER_MODEL_ID,
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
-    system: systemPrompt(ctx, kind, tone),
-    messages: [
-      {
-        role: "user",
-        content: `${contextBlock(ctx, analysis)}\n\nDraft the ${kind.replace(/_/g, " ")} now.`,
-      },
-    ],
+  const letterResponse = await generateWithFallback({
+    models: DRAFTER_MODELS,
+    contents: `${contextBlock(ctx, analysis)}\n\nDraft the ${kind.replace(/_/g, " ")} now.`,
+    config: {
+      systemInstruction: systemPrompt(ctx, kind, tone),
+      maxOutputTokens: 32000,
+    },
   });
   let letter = firstText(letterResponse);
 
@@ -167,22 +165,31 @@ export async function generateDraft(
   let repaired = false;
   if (!grounding.verified) {
     repaired = true;
-    const repairResponse = await anthropic.messages.create({
-      model: DRAFTER_MODEL_ID,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
-      system: systemPrompt(ctx, kind, tone),
-      messages: [
-        { role: "user", content: `${contextBlock(ctx, analysis)}\n\nDraft the ${kind.replace(/_/g, " ")} now.` },
-        { role: "assistant", content: letter },
+    // Gemini uses the "model" role for prior assistant turns.
+    const repairResponse = await generateWithFallback({
+      models: DRAFTER_MODELS,
+      contents: [
         {
           role: "user",
-          content:
-            `Automated grounding verification found the following violations in your draft:\n` +
-            grounding.issues.map((i) => `- ${i.message}`).join("\n") +
-            `\n\nRewrite the letter correcting ONLY these violations. Every amount and clause citation must come verbatim from the CLAIM DATA. Keep the same structure and produce the full letter again, starting with the SUBJECT line.`,
+          parts: [{ text: `${contextBlock(ctx, analysis)}\n\nDraft the ${kind.replace(/_/g, " ")} now.` }],
+        },
+        { role: "model", parts: [{ text: letter }] },
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                `Automated grounding verification found the following violations in your draft:\n` +
+                grounding.issues.map((i) => `- ${i.message}`).join("\n") +
+                `\n\nRewrite the letter correcting ONLY these violations. Every amount and clause citation must come verbatim from the CLAIM DATA. Keep the same structure and produce the full letter again, starting with the SUBJECT line.`,
+            },
+          ],
         },
       ],
+      config: {
+        systemInstruction: systemPrompt(ctx, kind, tone),
+        maxOutputTokens: 32000,
+      },
     });
     letter = firstText(repairResponse);
     grounding = verifyDraftGrounding(letter, ctx);

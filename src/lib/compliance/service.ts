@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { screenEntity } from "./sanctions";
-import { computeEtsEstimate, EtsEstimate } from "./ets";
+import { computeEtsEstimate, etsChargeableShare, EtsEstimate } from "./ets";
 
 export interface ComplianceCheckRow {
   id: string;
@@ -21,7 +21,9 @@ export interface ComplianceCheckRow {
 
 export interface ComplianceScanResult {
   checks: ComplianceCheckRow[];
-  ets: (EtsEstimate & { applicable: boolean | null }) | null;
+  ets:
+    | (EtsEstimate & { applicable: boolean | null; scopeCertain: boolean; scopeNote: string })
+    | null;
 }
 
 export async function runComplianceScan(
@@ -103,7 +105,15 @@ export async function runComplianceScan(
   const delayHours = calc ? Math.max(0, calc.used_hours - calc.allowed_hours) : 0;
 
   if (delayHours > 0) {
-    const estimate = computeEtsEstimate({ delayHours });
+    // The chargeable share is geography × phase-in, NOT a flat 100%: a non-EEA
+    // berth carries no EUA liability, and 2024/2025 delays surrender less than
+    // full. Passing it as coveragePct means the persisted cost is the REAL
+    // exposure, and the physical co2Tonnes stays honest either way.
+    const scope = etsChargeableShare({
+      eeaPort: claim.ets_applicable,
+      year: new Date().getUTCFullYear(),
+    });
+    const estimate = computeEtsEstimate({ delayHours, coveragePct: scope.share });
     const { error: etsErr } = await supabase.from("ets_estimates").upsert(
       {
         claim_id: claimId,
@@ -117,6 +127,9 @@ export async function runComplianceScan(
         inputs: {
           // Estimate provenance: which assumptions were defaults vs claim data.
           applicable: claim.ets_applicable,
+          scope_certain: scope.scopeCertain,
+          phase_in: scope.phaseIn,
+          scope_note: scope.note,
           basis: "at-berth auxiliary consumption during hours on demurrage",
         },
         computed_at: new Date().toISOString(),
@@ -124,7 +137,12 @@ export async function runComplianceScan(
       { onConflict: "claim_id" }
     );
     if (etsErr) throw new Error(`PERSIST_FAILED: ${etsErr.message}`);
-    ets = { ...estimate, applicable: claim.ets_applicable };
+    ets = {
+      ...estimate,
+      applicable: claim.ets_applicable,
+      scopeCertain: scope.scopeCertain,
+      scopeNote: scope.note,
+    };
   } else {
     // No delay → no exposure; clear any stale estimate.
     await supabase.from("ets_estimates").delete().eq("claim_id", claimId);

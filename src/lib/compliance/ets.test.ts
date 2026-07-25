@@ -2,7 +2,7 @@
 // Run with: bun test src/lib/compliance/ets.test.ts
 
 import { describe, it, expect } from "bun:test";
-import { computeEtsEstimate } from "./ets";
+import { computeEtsEstimate, etsPhaseInFactor, etsChargeableShare } from "./ets";
 import { classifyScore } from "./sanctions";
 
 describe("computeEtsEstimate", () => {
@@ -32,6 +32,42 @@ describe("computeEtsEstimate", () => {
     const none = computeEtsEstimate({ delayHours: -5, euaPriceEur: 100 });
     expect(none.co2Tonnes).toBe(0);
     expect(none.estimatedCostEur).toBe(0);
+  });
+});
+
+describe("EU ETS phase-in factor", () => {
+  it("rises 40% → 70% → 100% and is zero before 2024", () => {
+    expect(etsPhaseInFactor(2023)).toBe(0);
+    expect(etsPhaseInFactor(2024)).toBe(0.4);
+    expect(etsPhaseInFactor(2025)).toBe(0.7);
+    expect(etsPhaseInFactor(2026)).toBe(1);
+    expect(etsPhaseInFactor(2030)).toBe(1);
+  });
+});
+
+describe("EU ETS chargeable share (at-berth)", () => {
+  it("non-EEA port is entirely out of scope — no liability", () => {
+    const s = etsChargeableShare({ eeaPort: false, year: 2026 });
+    expect(s.share).toBe(0);
+    expect(s.scopeCertain).toBe(true);
+  });
+
+  it("EEA port is fully in scope, scaled only by the year's phase-in", () => {
+    expect(etsChargeableShare({ eeaPort: true, year: 2026 }).share).toBe(1);
+    expect(etsChargeableShare({ eeaPort: true, year: 2025 }).share).toBe(0.7);
+  });
+
+  it("unknown EEA status shows potential exposure but flags it uncertain", () => {
+    const s = etsChargeableShare({ eeaPort: null, year: 2026 });
+    expect(s.share).toBe(1);
+    expect(s.scopeCertain).toBe(false);
+  });
+
+  it("a non-EEA berth zeroes the EUA cost while the CO2 stays real", () => {
+    const share = etsChargeableShare({ eeaPort: false, year: 2026 }).share;
+    const e = computeEtsEstimate({ delayHours: 48, coveragePct: share });
+    expect(e.co2Tonnes).toBeGreaterThan(0); // the delay still emitted CO2
+    expect(e.estimatedCostEur).toBe(0); // but there is no EU ETS liability
   });
 });
 

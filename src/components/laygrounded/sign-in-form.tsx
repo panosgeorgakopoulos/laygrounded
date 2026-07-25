@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "@/app/Auth.module.css";
+
+// Only ever follow a same-site, path-only destination. An open `next` that
+// accepted an absolute URL would let a crafted sign-in link bounce the user to
+// an attacker's page after a real login — and this form is reached from the
+// OAuth consent flow, which is exactly where that would be abused.
+function safeNext(raw: string | null): string {
+  if (!raw) return "/claims";
+  // Must be a single leading slash (a relative path), not "//host" or a scheme.
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/claims";
+  return raw;
+}
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
@@ -11,6 +22,7 @@ export function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   async function onSubmit(e: React.FormEvent) {
@@ -26,7 +38,7 @@ export function SignInForm() {
       setError("Invalid email or password.");
       return;
     }
-    router.push("/claims");
+    router.push(safeNext(searchParams.get("next")));
     router.refresh();
   }
 

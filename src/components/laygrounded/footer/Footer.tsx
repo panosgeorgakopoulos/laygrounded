@@ -19,6 +19,7 @@ export function Footer() {
             <h4>Product</h4>
             <Link href="/features">Features</Link>
             <Link href="/pricing">Pricing</Link>
+            <Link href="/knowledge">Knowledge Base</Link>
             <Link href="/sign-in">Sign In</Link>
           </div>
           <div className={styles.linkGroup}>

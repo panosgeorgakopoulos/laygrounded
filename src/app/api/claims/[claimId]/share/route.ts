@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 import { DEFAULT_SHARE_EXPIRY_DAYS, generateShareToken } from "@/lib/rooms";
+import { requireOwnedClaim } from "@/lib/audit/claim-access";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const CreateShareSchema = z.object({
   counterpartyLabel: z.string().max(120).default(""),
@@ -26,27 +26,13 @@ function serialize(share: any) {
   };
 }
 
-async function requireOwnedClaim(claimId: string) {
-  const auth = await requireAuth();
-  const supabase = await createClient();
-  const { data: claim } = await supabase
-    .from("claims")
-    .select("company_id")
-    .eq("id", claimId)
-    .maybeSingle();
-  if (!claim || claim.company_id !== auth.companyId) {
-    throw new Error("CLAIM_NOT_FOUND");
-  }
-  return { auth, supabase };
-}
-
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ claimId: string }> }
 ) {
   try {
     const { claimId } = await params;
-    const { supabase } = await requireOwnedClaim(claimId);
+    const { supabase } = await requireOwnedClaim(claimId, "id, company_id", req);
 
     const { data: shares } = await supabase
       .from("claim_shares")
@@ -66,7 +52,7 @@ export async function POST(
 ) {
   try {
     const { claimId } = await params;
-    const { auth, supabase } = await requireOwnedClaim(claimId);
+    const { auth, supabase } = await requireOwnedClaim(claimId, "id, company_id", req);
 
     const body = await req.json().catch(() => ({}));
     const parsed = CreateShareSchema.safeParse(body);
@@ -95,6 +81,25 @@ export async function POST(
 
     if (error || !share) throw new Error(`PERSIST_FAILED: ${error?.message}`);
 
+    // Granting an outsider access to a claim is the single act on this
+    // surface most likely to be questioned later. The token is deliberately
+    // NOT recorded: it is the credential itself, and an audit row that half
+    // the company can read is no place for it.
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "share.created",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "claim",
+      resourceId: claimId,
+      metadata: {
+        shareId: share.id,
+        counterpartyLabel: parsed.data.counterpartyLabel,
+        expiresAt,
+      },
+      ...requestAttribution(req),
+    });
+
     return NextResponse.json({ share: serialize(share) }, { status: 201 });
   } catch (e) {
     return apiError(e, "share/POST");
@@ -107,7 +112,7 @@ export async function DELETE(
 ) {
   try {
     const { claimId } = await params;
-    const { supabase } = await requireOwnedClaim(claimId);
+    const { auth, supabase } = await requireOwnedClaim(claimId, "id, company_id", req);
 
     const body = await req.json().catch(() => ({}));
     const parsed = RevokeShareSchema.safeParse(body);
@@ -130,6 +135,17 @@ export async function DELETE(
     if (!share) {
       return NextResponse.json({ error: "SHARE_NOT_FOUND" }, { status: 404 });
     }
+
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "share.revoked",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "claim",
+      resourceId: claimId,
+      metadata: { shareId: share.id, counterpartyLabel: share.counterparty_label },
+      ...requestAttribution(req),
+    });
 
     return NextResponse.json({ share: serialize(share) });
   } catch (e) {

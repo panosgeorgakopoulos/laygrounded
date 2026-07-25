@@ -4,6 +4,8 @@ import { z } from "zod";
 import { authenticateApiRequest } from "@/lib/api/authenticate";
 import { apiAuthFailure, apiFail, apiOk } from "@/lib/api/respond";
 import { TIME_BAR_EVENTS } from "@/lib/api/webhooks";
+import { assertPublicWebhookUrl, InsecureUrlError } from "@/lib/security/url-guard";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const RegisterSchema = z.object({
   url: z.string().url().max(2000),
@@ -30,12 +32,18 @@ export async function POST(req: NextRequest) {
     // Deliveries carry claim references and money; https only, and no
     // loopback/internal hosts — a webhook URL is a server-side fetch we
     // perform on the caller's say-so, which is an SSRF primitive if left open.
-    const url = new URL(parsed.data.url);
-    if (url.protocol !== "https:") {
-      return apiFail(400, "INSECURE_WEBHOOK_URL", "Webhook URLs must use https.");
-    }
-    if (isPrivateHost(url.hostname)) {
-      return apiFail(400, "INSECURE_WEBHOOK_URL", "Webhook URLs must not point at private or loopback addresses.");
+    // Shared guard so every emitter blocks the same set of internal targets.
+    try {
+      assertPublicWebhookUrl(parsed.data.url);
+    } catch (e) {
+      if (e instanceof InsecureUrlError) {
+        return apiFail(
+          400,
+          "INSECURE_WEBHOOK_URL",
+          "Webhook URLs must use https and must not point at a private, loopback, or metadata address."
+        );
+      }
+      throw e;
     }
 
     const secret = randomBytes(32).toString("base64url");
@@ -50,6 +58,21 @@ export async function POST(req: NextRequest) {
       .select("id, url, event_types, status, created_at")
       .single();
     if (error || !data) throw new Error(`WEBHOOK_CREATE_FAILED: ${error?.message}`);
+
+    // The actor here is a machine credential, not a person — recorded as such,
+    // by its non-secret label, so the trail distinguishes "an operator did
+    // this" from "an integration did this". The signing secret is not logged.
+    await recordSecurityEvent({
+      companyId: caller.companyId,
+      action: "webhook.registered",
+      actorType: "api_key",
+      actorId: null,
+      actorLabel: caller.label,
+      resourceType: "webhook",
+      resourceId: data.id,
+      metadata: { url: data.url, eventTypes: data.event_types, apiKeyId: caller.keyId },
+      ...requestAttribution(req),
+    });
 
     return apiOk(
       {
@@ -108,19 +131,3 @@ export async function GET(req: NextRequest) {
 // Blocks the obvious SSRF targets. Not a substitute for egress controls —
 // DNS can still resolve a public name to a private address — but it stops
 // the direct attempt.
-function isPrivateHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) {
-    return true;
-  }
-  if (/^(\[|::1|0\.0\.0\.0)/.test(h)) return true;
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 169 && b === 254) return true; // link-local / cloud metadata
-  }
-  return false;
-}

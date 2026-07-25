@@ -128,6 +128,17 @@ export function ClaimActionsPanel({
   const [eftiExports, setEftiExports] = useState<EftiExport[]>([]);
   const [eftiResult, setEftiResult] = useState<any>(null);
 
+  // eFTI authority grants (federation sharing)
+  const [eftiGrants, setEftiGrants] = useState<any[]>([]);
+  const [grantAuthority, setGrantAuthority] = useState("");
+  const [grantScopes, setGrantScopes] = useState<string[]>(["transport", "consignment", "milestones"]);
+  const [newGrant, setNewGrant] = useState<{ token: string; sharedUrl: string } | null>(null);
+
+  // Carbon cost of delay (CO2/NOx/SOx + ETS)
+  const [carbon, setCarbon] = useState<any>(null);
+  const [carbonFuel, setCarbonFuel] = useState("VLSFO");
+  const [carbonTier, setCarbonTier] = useState("tier_ii");
+
   const loadAll = useCallback(async () => {
     setError(null);
     try {
@@ -155,6 +166,10 @@ export function ClaimActionsPanel({
 
       const eftiJson = await readJson(eftiRes);
       if (eftiRes.ok && eftiJson?.exports) setEftiExports(eftiJson.exports);
+
+      const grantsRes = await fetch(`/api/v1/interoperability/efti/grants?claimId=${claimId}`);
+      const grantsJson = await readJson(grantsRes);
+      if (grantsRes.ok && grantsJson?.grants) setEftiGrants(grantsJson.grants);
     } catch {
       setError("Failed to load claim actions.");
     } finally {
@@ -346,6 +361,87 @@ export function ClaimActionsPanel({
       const g = await fetch(`/api/v1/interoperability/efti?claimId=${claimId}`);
       const gj = await readJson(g);
       if (g.ok && gj?.exports) setEftiExports(gj.exports);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleGrantScope = (id: string) =>
+    setGrantScopes((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+
+  const reloadGrants = async () => {
+    const g = await fetch(`/api/v1/interoperability/efti/grants?claimId=${claimId}`);
+    const gj = await readJson(g);
+    if (g.ok && gj?.grants) setEftiGrants(gj.grants);
+  };
+
+  const createEftiGrant = async () => {
+    if (grantScopes.length === 0) {
+      setError("Select at least one dataset scope to share.");
+      return;
+    }
+    setBusy("efti-grant");
+    setError(null);
+    setNewGrant(null);
+    try {
+      const res = await fetch(`/api/v1/interoperability/efti/grants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimId, authorityLabel: grantAuthority.trim(), scopes: grantScopes }),
+      });
+      const json = await readJson(res);
+      if (!res.ok) {
+        setError(json?.error || `Grant creation failed (${res.status}).`);
+        return;
+      }
+      setNewGrant({ token: json.token, sharedUrl: json.sharedUrl });
+      setGrantAuthority("");
+      await reloadGrants();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const revokeEftiGrant = async (id: string, label: string) => {
+    if (
+      !window.confirm(
+        `Revoke the eFTI grant to "${label || "this authority"}"? Its share link stops working immediately.`
+      )
+    )
+      return;
+    setBusy(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/interoperability/efti/grants/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await readJson(res);
+        setError(j?.error || `Revoke failed (${res.status}).`);
+        return;
+      }
+      await reloadGrants();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ---- Carbon cost of delay ----
+  const loadCarbon = async () => {
+    setBusy("carbon");
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/claims/${claimId}/carbon-cost?fuel=${carbonFuel}&engineTier=${carbonTier}`
+      );
+      const json = await readJson(res);
+      if (!res.ok) {
+        setError(
+          json?.error === "NO_CALCULATION"
+            ? "Run the laytime calculation first — no delay to price yet."
+            : json?.error || `Carbon cost unavailable (${res.status}).`
+        );
+        return;
+      }
+      setCarbon(json.report);
     } finally {
       setBusy(null);
     }
@@ -648,6 +744,147 @@ export function ClaimActionsPanel({
             {eftiExports.length > 0 && (
               <div className={styles.muted} style={{ marginTop: "0.375rem" }}>
                 {eftiExports.length} prior export{eftiExports.length === 1 ? "" : "s"} ledgered.
+              </div>
+            )}
+
+            {/* Authority sharing (federation): scoped, revocable share links. */}
+            <div
+              style={{
+                marginTop: "0.75rem",
+                borderTop: "1px solid rgba(148,163,184,0.25)",
+                paddingTop: "0.6rem",
+              }}
+            >
+              <div className={styles.muted} style={{ fontWeight: 600, marginBottom: "0.35rem" }}>
+                Authority sharing
+              </div>
+              <div className={styles.muted} style={{ marginBottom: "0.5rem" }}>
+                Give a named authority a scoped, revocable link — they fetch only the sections you
+                approve, re-signed. The link is shown once.
+              </div>
+              <input
+                className={styles.input}
+                placeholder="Authority label (e.g. Port of Rotterdam)"
+                value={grantAuthority}
+                onChange={(e) => setGrantAuthority(e.target.value)}
+              />
+              <div className={styles.checkboxRow} style={{ margin: "0.5rem 0" }}>
+                {[
+                  { id: "transport", label: "Transport" },
+                  { id: "consignment", label: "Consignment" },
+                  { id: "milestones", label: "Milestones" },
+                  { id: "laytime", label: "Laytime" },
+                ].map((s) => (
+                  <label key={s.id} className={styles.chip} title={`Share the ${s.label} section`}>
+                    <input
+                      type="checkbox"
+                      checked={grantScopes.includes(s.id)}
+                      onChange={() => toggleGrantScope(s.id)}
+                    />{" "}
+                    {s.label}
+                  </label>
+                ))}
+              </div>
+              <button
+                className={styles.smallBtn}
+                onClick={createEftiGrant}
+                disabled={busy === "efti-grant"}
+              >
+                {busy === "efti-grant" ? "CREATING…" : "CREATE SHARE LINK"}
+              </button>
+
+              {newGrant && (
+                <div className={styles.item} style={{ marginTop: "0.5rem" }}>
+                  <strong style={{ fontSize: "0.8rem" }}>Share link — copy it now, shown once.</strong>
+                  <div className={styles.pre} style={{ wordBreak: "break-all" }}>
+                    {newGrant.sharedUrl}
+                  </div>
+                </div>
+              )}
+
+              {eftiGrants.filter((g) => !g.revokedAt).length > 0 && (
+                <div className={styles.itemList} style={{ marginTop: "0.5rem" }}>
+                  {eftiGrants
+                    .filter((g) => !g.revokedAt)
+                    .map((g) => (
+                      <div key={g.id} className={styles.item}>
+                        <div className={styles.itemHead}>
+                          <span>
+                            <strong>{g.authorityLabel || "Authority"}</strong>{" "}
+                            <span className={styles.muted}>{(g.scopes || []).join(", ")}</span>
+                          </span>
+                          <button
+                            className={styles.smallBtn}
+                            onClick={() => revokeEftiGrant(g.id, g.authorityLabel)}
+                            disabled={busy === g.id}
+                          >
+                            REVOKE
+                          </button>
+                        </div>
+                        <div className={styles.muted}>
+                          expires {String(g.expiresAt).slice(0, 10)} · {g.accessCount ?? 0} access
+                          {g.accessCount === 1 ? "" : "es"}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* --- Carbon cost of delay --- */}
+          <div className={styles.column}>
+            <div className={styles.colTitle}>Carbon cost of delay</div>
+            <div className={styles.muted}>
+              The delay&apos;s ESG footprint — CO₂ / NOx / SOx (MARPOL Annex VI) and the EU-ETS
+              surrender cost — paired with the demurrage. Estimate for exposure awareness, not a
+              verified MRV figure.
+            </div>
+            <div className={styles.formRow}>
+              <select
+                className={styles.select}
+                value={carbonFuel}
+                onChange={(e) => setCarbonFuel(e.target.value)}
+                aria-label="Fuel grade"
+              >
+                <option value="HFO">HFO</option>
+                <option value="VLSFO">VLSFO</option>
+                <option value="MGO">MGO</option>
+                <option value="LNG">LNG</option>
+              </select>
+              <select
+                className={styles.select}
+                value={carbonTier}
+                onChange={(e) => setCarbonTier(e.target.value)}
+                aria-label="Engine NOx tier"
+              >
+                <option value="tier_i">Tier I</option>
+                <option value="tier_ii">Tier II</option>
+                <option value="tier_iii">Tier III</option>
+              </select>
+              <button className={styles.smallBtn} onClick={loadCarbon} disabled={busy === "carbon"}>
+                {busy === "carbon" ? "COMPUTING…" : "COMPUTE"}
+              </button>
+            </div>
+            {carbon && (
+              <div className={styles.item} style={{ marginTop: "0.5rem" }}>
+                <div className={styles.itemNote} style={{ marginBottom: "0.375rem" }}>
+                  {carbon.headline}
+                </div>
+                <div className={styles.smallBtnRow}>
+                  <span className={`${styles.chip} tnum`}>
+                    {carbon.emissions.co2Tonnes.toLocaleString("en-US")} tCO₂
+                  </span>
+                  <span className={`${styles.chip} tnum`}>
+                    {carbon.emissions.noxKg.toLocaleString("en-US")} kg NOx
+                  </span>
+                  <span className={`${styles.chip} tnum`}>
+                    {carbon.emissions.soxKg.toLocaleString("en-US")} kg SOx
+                  </span>
+                  <span className={`${styles.chip} ${styles.chipWarn} tnum`}>
+                    ~€{carbon.etsCostEur.toLocaleString("en-US")} ETS
+                  </span>
+                </div>
               </div>
             )}
           </div>

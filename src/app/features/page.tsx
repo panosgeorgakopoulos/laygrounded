@@ -43,7 +43,7 @@ export default function FeaturesPage() {
 
             <div style={{ marginTop: "2rem" }}>
               <Link href="/sign-up" className="bg-slate-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-slate-800 transition-colors inline-block">
-                Start Free Trial
+                Get started free
               </Link>
             </div>
           </div>

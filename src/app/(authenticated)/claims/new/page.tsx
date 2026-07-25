@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/core/Card";
+import { RecapOnboarding } from "@/components/laygrounded/recap-onboarding";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import styles from "./NewClaim.module.css";
 
@@ -62,9 +63,14 @@ export default function NewClaimPage() {
 
   return (
     <div className={styles.pageContainer}>
+      {/* The fast path first: most users arrive holding a recap, and typing
+          its contents back into a form by hand is work the parser can do. The
+          manual form stays below for anyone without one. */}
+      <RecapOnboarding />
+
       <Card>
         <CardHeader>
-          <CardTitle>Voyage Particulars</CardTitle>
+          <CardTitle>Or enter voyage particulars manually</CardTitle>
           <CardDescription>All fields are required unless otherwise noted.</CardDescription>
         </CardHeader>
         <CardContent>

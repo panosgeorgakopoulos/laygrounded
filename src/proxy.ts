@@ -22,6 +22,39 @@ const MAX_REQUESTS = 100; // per minute
 const AUDIT_API_PREFIX = '/api/v1/audit';
 const MAX_REQUESTS_AUDIT = 2000; // per minute, per IP — DoS floor, not a quota
 
+// The OAuth 2.1 endpoints (/oauth/*) live OUTSIDE /api, so the ceilings above
+// never saw them. They are unauthenticated by necessity — there is no API key
+// to meter against — which makes a per-IP limit the only floor under a flood.
+// Dynamic client registration (RFC 7591) is the sharp edge: a public, unauth'd
+// write that inserts a row, with no server-side cap on how many (registerClient
+// does not enforce one), so it gets its own, tighter bucket. The rest of the
+// surface (authorize page loads, token exchange, refresh, revoke) is a handful
+// of requests per real client, so a moderate ceiling clears legitimate use
+// while still stopping a flood.
+const OAUTH_PREFIX = '/oauth';
+const OAUTH_REGISTER_PATH = '/oauth/register';
+const MAX_REQUESTS_OAUTH = 60; // per minute, per IP — the interactive auth dance
+const MAX_REQUESTS_OAUTH_REGISTER = 15; // per minute, per IP — public write endpoint
+
+// Which per-IP bucket (key prefix + ceiling) a request path falls into, or null
+// if it is not rate-limited here. Separate prefixes so one surface's traffic
+// never eats another's budget (audit keys carry their own Postgres-counted
+// quota; the app and OAuth buckets are pure anti-flood).
+function rateBucket(pathname: string): { prefix: string; ceiling: number } | null {
+  if (pathname === OAUTH_REGISTER_PATH) {
+    return { prefix: 'oauth-reg:', ceiling: MAX_REQUESTS_OAUTH_REGISTER };
+  }
+  if (pathname === OAUTH_PREFIX || pathname.startsWith(OAUTH_PREFIX + '/')) {
+    return { prefix: 'oauth:', ceiling: MAX_REQUESTS_OAUTH };
+  }
+  if (pathname.startsWith('/api')) {
+    return pathname.startsWith(AUDIT_API_PREFIX)
+      ? { prefix: 'audit:', ceiling: MAX_REQUESTS_AUDIT }
+      : { prefix: 'app:', ceiling: MAX_REQUESTS };
+  }
+  return null;
+}
+
 // CORS allowlist. Cross-origin API access is denied by default; add trusted
 // external origins via ALLOWED_ORIGINS (comma-separated). Same-origin requests
 // from the app itself never need an Access-Control-Allow-Origin header, so the
@@ -61,20 +94,20 @@ export function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
   const isApi = request.nextUrl.pathname.startsWith('/api');
 
-  // Preflight: answer here, only granting CORS to allowlisted origins.
+  // API preflight: answer here, only granting CORS to allowlisted origins. The
+  // /oauth routes answer their own OPTIONS (public discovery CORS), so they are
+  // left to fall through.
   if (request.method === 'OPTIONS' && isApi) {
     const res = new NextResponse(null, { status: 204 });
     if (isAllowedOrigin(origin)) applyCorsHeaders(res, origin);
     return res;
   }
 
-  // Rate limiting (API only).
-  if (isApi) {
-    const isAuditApi = request.nextUrl.pathname.startsWith(AUDIT_API_PREFIX);
-    const ceiling = isAuditApi ? MAX_REQUESTS_AUDIT : MAX_REQUESTS;
-    // Separate bucket: audit traffic must not consume the app's IP budget,
-    // and vice versa.
-    const key = `${isAuditApi ? 'audit:' : 'app:'}${clientKey(request)}`;
+  // Per-IP rate limiting, per surface. Preflight is never counted — it reaches
+  // no handler and costs nothing to answer.
+  const bucket = request.method === 'OPTIONS' ? null : rateBucket(request.nextUrl.pathname);
+  if (bucket) {
+    const key = `${bucket.prefix}${clientKey(request)}`;
     const now = Date.now();
     const record = rateLimitMap.get(key) || { count: 0, lastReset: now };
 
@@ -86,7 +119,7 @@ export function proxy(request: NextRequest) {
     }
     rateLimitMap.set(key, record);
 
-    if (record.count > ceiling) {
+    if (record.count > bucket.ceiling) {
       const res = new NextResponse(JSON.stringify({ error: 'TOO_MANY_REQUESTS' }), {
         status: 429,
         headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
@@ -115,5 +148,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/sign-in', '/sign-up', '/api/:path*'],
+  matcher: ['/', '/sign-in', '/sign-up', '/api/:path*', '/oauth/:path*'],
 };

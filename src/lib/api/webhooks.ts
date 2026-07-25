@@ -82,6 +82,9 @@ async function deliver(
         "x-laygrounded-event": (payload as { event: string }).event,
       },
       body,
+      // A registered URL passed the SSRF guard, but a 3xx could still redirect
+      // the signed delivery to an internal address — refuse to follow.
+      redirect: "error",
       signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
     });
     await supabase

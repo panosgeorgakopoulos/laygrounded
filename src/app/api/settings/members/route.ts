@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const InviteSchema = z.object({
   email: z.string().email(),
@@ -75,8 +76,19 @@ export async function POST(req: NextRequest) {
         role: parsed.data.role,
       });
 
-      return NextResponse.json({ 
-        member: { id: userId, email, role: parsed.data.role } 
+      await recordSecurityEvent({
+        companyId: auth.companyId,
+        action: "member.invited",
+        actorId: auth.userId,
+        actorLabel: auth.email,
+        resourceType: "user",
+        resourceId: userId,
+        metadata: { email, role: parsed.data.role, existingAccount: true },
+        ...requestAttribution(req),
+      });
+
+      return NextResponse.json({
+        member: { id: userId, email, role: parsed.data.role }
       });
     }
 
@@ -94,9 +106,20 @@ export async function POST(req: NextRequest) {
       role: parsed.data.role,
     });
 
-    return NextResponse.json({ 
-      member: { id: invitedUser.user.id, email, role: parsed.data.role }, 
-      pending: true 
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "member.invited",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "user",
+      resourceId: invitedUser.user.id,
+      metadata: { email, role: parsed.data.role, existingAccount: false },
+      ...requestAttribution(req),
+    });
+
+    return NextResponse.json({
+      member: { id: invitedUser.user.id, email, role: parsed.data.role },
+      pending: true
     });
   } catch (e) {
     return apiError(e, "settings/members/POST");
@@ -131,6 +154,20 @@ export async function DELETE(req: NextRequest) {
       .maybeSingle();
 
     if (!membership || membership.role !== "admin") {
+      // A non-admin reaching for a colleague's membership is worth its own
+      // line: denied attempts are the half of an audit trail that is usually
+      // missing, and the half that shows intent.
+      await recordSecurityEvent({
+        companyId: auth.companyId,
+        action: "member.removed",
+        actorId: auth.userId,
+        actorLabel: auth.email,
+        resourceType: "user",
+        resourceId: parsed.data.userId,
+        outcome: "denied",
+        metadata: { reason: "actor is not an admin" },
+        ...requestAttribution(req),
+      });
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
@@ -144,6 +181,16 @@ export async function DELETE(req: NextRequest) {
     if (deleteErr) {
       return NextResponse.json({ error: "FAILED_TO_REMOVE" }, { status: 500 });
     }
+
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "member.removed",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "user",
+      resourceId: parsed.data.userId,
+      ...requestAttribution(req),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -33,11 +33,22 @@ export function SignUpForm() {
       return;
     }
 
-    await fetch("/api/bootstrap", {
+    const bootstrapRes = await fetch("/api/bootstrap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, companyName }),
     });
+
+    if (!bootstrapRes.ok) {
+      // Sign-up succeeded but the company could not be created — don't drop the
+      // user on a workspace with no tenant. Common cause: email confirmation is
+      // enabled, so there is no session yet to authenticate this call.
+      setLoading(false);
+      setError(
+        "Your account was created, but we could not set up your workspace. If email confirmation is required, confirm your email and sign in to finish setup."
+      );
+      return;
+    }
 
     setLoading(false);
     router.push("/claims");

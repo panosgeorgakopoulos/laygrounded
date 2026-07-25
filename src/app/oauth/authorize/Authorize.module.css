@@ -1,0 +1,122 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--color-background, #f6f8fb);
+}
+
+.card {
+  width: 100%;
+  max-width: 30rem;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e6ec);
+  border-radius: 14px;
+  padding: 2rem 1.9rem;
+  box-shadow: 0 8px 40px rgba(20, 30, 50, 0.08);
+}
+
+.logoRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+}
+
+.title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text-primary, #101828);
+  margin: 0 0 0.75rem;
+}
+
+.lead {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-text-primary, #101828);
+  margin: 0 0 1.3rem;
+}
+
+.scopeBox {
+  border: 1px solid var(--color-border, #e2e6ec);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.1rem;
+  background: var(--color-background, #f9fafc);
+}
+
+.scopeHead {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #667085);
+  margin-bottom: 0.55rem;
+}
+
+.scopeList {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scopeList li {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-text-primary, #101828);
+}
+
+.account {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #667085);
+  text-align: center;
+  margin: 0 0 1.4rem;
+}
+
+.form {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.approve,
+.deny {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.7rem 1rem;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.approve {
+  background: var(--color-text-primary, #101828);
+  color: var(--color-background, #fff);
+}
+
+.approve:disabled,
+.deny:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.deny {
+  background: none;
+  border-color: var(--color-border, #d0d5dd);
+  color: var(--color-text-primary, #101828);
+  flex: 0 0 auto;
+  min-width: 6rem;
+}
+
+.deny:hover:not(:disabled) {
+  border-color: var(--color-text-secondary, #98a2b3);
+}

@@ -1,8 +1,9 @@
 "use client";
 
-// Compliance & regulatory surface — brings three server-side modules into the
-// UI: EU MRV / ETS annual reporting, the in-voyage Legal Shield alert inbox,
-// and the parametric-insurance oracle's policy registry.
+// Compliance & regulatory surface — brings the server-side modules into the
+// UI: EU MRV / ETS annual reporting, the FuelEU Maritime GHG-intensity
+// calculator, the in-voyage Legal Shield alert inbox, and the
+// parametric-insurance oracle's policy registry.
 
 import { useCallback, useEffect, useState } from "react";
 import styles from "./Compliance.module.css";
@@ -36,6 +37,42 @@ interface Policy {
   thresholdHours: number;
 }
 
+const FUEL_OPTIONS = [
+  "HFO",
+  "LFO",
+  "MDO/MGO",
+  "LNG",
+  "LPG-propane",
+  "LPG-butane",
+  "methanol",
+  "ethanol",
+] as const;
+
+interface FuelRow {
+  fuel: string;
+  tonnes: string;
+  wtwIntensity: string;
+}
+
+interface FuelEuResult {
+  year: number;
+  limit: number;
+  reductionPct: number;
+  attainedIntensity: number;
+  totalEnergyMJ: number;
+  complianceBalanceGco2eq: number;
+  compliant: boolean;
+  vlsfoEquivalentTonnes: number;
+  penaltyEur: number;
+  breakdown: Array<{
+    fuel: string;
+    tonnes: number;
+    energyMJ: number;
+    wtwIntensity: number;
+    source: string;
+  }>;
+}
+
 async function readJson(res: Response): Promise<any> {
   try {
     return await res.json();
@@ -51,6 +88,13 @@ export default function CompliancePage() {
   // MRV
   const [mrvReports, setMrvReports] = useState<MrvReport[]>([]);
   const [mrvYear, setMrvYear] = useState(new Date().getUTCFullYear() - 1);
+
+  // FuelEU Maritime calculator
+  const [fuelEuYear, setFuelEuYear] = useState(new Date().getUTCFullYear());
+  const [fuelRows, setFuelRows] = useState<FuelRow[]>([
+    { fuel: "HFO", tonnes: "1000", wtwIntensity: "" },
+  ]);
+  const [fuelEuResult, setFuelEuResult] = useState<FuelEuResult | null>(null);
 
   // Voyage shield
   const [alerts, setAlerts] = useState<ShieldAlert[]>([]);
@@ -95,6 +139,45 @@ export default function CompliancePage() {
         return;
       }
       await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const updateFuelRow = (i: number, patch: Partial<FuelRow>) =>
+    setFuelRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addFuelRow = () =>
+    setFuelRows((rows) => [...rows, { fuel: "MDO/MGO", tonnes: "", wtwIntensity: "" }]);
+  const removeFuelRow = (i: number) =>
+    setFuelRows((rows) => (rows.length > 1 ? rows.filter((_, idx) => idx !== i) : rows));
+
+  const computeFuelEuReport = async () => {
+    const fuels = fuelRows
+      .map((r) => ({
+        fuel: r.fuel,
+        tonnes: parseFloat(r.tonnes),
+        wtwIntensity: r.wtwIntensity.trim() ? parseFloat(r.wtwIntensity) : undefined,
+      }))
+      .filter((f) => !isNaN(f.tonnes) && f.tonnes > 0);
+    if (fuels.length === 0) {
+      setError("Add at least one fuel with a positive tonnage.");
+      return;
+    }
+    setBusy("fueleu");
+    setError(null);
+    setFuelEuResult(null);
+    try {
+      const res = await fetch("/api/compliance/fueleu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: fuelEuYear, fuels }),
+      });
+      const json = await readJson(res);
+      if (!res.ok) {
+        setError(json?.error || `FuelEU calculation failed (${res.status}).`);
+        return;
+      }
+      setFuelEuResult(json.result);
     } finally {
       setBusy(null);
     }
@@ -157,9 +240,9 @@ export default function CompliancePage() {
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Compliance &amp; regulatory</h1>
         <p className={styles.pageSub}>
-          EU MRV / ETS annual reporting, the in-voyage Legal Shield alert inbox, and the
-          parametric-insurance policy registry — the regulatory and risk-transfer modules that run
-          across your whole book.
+          EU MRV / ETS annual reporting, the FuelEU Maritime GHG-intensity calculator, the in-voyage
+          Legal Shield alert inbox, and the parametric-insurance policy registry — the regulatory and
+          risk-transfer modules that run across your whole book.
         </p>
       </header>
 
@@ -212,6 +295,112 @@ export default function CompliancePage() {
                   </details>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* --- FuelEU Maritime --- */}
+        <div className={styles.card}>
+          <div className={styles.cardTitle}>FuelEU Maritime</div>
+          <div className={styles.cardSub}>
+            Reg (EU) 2023/1805: a well-to-wake GHG-intensity limit on the energy a ship uses,
+            tightening to 2050. Enter a voyage or annual fuel mix for the attained intensity, the
+            compliance balance and the Annex IV penalty on a deficit. Pathway-dependent fuels (LPG,
+            methanol, ethanol) need a supplied WtW value — the calculator will not invent one.
+          </div>
+          <div className={styles.formRow}>
+            <label className={styles.label}>Compliance year</label>
+            <input
+              className={`${styles.input} tnum`}
+              type="number"
+              min={2025}
+              max={2100}
+              value={fuelEuYear}
+              onChange={(e) => setFuelEuYear(parseInt(e.target.value || "0", 10))}
+              style={{ maxWidth: 100 }}
+            />
+          </div>
+          {fuelRows.map((row, i) => (
+            <div key={i} className={styles.formRow}>
+              <select
+                className={styles.input}
+                value={row.fuel}
+                onChange={(e) => updateFuelRow(i, { fuel: e.target.value })}
+                style={{ maxWidth: 140 }}
+              >
+                {FUEL_OPTIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+              <input
+                className={`${styles.input} tnum`}
+                type="number"
+                min={0}
+                placeholder="tonnes"
+                value={row.tonnes}
+                onChange={(e) => updateFuelRow(i, { tonnes: e.target.value })}
+                style={{ maxWidth: 100 }}
+              />
+              <input
+                className={`${styles.input} tnum`}
+                type="number"
+                min={0}
+                placeholder="WtW (opt.)"
+                title="Well-to-wake gCO₂eq/MJ — required for LPG / methanol / ethanol"
+                value={row.wtwIntensity}
+                onChange={(e) => updateFuelRow(i, { wtwIntensity: e.target.value })}
+                style={{ maxWidth: 110 }}
+              />
+              {fuelRows.length > 1 && (
+                <button className={styles.btn} onClick={() => removeFuelRow(i)} title="Remove fuel">
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <div className={styles.formRow}>
+            <button className={styles.btn} onClick={addFuelRow}>
+              + FUEL
+            </button>
+            <button className={styles.btn} onClick={computeFuelEuReport} disabled={busy === "fueleu"}>
+              {busy === "fueleu" ? "COMPUTING…" : "COMPUTE"}
+            </button>
+          </div>
+          {fuelEuResult && (
+            <div className={styles.item}>
+              <div className={styles.itemHead}>
+                <span className="tnum">
+                  {fuelEuResult.attainedIntensity} vs {fuelEuResult.limit} gCO₂e/MJ
+                </span>
+                <span
+                  className={`${styles.chip} ${fuelEuResult.compliant ? styles.chipOk : styles.chipCrit}`}
+                >
+                  {fuelEuResult.compliant ? "COMPLIANT" : "DEFICIT"}
+                </span>
+              </div>
+              <div className={styles.muted}>
+                {fuelEuResult.year} limit is 91.16 − {fuelEuResult.reductionPct}% ·{" "}
+                {(fuelEuResult.totalEnergyMJ / 1e6).toLocaleString("en-US", {
+                  maximumFractionDigits: 1,
+                })}{" "}
+                TJ energy
+              </div>
+              {!fuelEuResult.compliant && (
+                <div className={styles.mono}>
+                  Penalty €
+                  {fuelEuResult.penaltyEur.toLocaleString("en-US", { maximumFractionDigits: 2 })} ·{" "}
+                  {fuelEuResult.vlsfoEquivalentTonnes.toLocaleString("en-US", {
+                    maximumFractionDigits: 3,
+                  })}{" "}
+                  t VLSFOe
+                </div>
+              )}
+              <details>
+                <summary className={styles.muted}>Fuel breakdown</summary>
+                <pre className={styles.pre}>{JSON.stringify(fuelEuResult.breakdown, null, 2)}</pre>
+              </details>
             </div>
           )}
         </div>

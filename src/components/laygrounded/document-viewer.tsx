@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pdfjsClientAssets } from "@/lib/pdf/assets";
 import styles from "./DocumentViewer.module.css";
 
 interface Bbox {
@@ -73,7 +74,11 @@ export function DocumentViewer({
           const pdfjs = await import("pdfjs-dist");
           // Use locally bundled worker (no CDN dependency).
           pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-          const loadingTask = pdfjs.getDocument({ data });
+          // Character maps, standard fonts and the WASM image decoders. Each
+          // defaults to null in pdf.js and is only needed by SOME documents,
+          // so leaving them unset renders text PDFs fine and fails on scanned
+          // (JBIG2/JPEG2000) and CJK ones — see src/lib/pdf/assets.ts.
+          const loadingTask = pdfjs.getDocument({ data, ...pdfjsClientAssets() });
           const pdf = await loadingTask.promise;
           const pages: string[] = [];
           for (let i = 1; i <= pdf.numPages; i++) {

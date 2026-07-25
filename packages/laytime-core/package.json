@@ -1,0 +1,37 @@
+{
+  "name": "@laygrounded/laytime-core",
+  "version": "0.1.0",
+  "description": "Deterministic GENCON 94 / ASBATANKVOY laytime & demurrage engine, scenario diffing and dispute-sensitivity analysis. Pure TypeScript, no I/O.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": false,
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gencon94": "./src/gencon94.ts",
+    "./types": "./src/types.ts",
+    "./diff": "./src/diff.ts",
+    "./sensitivity": "./src/sensitivity.ts"
+  },
+  "files": ["src", "dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "bun test"
+  },
+  "keywords": [
+    "laytime",
+    "demurrage",
+    "maritime",
+    "shipping",
+    "gencon",
+    "asbatankvoy",
+    "charterparty",
+    "dry-bulk"
+  ],
+  "dependencies": {
+    "date-fns-tz": "^3.2.0",
+    "decimal.js": "^10.6.0"
+  }
+}

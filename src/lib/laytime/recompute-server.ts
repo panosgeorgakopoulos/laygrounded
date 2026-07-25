@@ -4,7 +4,11 @@ import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
 import { z } from "zod";
 
-const CpTermsSchema = z.object({
+// The single validator for a claim's charter-party terms. Exported so callers
+// that write cp_terms (e.g. the MCP update_cp_terms tool) validate the whole
+// object against exactly what the engine bridge will later accept — a partial
+// amendment can never leave a claim with terms this schema would reject.
+export const CpTermsSchema = z.object({
   cp_form: z.enum(["GENCON94", "ASBATANKVOY"]).optional(),
   laytime_allowed_hours: z.number().min(0),
   load_rate: z.number().min(0).optional(),

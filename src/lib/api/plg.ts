@@ -110,6 +110,20 @@ export function parseFixtureRecap(text: string): RecapParseResult {
     if (m) claim.vessel = m[1].trim();
   }
 
+  // 2b. Voyage reference sharing the vessel's line — "MV ARCTIC HORIZON /
+  // VR-2024-0336" is at least as common in real recaps as a labelled line,
+  // and without this the claim silently takes a generated reference.
+  //
+  // The shape requirement (letters, then a digit) is what keeps it safe: the
+  // other things that follow a slash in a recap are cargo quantities
+  // ("/ 54,000 MT" — starts with a digit) and prose ("/ despatch half
+  // demurrage" — never reaches a digit), so neither can match. "M/V" cannot
+  // either, for the same reason.
+  if (!claim.voyageRef) {
+    const m = text.match(/\/\s*([A-Za-z]{1,6}[-/.]?\d[A-Za-z0-9./-]*)/);
+    if (m) claim.voyageRef = m[1].trim().slice(0, 120);
+  }
+
   // Token scans run on a normalized copy (punctuation → spaces).
   const upper = text.toUpperCase().replace(/[^A-Z0-9$.,/]+/g, " ");
 

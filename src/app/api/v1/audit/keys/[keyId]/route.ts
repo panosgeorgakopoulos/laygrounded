@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 // DELETE /api/v1/audit/keys/{id} — revoke a key.
 //
@@ -11,7 +12,7 @@ import { apiError } from "@/lib/api-errors";
 // look at after a leak. authenticateApiRequest refuses any key whose status
 // is not 'active', so revocation takes effect on the next request.
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ keyId: string }> }
 ) {
   try {
@@ -33,6 +34,17 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    await recordSecurityEvent({
+      companyId: auth.companyId,
+      action: "api_key.revoked",
+      actorId: auth.userId,
+      actorLabel: auth.email,
+      resourceType: "api_key",
+      resourceId: data[0].id,
+      metadata: { label: data[0].label, keyPrefix: data[0].key_prefix },
+      ...requestAttribution(req),
+    });
 
     return NextResponse.json({ revoked: data[0].id, keyPrefix: data[0].key_prefix });
   } catch (e) {

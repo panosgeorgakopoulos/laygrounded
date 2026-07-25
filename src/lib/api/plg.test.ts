@@ -65,6 +65,35 @@ describe("parseFixtureRecap", () => {
       "RECAP_UNPARSEABLE"
     );
   });
+
+  test("reads a voyage reference that shares the vessel line after a slash", () => {
+    // The convention real recaps actually use; a labelled VOYAGE: line is the
+    // exception, not the rule.
+    const r = parseFixtureRecap(
+      "MV ARCTIC HORIZON / VR-2024-0336\nLoad port: Rotterdam, NL\nLaytime: 48 hours WWDSSHEX EIU"
+    );
+    expect(r.claim.vessel).toBe("ARCTIC HORIZON");
+    expect(r.claim.voyageRef).toBe("VR-2024-0336");
+  });
+
+  test("does not mistake a cargo quantity after a slash for a voyage reference", () => {
+    const r = parseFixtureRecap("MV IRON DUKE / 72,000 MT IRON ORE\nLaytime: 72 hours SHEX");
+    expect(r.claim.voyageRef).toBeNull();
+  });
+
+  test("does not mistake recap prose after a slash for a voyage reference", () => {
+    const r = parseFixtureRecap(
+      "MV IRON DUKE\nDEMURRAGE: USD 18,000 PER DAY / DESPATCH HALF DEMURRAGE\nLaytime: 48 hours SHEX"
+    );
+    expect(r.claim.voyageRef).toBeNull();
+  });
+
+  test("prefers an explicit labelled voyage reference over the slash fallback", () => {
+    const r = parseFixtureRecap(
+      "MV ARCTIC HORIZON / VR-2024-0336\nVOYAGE: CP-9911\nLaytime: 48 hours SHEX"
+    );
+    expect(r.claim.voyageRef).toBe("CP-9911");
+  });
 });
 
 describe("TelemetryBatchSchema", () => {

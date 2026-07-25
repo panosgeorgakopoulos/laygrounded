@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { authenticateApiRequest } from "@/lib/api/authenticate";
 import { apiAuthFailure, apiFail, apiOk } from "@/lib/api/respond";
+import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 // DELETE /api/v1/audit/webhooks/{id} — remove a registration.
 // Scoped by company: a key cannot delete another tenant's webhook, and a
@@ -28,6 +29,18 @@ export async function DELETE(
     if (!data || data.length === 0) {
       return apiFail(404, "WEBHOOK_NOT_FOUND", "No webhook with that id for this API key.");
     }
+    await recordSecurityEvent({
+      companyId: caller.companyId,
+      action: "webhook.deleted",
+      actorType: "api_key",
+      actorId: null,
+      actorLabel: caller.label,
+      resourceType: "webhook",
+      resourceId: webhookId,
+      metadata: { apiKeyId: caller.keyId },
+      ...requestAttribution(req),
+    });
+
     return apiOk({ deleted: webhookId }, caller);
   } catch (e) {
     return apiAuthFailure(e, "v1/audit/webhooks/[id]/DELETE");

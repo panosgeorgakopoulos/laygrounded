@@ -25,6 +25,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://laygrounded.com"),
   title: "LayGrounded — Laytime & Demurrage Claims Engine",
   description:
     "Automated Statement of Facts extraction with legally auditable clause-matching for dry bulk shipping. $8–10B in dry bulk demurrage annually. LayGrounded turns paper SoFs into arbitrated claims in minutes.",

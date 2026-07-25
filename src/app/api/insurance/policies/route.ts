@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { generateInsurerApiKey, hashApiKey, DEFAULT_THRESHOLD_HOURS } from "@/lib/insurance/oracle";
+import { assertPublicWebhookUrl, InsecureUrlError } from "@/lib/security/url-guard";
 import { apiError } from "@/lib/api-errors";
 
 const CreatePolicySchema = z.object({
@@ -38,6 +39,26 @@ export async function POST(req: NextRequest) {
         { error: "VALIDATION_ERROR", details: parsed.error.flatten() },
         { status: 400 }
       );
+    }
+
+    // The oracle POSTs trigger payloads to this URL server-side, so an
+    // unvalidated value is an SSRF primitive — enforce https + public host
+    // before it is ever stored.
+    if (parsed.data.webhookUrl) {
+      try {
+        assertPublicWebhookUrl(parsed.data.webhookUrl);
+      } catch (e) {
+        if (e instanceof InsecureUrlError) {
+          return NextResponse.json(
+            {
+              error: "INSECURE_WEBHOOK_URL",
+              message: "Webhook URL must be https and must not point at a private, loopback, or metadata address.",
+            },
+            { status: 400 }
+          );
+        }
+        throw e;
+      }
     }
 
     const apiKey = generateInsurerApiKey();

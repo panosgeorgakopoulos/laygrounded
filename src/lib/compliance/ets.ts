@@ -30,6 +30,67 @@ export function defaultEuaPriceEur(): number {
   return isNaN(fromEnv) || fromEnv <= 0 ? ETS_DEFAULTS.EUA_PRICE_EUR : fromEnv;
 }
 
+// EU ETS maritime phase-in (Dir. 2003/87/EC as amended by 2023/959, Art. 3ga):
+// ships surrender allowances for a RISING share of their in-scope emissions —
+// 2024 → 40%, 2025 → 70%, 2026 and after → 100%. Before 2024 shipping was
+// outside the ETS entirely, so a delay then carried no EUA liability at all.
+export const ETS_PHASE_IN: Record<number, number> = { 2024: 0.4, 2025: 0.7 };
+
+export function etsPhaseInFactor(year: number): number {
+  if (year < 2024) return 0; // shipping entered the maritime ETS in 2024
+  return ETS_PHASE_IN[year] ?? 1; // 2026 onward: full phase-in
+}
+
+export interface EtsScope {
+  // Fraction of the delay's at-berth CO2 that is actually surrenderable:
+  // voyage-scope share (geography) × phase-in factor (year).
+  share: number;
+  phaseIn: number;
+  // false when the port's EEA status is unknown — the share shown is then the
+  // POTENTIAL exposure IF the port is in the EEA, not a settled liability.
+  scopeCertain: boolean;
+  note: string;
+}
+
+// The chargeable share of an AT-BERTH delay's emissions.
+//
+// EU ETS scope for emissions AT BERTH is all-or-nothing on geography: a call at
+// an EEA port is 100% in scope; a call anywhere else is entirely outside it.
+// (The 50% rule applies to the voyage LEG between an EEA and a non-EEA port,
+// which a berth stay is not.) The phase-in factor then scales what is
+// surrendered. This is why the old flat COVERAGE_PCT = 1.0 over-billed every
+// non-EEA delay: at-berth burn in a non-EEA port is not an EUA liability.
+export function etsChargeableShare(input: {
+  eeaPort: boolean | null | undefined;
+  year: number;
+}): EtsScope {
+  const phaseIn = etsPhaseInFactor(input.year);
+  if (input.eeaPort === false) {
+    return {
+      share: 0,
+      phaseIn,
+      scopeCertain: true,
+      note: "Non-EEA port: at-berth emissions are outside EU ETS scope — no EUA liability.",
+    };
+  }
+  if (input.eeaPort === true) {
+    return {
+      share: phaseIn,
+      phaseIn,
+      scopeCertain: true,
+      note: `EEA port: at-berth emissions 100% in scope, ${Math.round(phaseIn * 100)}% phase-in for ${input.year}.`,
+    };
+  }
+  // Unknown — do NOT silently assume EEA (the same discipline mrv.ts applies to
+  // a free-text port). Show the potential exposure, flagged as uncertain.
+  return {
+    share: phaseIn,
+    phaseIn,
+    scopeCertain: false,
+    note: "EEA status of the port is unknown; shown as potential exposure IF it is an EEA call.",
+  };
+}
+
 export interface EtsInputs {
   delayHours: number;
   fuelTonnesPerDay?: number;

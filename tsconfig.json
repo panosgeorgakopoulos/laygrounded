@@ -26,6 +26,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@laygrounded/laytime-core": [
+        "./packages/laytime-core/src/index.ts"
+      ],
+      "@laygrounded/laytime-core/*": [
+        "./packages/laytime-core/src/*"
       ]
     }
   },

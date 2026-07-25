@@ -8,6 +8,7 @@ import {
   computeGreenTwin,
   MaritimeCarbonEngine,
   seaConsumptionTpd,
+  type CiiRating,
   type ConsumptionCurve,
 } from "./carbon";
 import { Decimal } from "decimal.js";
@@ -50,7 +51,7 @@ describe("seaConsumptionTpd (cube law)", () => {
 });
 
 describe("ciiRatingFromRatio", () => {
-  const cases: Array<[number, string]> = [
+  const cases: Array<[number, CiiRating]> = [
     [0.86, "A"],
     [0.8601, "B"],
     [0.94, "B"],
