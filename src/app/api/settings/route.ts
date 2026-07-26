@@ -4,9 +4,17 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 
-const UpdateCompanySchema = z.object({
-  name: z.string().min(1),
-});
+// Both fields optional so a caller can change either independently — a company
+// withdrawing from market aggregates must not have to resubmit its name, and a
+// rename must never silently re-enrol it.
+const UpdateCompanySchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    shareMarketData: z.boolean().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.shareMarketData !== undefined, {
+    message: "Nothing to update",
+  });
 
 export async function GET() {
   try {
@@ -15,7 +23,7 @@ export async function GET() {
 
     const { data: company, error: companyErr } = await supabase
       .from("companies")
-      .select("id, name, created_at")
+      .select("id, name, created_at, share_market_data")
       .eq("id", auth.companyId)
       .maybeSingle();
 
@@ -47,6 +55,10 @@ export async function GET() {
       company: {
         id: company.id,
         name: company.name,
+        // Contractual: the terms give the client a right to withdraw from market
+        // aggregates "within their account settings", so this has to be both
+        // readable and writable here, not just a column an operator can flip.
+        shareMarketData: company.share_market_data ?? true,
         createdAt: company.created_at,
       },
       members,
@@ -81,19 +93,33 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+    if (parsed.data.shareMarketData !== undefined) {
+      patch.share_market_data = parsed.data.shareMarketData;
+    }
+
     const { data: updated, error } = await supabase
       .from("companies")
-      .update({ name: parsed.data.name })
+      .update(patch)
       .eq("id", auth.companyId)
       .select()
       .maybeSingle();
 
     if (error) throw error;
+    // RLS returns zero rows rather than an error when it denies the write. Left
+    // unguarded this dereferenced null and surfaced as an opaque 500 — which is
+    // exactly how a missing UPDATE policy on `companies` hid a permanently
+    // broken rename for so long.
+    if (!updated) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
 
     return NextResponse.json({
       company: {
         id: updated.id,
         name: updated.name,
+        shareMarketData: updated.share_market_data,
         createdAt: updated.created_at,
       }
     });

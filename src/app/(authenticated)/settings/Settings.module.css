@@ -205,3 +205,46 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Market data-sharing preference. The client's contractual right to withdraw
+   from market aggregates is exercised here, so the explanation sits next to the
+   control rather than in a tooltip. */
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  cursor: pointer;
+  max-width: 46rem;
+}
+
+.switchRow input[type="checkbox"] {
+  margin-top: 0.1875rem;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  accent-color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.switchRow input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.switchRow > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.switchRow strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.switchHint {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
