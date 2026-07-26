@@ -191,11 +191,60 @@ function getHatchIntervals(events: SofEventInput[], windowEnd: Date): Interval[]
   return intervals;
 }
 
+// Events that CLOSE an interval. At an identical timestamp these must be
+// processed before the events that open one: a stoppage cannot begin before the
+// previous stoppage has ended, and pairing them the other way round silently
+// swallows an interval (the opener is discarded because one is already open,
+// then its terminator is discarded because none is).
+const TERMINATOR_TYPES = new Set<string>([
+  "WEATHER_DELAY_END",
+  "SHIFTING_END",
+  "EXCEPTED_PERIOD_END",
+  "HATCH_CLOSE",
+  "COMPLETED_LOADING",
+  "COMPLETED_DISCHARGE",
+]);
+
+/**
+ * Total order over events, so the result is a function of the event SET rather
+ * than of the array order it happened to arrive in.
+ *
+ * Every sort in this engine compares timestamps only, and ES sorts are stable —
+ * so before this existed, two events at the same instant were resolved by input
+ * order. That made the engine's output depend on how the caller's query happened
+ * to return rows: `recompute-server.ts` orders by `occurred_at` alone, and
+ * Postgres gives no guarantee for ties, so the same claim could compute two
+ * different figures. Measured on a specimen voyage: 48 vs 60 used hours from
+ * reordering two array elements.
+ *
+ * Ordering is (time, terminators-first, type, id). The id tiebreak is what makes
+ * it total — without it two same-typed events at the same instant would still be
+ * order-dependent.
+ */
+function canonicalEventOrder(events: SofEventInput[]): SofEventInput[] {
+  return [...events].sort((a, b) => {
+    const ta = new Date(a.occurred_at).getTime();
+    const tb = new Date(b.occurred_at).getTime();
+    if (ta !== tb) return ta - tb;
+
+    const aTerm = TERMINATOR_TYPES.has(a.event_type) ? 0 : 1;
+    const bTerm = TERMINATOR_TYPES.has(b.event_type) ? 0 : 1;
+    if (aTerm !== bTerm) return aTerm - bTerm;
+
+    if (a.event_type !== b.event_type) return a.event_type < b.event_type ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
 // === Main entrypoint ===
 export function recomputeLaytime(
-  events: SofEventInput[],
+  inputEvents: SofEventInput[],
   cpTerms: CpTerms
 ): LaytimeResult {
+  // Normalised once, at the boundary. Every downstream sort is stable, so they
+  // all inherit this order and the whole computation becomes reproducible from
+  // the event set alone — which is the property an offline verifier rests on.
+  const events = canonicalEventOrder(inputEvents);
   // Step 1: NOR validation
   const norEvents = events.filter((e) => e.event_type === "NOR_TENDERED");
   if (norEvents.length > 1) {

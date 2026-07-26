@@ -71,7 +71,14 @@ export async function loadClaimComputationInputs(
     .select("*")
     .eq("claim_id", claimId)
     .in("status", ["accepted", "edited"])
-    .order("occurred_at", { ascending: true });
+    // The id tiebreak is not cosmetic: Postgres gives no ordering guarantee for
+    // rows with equal `occurred_at`, and heap order can shift after any UPDATE,
+    // so ordering on the timestamp alone let the same claim come back in
+    // different orders on different days. The engine now imposes its own total
+    // order regardless, but a stable query keeps what is stored, logged and
+    // displayed consistent with what is computed.
+    .order("occurred_at", { ascending: true })
+    .order("id", { ascending: true });
 
   const sofInputs: SofEventInput[] = (events || []).map((e) => ({
     id: e.id,
