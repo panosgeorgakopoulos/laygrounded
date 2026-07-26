@@ -62,9 +62,16 @@ export async function POST(req: NextRequest) {
 
     // The sender must be a confirmed member of the target company: resolve the
     // sender's user id, then check membership. An outside email is rejected.
-    const { data: senderUserId } = await supabase.rpc("get_user_id_by_email", {
+    const { data: senderUserId, error: lookupErr } = await supabase.rpc("get_user_id_by_email", {
       email_addr: email.fromEmail,
     });
+    // Distinguish "lookup broke" from "sender is a stranger". Both used to
+    // collapse into the 403 below, so a missing RPC silently rejected every
+    // inbound message as an outsider instead of reporting a server fault.
+    if (lookupErr) {
+      console.error("[ingestion/email/POST] sender lookup failed:", lookupErr);
+      return NextResponse.json({ error: "SENDER_LOOKUP_FAILED" }, { status: 503 });
+    }
     if (!senderUserId) {
       return NextResponse.json(
         { error: "SENDER_NOT_A_MEMBER", message: "Sender has no LayGrounded account." },

@@ -12,7 +12,10 @@ bun run dev                              # dev server on :3000 (output tees to d
 bun run build                            # next build + assemble standalone output
 bun run start                            # run the standalone production server via bun
 bun run lint                             # eslint .
-bun test src/lib/                        # run all unit tests (bun:test)
+bun test src/lib/                        # run all app unit tests (bun:test)
+bun test packages/                       # engine package tests (@laygrounded/laytime-core)
+bun run corpus                           # regenerate the 500-case synthetic claim corpus
+bun run seed:dataset                     # rebuild the committed demo dataset from the corpus
 ```
 
 Test suites (all table-driven, pure-function tests): `src/lib/laytime/gencon94.test.ts` (engine fixtures), `src/lib/laytime/diff.test.ts` (negotiation differ), `src/lib/laytime/sensitivity.test.ts` (attack-surface perturbations), `src/lib/time-bar.test.ts`, `src/lib/compliance/ets.test.ts`, `src/lib/drafting/grounding.test.ts`, `src/lib/simulator/fixture-risk.test.ts`, and `src/lib/laytime/regression.test.ts` (500-case synthetic corpus, see below). Run a single fixture with `bun test -t "<fixture name>"`.
@@ -31,21 +34,23 @@ Full production stack (Next.js standalone in Alpine + Caddy reverse proxy on `ht
 docker compose build --no-cache && docker compose up -d
 ```
 
-Environment: copy `.env.example` to `.env`. Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `INIT_DEMO_SECRET`. Optional: `CLAUDE_MODEL_ID` / `CLAUDE_FALLBACK_MODEL_ID` (extraction models), `ALLOWED_ORIGINS` (CORS allowlist), `AIS_PROVIDER_URL` / `AIS_PROVIDER_KEY` (AIS position verification; weather verification needs no key — it uses the public Open-Meteo archive).
+Environment: copy `.env.example` to `.env`. Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `INIT_DEMO_SECRET`. Optional: `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` (extraction + drafting models), `ALLOWED_ORIGINS` (CORS allowlist), `AIS_PROVIDER_URL` / `AIS_PROVIDER_KEY` (AIS position verification; weather verification needs no key — it uses the public Open-Meteo archive), `CRON_SECRET` (external scheduler for the `*/run` sweeps), `OAUTH_ISSUER_URL` (MCP OAuth issuer; falls back to the request origin).
 
 ## What this app is
 
 LayGrounded is a multi-tenant SaaS for dry bulk shipping laytime/demurrage claims. The core pipeline: a PDF Statement of Facts is uploaded → Claude vision extracts timestamped events → a deterministic GENCON 94 rules engine computes an hour-by-hour laytime breakdown and demurrage/despatch totals.
 
-Stack: Next.js 16 App Router (React Server Components), TypeScript strict, Supabase (Postgres + Auth + Storage), Anthropic SDK, CSS modules + Tailwind. Path alias `@/*` → `src/*`.
+Stack: Next.js 16 App Router (React Server Components), TypeScript strict, Supabase (Postgres + Auth + Storage), Google Gemini (`@google/genai` — the app moved off the Anthropic SDK; the only two LLM call sites are SoF extraction and the drafter, both via `src/lib/ai/gemini.ts`), CSS modules + Tailwind. Path alias `@/*` → `src/*`.
+
+Bun workspaces: the pure engine is published as `packages/laytime-core` (`@laygrounded/laytime-core`, Apache-2.0). Run `bun install` after checkout to link it, and clear `.next` after any dependency-graph change.
 
 ## Architecture
 
 ### The claim pipeline (the heart of the app)
 
-1. **Upload & extraction** — `POST /api/claims/[claimId]/documents` validates the file by magic bytes (`file-type`), stores it in the Supabase `sofs` bucket under `{companyId}/{claimId}/`, then calls `uploadSofAndExtract` in `src/lib/ai/extraction.ts`. Extraction sends page images to Claude (model from `CLAUDE_MODEL_ID`, fallback model on failure), validates the response with Zod (timestamps must carry a timezone; events must match `EventTypeEnum`), retries with jittered exponential backoff via `withRetry`, and inserts rows into `sof_events`.
+1. **Upload & extraction** — `POST /api/claims/[claimId]/documents` validates the file by magic bytes (`file-type`), stores it in the Supabase `sofs` bucket under `{companyId}/{claimId}/`, then calls `uploadSofAndExtract` in `src/lib/ai/extraction.ts`. Extraction sends page images to Gemini via `generateWithFallback` (`src/lib/ai/gemini.ts` — model chain `GEMINI_MODEL` → `GEMINI_FALLBACK_MODEL`, per-model backoff, falls back on 429/404/5xx but never on 400/401/403), validates the response with Zod (timestamps must carry a timezone; events must match `EventTypeEnum`), and inserts rows into `sof_events`.
 
-2. **Rules engine** — `src/lib/laytime/gencon94.ts` is deliberately **pure TypeScript: no I/O, no AI, no Supabase**. It takes `SofEventInput[]` + `CpTerms` and returns a `LaytimeResult` (breakdown rows + totals). It supports two CP forms via `cp_terms.cp_form`: **GENCON 94** (default; clause refs `GENCON94-*`) and **ASBATANKVOY** (tanker running-hours regime; refs `ASBA-II-*` — berthing cuts turn time short, weather never stops laytime, storm on demurrage bills half rate via `totals.demurrage_half_rate_hours`). It uses `decimal.js` for money and `date-fns-tz` for port-timezone-aware SHEX/SSHEX day exclusions. Keep this purity: anything touching the DB belongs in `recompute-server.ts`.
+2. **Rules engine** — `packages/laytime-core/src/gencon94.ts` is deliberately **pure TypeScript: no I/O, no AI, no Supabase**. (`src/lib/laytime/gencon94.ts` is now a one-line re-export shim onto that package, as are `types.ts`, `diff.ts` and `sensitivity.ts` — edit the package, not the shim.) It takes `SofEventInput[]` + `CpTerms` and returns a `LaytimeResult` (breakdown rows + totals). It supports two CP forms via `cp_terms.cp_form`: **GENCON 94** (default; clause refs `GENCON94-*`) and **ASBATANKVOY** (tanker running-hours regime; refs `ASBA-II-*` — berthing cuts turn time short, weather never stops laytime, storm on demurrage bills half rate via `totals.demurrage_half_rate_hours`). It uses `decimal.js` for money and `date-fns-tz` for port-timezone-aware SHEX/SSHEX day exclusions. Keep this purity: anything touching the DB belongs in `recompute-server.ts`.
 
 3. **Recompute bridge** — `src/lib/laytime/recompute-server.ts` loads a claim's confirmed events and `cp_terms` (validated with Zod) via the shared `loadClaimComputationInputs()`, runs the engine, and persists the result to `laytime_calculations`. Callers running outside a user request (demo seeder, claim rooms) must pass a service-role client explicitly, because the default cookie client has no user and RLS blocks everything.
 
@@ -98,7 +103,7 @@ Six modules built on the engine's purity (pure math in `src/lib/**` with unit te
 
 - Routes live under `src/app/api/`. Business errors are thrown as sentinel string messages (`"CLAIM_NOT_FOUND"`, `"INVALID_CP_TERMS"`, …) and converted by `apiError()` in `src/lib/api-errors.ts`, which maps known sentinels to their HTTP status and turns anything unknown into a logged, opaque 500. Add new sentinels to `DEFAULT_KNOWN` or pass them via `extraKnown`.
 - Next.js 16: route handler `params` is a Promise — always `await params`.
-- `src/middleware.ts` applies per-instance in-memory rate limiting to `/api`, a deny-by-default CORS allowlist (`ALLOWED_ORIGINS`), and redirects users with a Supabase auth cookie from `/`, `/sign-in`, `/sign-up` to `/claims`.
+- `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts` — there is no `src/middleware.ts`) applies per-instance in-memory rate limiting to `/api` and `/oauth/*` (`oauth-reg:` 15/min on the unauthenticated RFC-7591 registration write, `oauth:` 60/min elsewhere), a deny-by-default CORS allowlist (`ALLOWED_ORIGINS`), and redirects users with a Supabase auth cookie from `/`, `/sign-in`, `/sign-up` to `/claims`.
 
 ### Database
 
@@ -109,14 +114,32 @@ Tables: `companies`, `company_members`, `claims` (holds `cp_terms` JSON plus `ti
 - `POST /api/init-demo` (guarded by the `x-init-secret` header matching `INIT_DEMO_SECRET`) creates the demo user `demo2@laygrounded.com` and seeds demo claims via the service-role client.
 - `POST /api/seed` seeds demo scenarios into the authenticated user's company, idempotently (skips if the company already has claims). Scenario data lives in `src/lib/seed-data.ts` / `src/lib/seed-claims.ts`.
 
+### Later modules (built after the sections above; same conventions)
+
+Pure logic + unit tests in `src/lib/**`, DB access in the route or a `*-server.ts`. Design ledger and lessons: `docs/build-memory/`.
+
+- **Voyage console** — `src/lib/console/triage.ts` (pure) ranks the whole book into a work queue: severity tiers first (an expiring time bar outranks a larger comfortable claim, because the deadline is irreversible), money only as the tiebreak within a tier. Page `/console`, server-rendered with batched per-claim queries.
+- **MCP + OAuth 2.1** — `src/lib/oauth/` is a full authorization server (PKCE S256 only, RFC 7591 registration, refresh rotation with reuse→family revocation, tokens stored as SHA-256 hashes) fronting `/api/mcp`, a JSON-RPC server exposing 7 company-scoped tools across `claims:read` / `claims:write` / `analysis:read`. Tenancy comes from the token, never the caller: `requireClaim()` in `src/lib/oauth/mcp.ts` is load-bearing because the db handle is service-role.
+- **Audit trail API** — `src/lib/api/` (hashed API keys, per-key Postgres rate limiter, time-bar webhooks, generated OpenAPI) behind `/api/v1/audit/*`.
+- **Tamper-evident security log** — `src/lib/audit/security-log.ts`: `security_events` hash-chained per company via the SECURITY DEFINER `append_security_event()` under a per-company advisory lock. Settings → "Security Trail".
+- **Ingestion channels** — `src/lib/ingestion/`: inbound email (`x-ingestion-secret`, sender resolved via the `get_user_id_by_email` RPC), SMS (Twilio `X-Twilio-Signature`), and multimodal SoF text + AIS geofencing.
+- **Legal** — `src/lib/legal/`: RFC-3161 notarization (`anchor.ts`), dossier assembly, arrest pre-filing.
+- **Interop** — `src/lib/interop/`: eFTI export plus a federation node with scoped, revocable authority grants (token stored as a hash; a scoped subset is re-signed so it cannot be confused with a full export).
+- **Knowledge base** — `kb_clauses` / `kb_precedents` with generated-tsvector FTS; the app's one public anon-readable table. Public pages `/knowledge` (ISR) and `/knowledge/[slug]` (SSG). Case law is only ever user-supplied and licensed — never fabricated.
+- **Compliance** — `src/lib/compliance/` also holds `emissions.ts` (MARPOL Annex VI), `fueleu.ts` (Reg (EU) 2023/1805), `mrv.ts` (Merkle-sealed annual report — do not graft new fields onto it), and ETS scope/phase-in (`etsChargeableShare`).
+- Others: `market/` (bunker + AIS telemetry), `negotiation/autonomous.ts` (deterministic personas, **not** LLMs), `optimization/ecospeed.ts`, `security/url-guard.ts` (SSRF), `security/definer-grants.ts` (see below).
+
 ### Frontend layout
 
-- `src/app/(authenticated)/` — claims dashboard (server-rendered), claim workspace, clause P&L analytics, settings; guarded client-side by the layout plus middleware redirects.
-- `src/app/rooms/[token]/` — the public claim room (server-rendered, token-authenticated, `robots noindex`); intentionally outside the authenticated group and the middleware matcher.
-- Public marketing pages at the root (`page.tsx`, `features`, `pricing`, `about`, `contact`, `legal`).
-- `src/components/core/` — base UI primitives (Button, Card, Input) with CSS modules; `src/components/laygrounded/` — domain components (document viewer, event timeline, calculation pane, nav/hero/footer). Follow the existing CSS-module-per-component pattern.
+- `src/app/(authenticated)/` — voyage console (`/console`, the operational landing surface), claims dashboard, claim workspace, clause P&L analytics, compliance, simulator, settings; guarded client-side by the layout plus proxy redirects.
+- `src/app/rooms/[token]/` — the public claim room (server-rendered, token-authenticated, `robots noindex`); intentionally outside the authenticated group and the proxy matcher.
+- Public marketing pages at the root (`page.tsx`, `features`, `pricing`, `about`, `contact`, `legal`) plus `/knowledge`.
+- `src/components/core/` — base UI primitives (Button, Card, Input) with CSS modules; `src/components/laygrounded/` — domain components (document viewer, event timeline, calculation pane, nav/hero/footer, `claim-intel-panel`, `claim-actions-panel`, `developer-settings`). Follow the existing CSS-module-per-component pattern.
 
 ## Notes
 
-- Root-level `test_*.ts`, `fix_*.py`, `verify_demo.ts`, `call_init.ts`, `refactor.py` are one-off dev scratch scripts, not part of the app.
 - `bun run dev` pipes through `tee dev.log` — check `dev.log` for recent server output when debugging.
+- **`REVOKE ... FROM public` does not lock a Postgres function on Supabase.** Default privileges grant EXECUTE to `anon` and `authenticated` *directly*, so a revoke from the PUBLIC pseudo-role is a no-op against them. Three matview refresh functions shipped world-executable this way. Every `SECURITY DEFINER` function must revoke from `public, anon, authenticated` by name; `src/lib/security/definer-grants.test.ts` fails the build otherwise. Verify with `pg_proc.proacl`, never by reading the migration.
+- RLS on the older tables uses the `auth.uid()`-keyed helpers (`is_company_member()`, `user_owns_claim()`); some newer tables use an `auth.jwt() -> app_metadata -> company_id` pattern. **The `custom_access_token_hook` was never enabled, so that claim is always NULL** and those policies deny every end-user JWT by design — the routes concerned work only because they use the service-role client. Check which pattern a table uses before reading it with the cookie client.
+- Migrations are applied with `mcp__supabase__apply_migration` (direct `psql` to `db.<ref>.supabase.co` no longer resolves — Supabase deprecated direct IPv4). `mcp__supabase__list_migrations` only lists migrations applied through that tool, so judge applied state from the catalog (`list_tables` / `pg_proc`), never from that list.
+- Prefer verifying against an independent implementation (openssl for DER, redocly for OpenAPI, a second sweep for idempotence) — self-written tests tend to agree with self-written mistakes.
