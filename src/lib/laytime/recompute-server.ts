@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
+import { withPortCalendar } from "@/lib/laytime/port-calendar-server";
 import { z } from "zod";
 
 // The single validator for a claim's charter-party terms. Exported so callers
@@ -19,7 +20,18 @@ export const CpTermsSchema = z.object({
   demurrage_rate: z.number().min(0),
   despatch_rate: z.number().min(0),
   currency: z.string().length(3),
-  port_timezone: z.string().optional()
+  port_timezone: z.string().optional(),
+  // Holidays are local calendar dates (YYYY-MM-DD), not instants — a holiday is
+  // a day in the port's own reckoning. `source` is required for the same reason
+  // it is required in the database: a calendar decides whether real money
+  // counts, so an entry that cannot say where it came from does not belong in a
+  // calculation.
+  port_calendar: z
+    .object({
+      holidays: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+      source: z.string().min(1),
+    })
+    .optional(),
 });
 
 // Loads everything the engine needs for a claim: the row itself, validated CP
@@ -41,7 +53,18 @@ export async function loadClaimComputationInputs(
 
   const parsedCpTerms = CpTermsSchema.safeParse(claim.cp_terms);
   if (!parsedCpTerms.success) throw new Error("INVALID_CP_TERMS");
-  const cpTerms: CpTerms = parsedCpTerms.data;
+
+  // Attach the port's confirmed working calendar, when the company has one.
+  // Applied here rather than at each call site so recompute, the claim-room
+  // diff, clause P&L and the sensitivity analysis all cost the same holidays —
+  // two paths disagreeing about which days count would be worse than neither
+  // having a calendar at all. A claim with no calendar is returned unchanged.
+  const cpTerms: CpTerms = await withPortCalendar(
+    supabase,
+    parsedCpTerms.data,
+    claim.company_id,
+    claim.port,
+  );
 
   const { data: events } = await supabase
     .from("sof_events")
