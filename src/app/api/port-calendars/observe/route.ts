@@ -132,6 +132,63 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * The pending review queue.
+ *
+ * `?claimId=` narrows to the days observed on one voyage, which is what the
+ * inline banner in the claim workspace shows. Without it, the whole book — the
+ * dashboard widget's count and the master-data table.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await requireAuth();
+    const supabase = await createClient();
+    const claimId = req.nextUrl.searchParams.get("claimId");
+
+    let query = supabase
+      .from("port_calendar_days")
+      .select(
+        "id, calendar_date, kind, label, status, observed_claim_id, " +
+          "port_calendars!inner(id, port_label, port_key, company_id)",
+      )
+      .eq("status", "pending")
+      .eq("port_calendars.company_id", auth.companyId)
+      .order("calendar_date", { ascending: true });
+
+    if (claimId) query = query.eq("observed_claim_id", claimId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = (data ?? []) as unknown as Array<Record<string, any>>;
+    const days = rows.map((d) => {
+      const cal = Array.isArray(d.port_calendars) ? d.port_calendars[0] : d.port_calendars;
+      return {
+        id: d.id,
+        date: d.calendar_date,
+        kind: d.kind,
+        rationale: d.label,
+        port: cal?.port_label ?? "",
+        portKey: cal?.port_key ?? "",
+        observedClaimId: d.observed_claim_id,
+      };
+    });
+
+    // Grouped for the widget, which reports "3 ports awaiting review" rather
+    // than a flat count nobody can act on.
+    const byPort = new Map<string, number>();
+    for (const d of days) byPort.set(d.port, (byPort.get(d.port) ?? 0) + 1);
+
+    return NextResponse.json({
+      pending: days,
+      total: days.length,
+      byPort: Object.fromEntries(byPort),
+    });
+  } catch (e) {
+    return apiError(e, "port-calendars/observe/GET", KNOWN);
+  }
+}
+
 /** Accept or reject proposed days. Confirming is what lets them reach the engine. */
 export async function PATCH(req: NextRequest) {
   try {

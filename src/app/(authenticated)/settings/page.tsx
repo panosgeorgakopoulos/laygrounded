@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/core/Card";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
-import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound } from "lucide-react";
+import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound, CalendarDays } from "lucide-react";
 import { DeveloperSettings } from "@/components/laygrounded/developer-settings";
 import { SecurityTrail } from "@/components/laygrounded/security-trail";
+import { PortCalendarManager } from "@/components/laygrounded/port-calendar-manager";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/components/providers";
 import { createClient } from "@/lib/supabase/client";
@@ -30,7 +31,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const [data, setData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "api" | "security" | "system">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "calendars" | "api" | "security" | "system">("account");
   
   // Personal Account State
   const [displayName, setDisplayName] = useState("");
@@ -257,6 +258,13 @@ export default function SettingsPage() {
         >
           <UserPlus size={16} />
           <span>Team Members</span>
+        </button>
+        <button
+          className={`${styles.tabTrigger} ${activeTab === "calendars" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("calendars")}
+        >
+          <CalendarDays size={16} />
+          <span>Port Calendars</span>
         </button>
         <button
           className={`${styles.tabTrigger} ${activeTab === "api" ? styles.tabActive : ""}`}
@@ -550,6 +558,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
+
+      {activeTab === "calendars" && <PortCalendarManager />}
 
       {activeTab === "api" && <DeveloperSettings />}
 

@@ -19,6 +19,35 @@ export const metadata = {
 const MILESTONE_TYPES = ["COMPLETED_DISCHARGE", "COMPLETED_LOADING", "NOR_TENDERED"];
 const CONFIRMED_STATUSES = ["accepted", "edited"];
 
+/**
+ * Non-working days inferred from statements of facts and still awaiting review.
+ *
+ * Surfaced on the console because they are invisible everywhere else until
+ * someone opens the right voyage: they sit pending, excluded from every
+ * calculation, and a queue nobody is told about is a queue nobody clears.
+ */
+async function loadPendingCalendarDays(companyId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("port_calendar_days")
+    .select("id, calendar_date, observed_claim_id, port_calendars!inner(port_label, company_id)")
+    .eq("status", "pending")
+    .eq("port_calendars.company_id", companyId);
+
+  // A widget must never break the console it sits on.
+  if (error || !data) return { total: 0, ports: [] as string[], firstClaimId: null };
+
+  const rows = data as unknown as Array<Record<string, any>>;
+  const ports = new Set<string>();
+  let firstClaimId: string | null = null;
+  for (const r of rows) {
+    const cal = Array.isArray(r.port_calendars) ? r.port_calendars[0] : r.port_calendars;
+    if (cal?.port_label) ports.add(cal.port_label);
+    if (!firstClaimId && r.observed_claim_id) firstClaimId = r.observed_claim_id;
+  }
+  return { total: rows.length, ports: [...ports], firstClaimId };
+}
+
 async function loadTriage() {
   const auth = await requireAuth();
   const supabase = await createClient();
@@ -31,7 +60,13 @@ async function loadTriage() {
 
   if (error) throw error;
   const claims = claimRows ?? [];
-  if (claims.length === 0) return { summary: triageBook([]), totalClaims: 0 };
+  if (claims.length === 0) {
+    return {
+      summary: triageBook([]),
+      totalClaims: 0,
+      pendingCalendar: { total: 0, ports: [] as string[], firstClaimId: null },
+    };
+  }
 
   const claimIds = claims.map((c) => c.id);
 
@@ -108,7 +143,47 @@ async function loadTriage() {
     };
   });
 
-  return { summary: triageBook(inputs), totalClaims: claims.length };
+  const pendingCalendar = await loadPendingCalendarDays(auth.companyId);
+
+  return { summary: triageBook(inputs), totalClaims: claims.length, pendingCalendar };
+}
+
+function PendingCalendarWidget({
+  pending,
+}: {
+  pending: { total: number; ports: string[]; firstClaimId: string | null };
+}) {
+  if (pending.total === 0) return null;
+
+  // Links to the voyage the days were observed on when there is one, because
+  // that is where the decision has context; otherwise to the master list.
+  const href = pending.firstClaimId
+    ? `/claims/${pending.firstClaimId}/workspace`
+    : "/settings";
+
+  return (
+    <div className={styles.pendingWidget}>
+      <div className={styles.pendingBody}>
+        <span className={styles.pendingCount}>{pending.total}</span>
+        <div>
+          <p className={styles.pendingTitle}>
+            possible non-working day{pending.total === 1 ? "" : "s"} awaiting review
+            {pending.ports.length > 0 && (
+              <> at {pending.ports.slice(0, 3).join(", ")}
+                {pending.ports.length > 3 && ` +${pending.ports.length - 3} more`}</>
+            )}
+          </p>
+          <p className={styles.pendingSub}>
+            Inferred from your statements of facts. They are excluded from every calculation
+            until approved, so affected claims may currently overstate laytime used.
+          </p>
+        </div>
+      </div>
+      <Link href={href} className={styles.pendingAction}>
+        Review
+      </Link>
+    </div>
+  );
 }
 
 function SeverityChip({ severity }: { severity: TriageSeverity }) {
@@ -118,7 +193,7 @@ function SeverityChip({ severity }: { severity: TriageSeverity }) {
 }
 
 async function TriageQueue() {
-  const { summary, totalClaims } = await loadTriage();
+  const { summary, totalClaims, pendingCalendar } = await loadTriage();
 
   if (totalClaims === 0) {
     return (
@@ -137,7 +212,9 @@ async function TriageQueue() {
 
   if (summary.actions.length === 0) {
     return (
-      <div className={styles.empty}>
+      <>
+        <PendingCalendarWidget pending={pendingCalendar} />
+        <div className={styles.empty}>
         <div className={styles.emptyIcon}>
           <CheckCircle2 size={30} />
         </div>
@@ -146,12 +223,15 @@ async function TriageQueue() {
           All {totalClaims} claim{totalClaims === 1 ? "" : "s"} are computed, evidenced and
           inside their time bars. Nothing needs attention right now.
         </p>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
     <>
+      <PendingCalendarWidget pending={pendingCalendar} />
+
       <div className={styles.summaryRow}>
         <div className={styles.stat}>
           <span className={styles.statValue}>{summary.actions.length}</span>

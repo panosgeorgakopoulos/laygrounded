@@ -8,6 +8,7 @@ import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
 import { ClaimActionsPanel } from "@/components/laygrounded/claim-actions-panel";
+import { PortCalendarAlert } from "@/components/laygrounded/port-calendar-alert";
 import styles from "./Workspace.module.css";
 import { Button } from "@/components/core/Button";
 
@@ -398,6 +399,11 @@ export default function WorkspacePage({
           </div>
         </div>
       </header>
+
+      {/* Non-working days inferred from THIS voyage's SoF, awaiting review.
+          Placed above the intel panel because approving one changes the laytime
+          figures shown below it. Renders nothing when there is nothing pending. */}
+      <PortCalendarAlert claimId={claimId} onCalendarChanged={fetchClaim} />
 
       {/* Claim intelligence: time bar, evidence, claim room, settlement */}
       <ClaimIntelPanel

@@ -87,6 +87,50 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Remove a calendar entirely, or individual days from it. Deleting the last
+// confirmed day leaves the calendar loading as ABSENT rather than as an empty
+// calendar, so a port is never asserted to have no holidays.
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = await requireAuth();
+    const supabase = await createClient();
+    const calendarId = req.nextUrl.searchParams.get("calendarId");
+    const dayIds = req.nextUrl.searchParams.get("dayIds");
+
+    if (dayIds) {
+      const ids = dayIds.split(",").map((s) => s.trim()).filter(Boolean);
+      if (ids.length === 0) {
+        return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
+      }
+      // RLS scopes this to the caller's company through the calendar join.
+      const { data, error } = await supabase
+        .from("port_calendar_days")
+        .delete()
+        .in("id", ids)
+        .select("id");
+      if (error) throw error;
+      return NextResponse.json({ deletedDays: data?.length ?? 0 });
+    }
+
+    if (!calendarId) {
+      return NextResponse.json({ error: "VALIDATION_ERROR" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("port_calendars")
+      .delete()
+      .eq("id", calendarId)
+      .eq("company_id", auth.companyId)
+      .select("id");
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("CALENDAR_NOT_FOUND");
+
+    return NextResponse.json({ deletedCalendar: calendarId });
+  } catch (e) {
+    return apiError(e, "port-calendars/DELETE", KNOWN);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
