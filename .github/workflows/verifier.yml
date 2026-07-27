@@ -18,6 +18,10 @@ on:
     branches: ["**"]
   pull_request:
 
+env:
+  JAVY_VERSION: "9.0.0"
+  WASMTIME_VERSION: "37.0.1"
+
 jobs:
   determinism:
     runs-on: ubuntu-latest
@@ -46,19 +50,34 @@ jobs:
       - name: App unit tests
         run: bun test src/lib/
 
-      # Javy is pinned exactly: its v9 release broke bytecode compatibility, so
-      # the toolchain version is part of the artifact's identity. A floating
-      # version would silently change the published wasm hash.
-      - name: Install Javy 9.0.0
+      # Both toolchains are pinned exactly. Javy v9 broke bytecode compatibility
+      # with v8, so the compiler version is part of the artifact's identity: a
+      # floating version would silently change the published wasm hash. wasmtime
+      # is pinned for the same reason — the runtime is part of what "this
+      # artifact produces this root" means.
+      - name: Install Javy ${{ env.JAVY_VERSION }}
         run: |
           curl -fsSL -o javy.gz \
-            https://github.com/bytecodealliance/javy/releases/download/v9.0.0/javy-arm64-linux-v9.0.0.gz \
-          || curl -fsSL -o javy.gz \
-            https://github.com/bytecodealliance/javy/releases/download/v9.0.0/javy-x86_64-linux-v9.0.0.gz
+            "https://github.com/bytecodealliance/javy/releases/download/v${JAVY_VERSION}/javy-x86_64-linux-v${JAVY_VERSION}.gz"
           gunzip javy.gz && chmod +x javy
+          ./javy --version
+
+      - name: Install wasmtime ${{ env.WASMTIME_VERSION }}
+        run: |
+          curl -fsSL -o wasmtime.tar.xz \
+            "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          tar xf wasmtime.tar.xz
+          echo "$PWD/wasmtime-v${WASMTIME_VERSION}-x86_64-linux" >> "$GITHUB_PATH"
+
+      - name: Confirm wasmtime is on PATH
+        # The build falls back to node:wasi if wasmtime is missing. That fallback
+        # exists for local development; in CI the wasm must be exercised through
+        # the runtime a third-party auditor would actually use, so its absence is
+        # a failure rather than a quiet substitution.
+        run: wasmtime --version
 
       - name: Build both artifacts and assert they agree
-        run: bun run verify:build
+        run: bun run verify:build --require-wasmtime
 
       - name: Publish artifact manifest
         uses: actions/upload-artifact@v4

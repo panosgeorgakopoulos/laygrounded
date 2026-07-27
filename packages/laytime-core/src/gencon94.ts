@@ -227,7 +227,7 @@ const TERMINATOR_TYPES = new Set<string>([
  * it total — without it two same-typed events at the same instant would still be
  * order-dependent.
  */
-function canonicalEventOrder(events: SofEventInput[]): SofEventInput[] {
+export function canonicalEventOrder(events: SofEventInput[]): SofEventInput[] {
   return [...events].sort((a, b) => {
     const ta = new Date(a.occurred_at).getTime();
     const tb = new Date(b.occurred_at).getTime();

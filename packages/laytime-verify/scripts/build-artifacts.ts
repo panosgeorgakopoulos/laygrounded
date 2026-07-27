@@ -35,6 +35,11 @@ function flag(name: string): string | null {
   return i >= 0 && args[i + 1] ? args[i + 1] : null;
 }
 
+// In CI the wasm must be exercised through the runtime an auditor would use.
+// The node:wasi fallback is a local-development convenience; letting it stand in
+// silently would mean publishing a wasm nobody had run the way it will be run.
+const REQUIRE_WASMTIME = args.includes("--require-wasmtime");
+
 function sha256(buf: Buffer | string): string {
   return createHash("sha256").update(buf).digest("hex");
 }
@@ -101,6 +106,7 @@ if (mjsReport.failed > 0) {
 const javy = flag("javy") ?? join(REPO_ROOT, "javy");
 let wasmReport: { root: string; passed: number; cases: number; failed: number } | null = null;
 let wasmSha: string | null = null;
+let verifiedBy: string | null = null;
 
 if (existsSync(javy)) {
   const javyEntry = join(PKG_ROOT, "src/entry-javy.ts");
@@ -155,7 +161,7 @@ Javy.IO.writeSync(1, out);
         encoding: "utf8",
       }),
   });
-  runners.push({
+  if (!REQUIRE_WASMTIME) runners.push({
     name: "node:wasi",
     run: () => {
       const runner = join(DIST, "_run-wasi.mjs");
@@ -189,6 +195,7 @@ closeSync(inFd); closeSync(outFd);
   for (const runner of runners) {
     try {
       wasmReport = JSON.parse(runner.run());
+      verifiedBy = runner.name;
       console.log(
         `wasm conformance via ${runner.name}: ${wasmReport!.passed}/${wasmReport!.cases} ` +
           `root=${wasmReport!.root}`,
@@ -200,9 +207,13 @@ closeSync(inFd); closeSync(outFd);
   }
   if (!wasmReport) {
     throw new Error(
-      "wasm was built but could not be executed by any runtime, so its agreement " +
-        "with the JS artifact is unverified. Install wasmtime, or use a Node with " +
-        "node:wasi. Refusing to publish unchecked artifacts.",
+      REQUIRE_WASMTIME
+        ? "--require-wasmtime was set but wasmtime could not run the artifact. " +
+          "Refusing to fall back to node:wasi: the wasm must be exercised through " +
+          "the runtime a third party would actually use."
+        : "wasm was built but could not be executed by any runtime, so its agreement " +
+          "with the JS artifact is unverified. Install wasmtime, or use a Node with " +
+          "node:wasi. Refusing to publish unchecked artifacts.",
     );
   }
 } else {
@@ -234,10 +245,22 @@ writeFileSync(
         sha256: sha256(readFileSync(conformancePath)),
       },
       artifacts: {
-        mjs: { bytes: mjs.length, sha256: sha256(mjs) },
-        ...(wasmSha ? { wasm: { sha256: wasmSha } } : {}),
+        // The JS artifact IS reproducible: same source, same bytes, every time.
+        mjs: { bytes: mjs.length, sha256: sha256(mjs), reproducible: true },
+        // The wasm is NOT. Javy emits different bytes for byte-identical input
+        // (verified: two builds of the same file differ deep in the embedded
+        // QuickJS section), so this hash identifies the artifact we published —
+        // it is a distribution-integrity check, not something a third party can
+        // reproduce by rebuilding. The reproducible attestation is
+        // `conformance.root`, which is behavioural and stable.
+        ...(wasmSha
+          ? { wasm: { sha256: wasmSha, reproducible: false, reason: "javy output is not byte-deterministic" } }
+          : {}),
       },
       agreementVerified: Boolean(wasmReport),
+      // Named, because "the artifacts agree" means less if nobody can tell which
+      // runtime was asked.
+      agreementRuntime: verifiedBy,
       builtAt: new Date().toISOString(),
     },
     null,

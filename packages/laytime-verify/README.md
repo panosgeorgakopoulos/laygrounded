@@ -75,9 +75,25 @@ in the same way.
 | `laygrounded-verify.wasm` | ~1.7 MB | Running. No Node, no npm, no install. |
 
 Both are built from the same source, and CI refuses to publish unless they
-produce an identical conformance root, executed in two different engines. A
-1.7 MB WebAssembly blob is not auditable by reading — that is exactly why the
-readable file ships beside it.
+produce an identical conformance root, executed in two different engines
+(wasmtime for the wasm, Node for the JS). A 1.7 MB WebAssembly blob is not
+auditable by reading — that is exactly why the readable file ships beside it.
+
+### What the published hashes do and do not prove
+
+`laygrounded-verify.mjs` is **reproducible**: build it from the same source and
+you get the same bytes, so its SHA-256 is something you can check yourself.
+
+`laygrounded-verify.wasm` is **not**. Javy emits different bytes for
+byte-identical input — we verified this, two builds of the same file differ
+inside the embedded QuickJS section — so the published wasm hash confirms you
+received the artifact we published, and nothing more. It is a
+distribution-integrity check, not a build attestation.
+
+The claim that *is* reproducible is `conformance.root`. It is behavioural: run
+either artifact against `conformance.json` and you should get
+`bc9f24fdab910a1b`. That is the number to rely on, and it is why the root exists
+at all.
 
 ## Bundle format
 
@@ -92,6 +108,28 @@ readable file ships beside it.
 ```
 
 Omit `published` to compute the figures rather than check them.
+
+### Notarised bundles carry their derivation
+
+A claim pack exported from LayGrounded also carries a `derivation` record inside
+its notarised Merkle snapshot, committing to three things a bare
+inputs-and-outputs proof left unstated:
+
+| Leaf | Commits to |
+|---|---|
+| `engine` | Which engine computed it, by behavioural fingerprint |
+| `tzdata` | The timezone transitions **for this claim's port**, carried in the bundle |
+| `ordering` | The exact event order used, and the rule that produced it |
+
+The timezone leaf is the one worth understanding. Same-instant events and
+weekend boundaries both depend on the port's local calendar, so the transitions
+travel *with the claim* rather than being read from your machine. A counterparty
+can dispute the table on the record; a re-run in 2035 uses the rules that applied
+in 2026; and none of it depends on your computer's ICU. It costs under a
+kilobyte.
+
+Tampering with any of the three changes the Merkle root, which breaks the
+RFC-3161 timestamp — so the derivation is as tamper-evident as the figures.
 
 ## Limits, stated plainly
 

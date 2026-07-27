@@ -14,9 +14,16 @@
     "./types": "./src/types.ts",
     "./diff": "./src/diff.ts",
     "./sensitivity": "./src/sensitivity.ts",
-    "./tz": "./src/tz.ts"
+    "./tz": "./src/tz.ts",
+    "./fingerprint": "./src/fingerprint.ts",
+    "./tzdata": "./src/tzdata.ts"
   },
-  "files": ["src", "dist", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "bun test"

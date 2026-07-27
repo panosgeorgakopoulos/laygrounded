@@ -14,3 +14,6 @@ export * from "./sensitivity";
 // resolution the engine does. Two implementations would eventually disagree
 // about which local day an event fell on.
 export * from "./tz";
+// Behavioural provenance: exported so a notarized derivation record and the
+// offline verifier fingerprint the engine the same way.
+export * from "./fingerprint";
