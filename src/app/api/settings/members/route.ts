@@ -42,8 +42,18 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.toLowerCase().trim();
     const adminClient = createServiceRoleClient();
 
-    // Look for existing user
-    const { data: userId } = await adminClient.rpc("get_user_id_by_email", { email_addr: email });
+    // Look for existing user. The RPC error is checked, not swallowed: a failing
+    // lookup returns null, which is indistinguishable from "no such account", and
+    // that path skips the USER_ALREADY_IN_ANOTHER_COMPANY guard below. When the
+    // function was missing from the database entirely, that is exactly what
+    // happened, silently.
+    const { data: userId, error: lookupErr } = await adminClient.rpc("get_user_id_by_email", {
+      email_addr: email,
+    });
+    if (lookupErr) {
+      console.error("[settings/members/POST] user lookup failed:", lookupErr);
+      return NextResponse.json({ error: "USER_LOOKUP_FAILED" }, { status: 503 });
+    }
 
     if (userId) {
       const { data: existing } = await supabase

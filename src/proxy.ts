@@ -33,6 +33,7 @@ const MAX_REQUESTS_AUDIT = 2000; // per minute, per IP — DoS floor, not a quot
 // while still stopping a flood.
 const OAUTH_PREFIX = '/oauth';
 const OAUTH_REGISTER_PATH = '/oauth/register';
+const CONGESTION_PATH = '/congestion';
 const MAX_REQUESTS_OAUTH = 60; // per minute, per IP — the interactive auth dance
 const MAX_REQUESTS_OAUTH_REGISTER = 15; // per minute, per IP — public write endpoint
 
@@ -94,6 +95,21 @@ export function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
   const isApi = request.nextUrl.pathname.startsWith('/api');
 
+  // Publication gate for the public congestion index.
+  //
+  // Enforced here rather than with notFound() in the page: by the time the page
+  // body runs, response headers have already been flushed, so notFound() renders
+  // the 404 view but still returns HTTP 200 — a soft 404 that search engines
+  // index and that reads ambiguously for a switch governing whether
+  // customer-derived data is published at all. Returning here makes the status
+  // truthful, and keeps the flag a runtime decision rather than a build-time one.
+  if (
+    request.nextUrl.pathname === CONGESTION_PATH &&
+    process.env.PUBLIC_CONGESTION_INDEX !== '1'
+  ) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   // API preflight: answer here, only granting CORS to allowlisted origins. The
   // /oauth routes answer their own OPTIONS (public discovery CORS), so they are
   // left to fall through.
@@ -148,5 +164,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/sign-in', '/sign-up', '/api/:path*', '/oauth/:path*'],
+  matcher: ['/', '/sign-in', '/sign-up', '/congestion', '/api/:path*', '/oauth/:path*'],
 };

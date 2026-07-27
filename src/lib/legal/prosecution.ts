@@ -99,6 +99,45 @@ export function verifyMerkleProof(
 
 export const SNAPSHOT_ALGO = "sha256-merkle-v1";
 
+/**
+ * How the figures were derived — the missing third of the notarized record.
+ *
+ * A snapshot commits to inputs and outputs, which proves nothing was ALTERED.
+ * It said nothing about how one followed from the other, so "re-run it yourself"
+ * had no referent: an auditor could not know which engine, which timezone data,
+ * or which event ordering produced the numbers, and all three change the answer.
+ *
+ * The timezone transitions for the claim's own zone are carried IN the record
+ * rather than assumed from the auditor's machine. That is the point: it makes
+ * tzdata evidence instead of environment. A counterparty can dispute the table
+ * on the record; a re-run in 2035 uses 2026's rules by construction; and the
+ * verifier needs no ICU at all. It costs well under a kilobyte.
+ */
+export interface DerivationRecord {
+  engine: {
+    name: string;
+    version: string;
+    /** Behavioural fingerprint — moves when a laytime figure would move. */
+    fingerprint: string;
+  };
+  tzdata: {
+    /** Digest of the whole pinned table. */
+    digest: string;
+    /** The claim's port timezone, or null when it computed in UTC. */
+    zone: string | null;
+    /** That zone's flat [utcSeconds, offsetMinutes, …] transitions. */
+    transitions: number[];
+    eraStartSec: number;
+    eraEndSec: number;
+  };
+  ordering: {
+    /** The engine's total-order rule, named so it can be reimplemented. */
+    rule: string;
+    /** The exact event order the calculation used, after canonical sorting. */
+    eventIds: string[];
+  };
+}
+
 export interface SnapshotLedger {
   cpTerms: CpTerms;
   totals: CalculationTotals;
@@ -107,11 +146,30 @@ export interface SnapshotLedger {
   clauseFlags?: Array<{ clause_ref: string; severity: string; note: string }>;
   // Notarization instant — an input, so the snapshot is reproducible.
   asOf: string;
+  /**
+   * OPTIONAL, and its absence is load-bearing.
+   *
+   * Roots already anchored in compliance_ledger were computed without these
+   * leaves. Omitting the field reproduces the legacy root byte for byte, so
+   * every historical proof still verifies; supplying it appends three leaves and
+   * yields a new, stronger root. Existing anchors are therefore never
+   * invalidated by this change.
+   */
+  derivation?: DerivationRecord;
 }
 
 export interface SnapshotLeaf {
   index: number;
-  kind: "header" | "cp_terms" | "totals" | "event" | "breakdown_row" | "clause_flag";
+  kind:
+    | "header"
+    | "cp_terms"
+    | "totals"
+    | "event"
+    | "breakdown_row"
+    | "clause_flag"
+    | "engine"
+    | "tzdata"
+    | "ordering";
   ref: string; // human pointer: event id, row index, clause ref…
   hash: string;
 }
@@ -157,6 +215,21 @@ export function generateCryptographicSnapshot(
       ref: `${f.clause_ref}#${i}`,
       body: f,
     })),
+    // Derivation leaves are APPENDED last, and only when supplied. Appending
+    // rather than interleaving means a legacy ledger (no derivation) produces
+    // the identical leaf sequence — and therefore the identical root — it always
+    // did, so nothing already anchored is invalidated.
+    ...(ledger.derivation
+      ? [
+          { kind: "engine" as const, ref: ledger.derivation.engine.name, body: ledger.derivation.engine },
+          {
+            kind: "tzdata" as const,
+            ref: ledger.derivation.tzdata.zone ?? "UTC",
+            body: ledger.derivation.tzdata,
+          },
+          { kind: "ordering" as const, ref: "events", body: ledger.derivation.ordering },
+        ]
+      : []),
   ];
 
   const leaves: SnapshotLeaf[] = specs.map((s, index) => ({

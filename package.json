@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "corpus": "bun scripts/synthetic-claims/generate.ts",
     "seed:dataset": "bun scripts/seed/build-demo-dataset.ts",
-    "sync:pdfjs": "bun scripts/sync-pdfjs-assets.ts"
+    "sync:pdfjs": "bun scripts/sync-pdfjs-assets.ts",
+    "tzdata": "bun scripts/build-tzdata.ts",
+    "verify:build": "bun packages/laytime-verify/scripts/build-artifacts.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

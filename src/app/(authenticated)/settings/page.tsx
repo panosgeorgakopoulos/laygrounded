@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/core/Card";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
-import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound } from "lucide-react";
+import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound, CalendarDays } from "lucide-react";
 import { DeveloperSettings } from "@/components/laygrounded/developer-settings";
 import { SecurityTrail } from "@/components/laygrounded/security-trail";
+import { PortCalendarManager } from "@/components/laygrounded/port-calendar-manager";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/components/providers";
 import { createClient } from "@/lib/supabase/client";
@@ -30,7 +31,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const [data, setData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "api" | "security" | "system">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "calendars" | "api" | "security" | "system">("account");
   
   // Personal Account State
   const [displayName, setDisplayName] = useState("");
@@ -41,6 +42,8 @@ export default function SettingsPage() {
   // Company Profile State
   const [companyName, setCompanyName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [shareMarketData, setShareMarketData] = useState(true);
+  const [savingSharing, setSavingSharing] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
@@ -58,6 +61,7 @@ export default function SettingsPage() {
       .then((d) => {
         setData(d);
         setCompanyName(d.company?.name ?? "");
+        setShareMarketData(d.company?.shareMarketData ?? true);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -121,6 +125,42 @@ export default function SettingsPage() {
       setData(d);
     } catch (e) {
       setSavingName(false);
+      setProfileError("A network error occurred. Please try again.");
+    }
+  }
+
+  // Withdrawal from market aggregates is a contractual right, so it applies on
+  // toggle rather than waiting behind a Save button, and the local state is
+  // rolled back if the write fails — a switch that looks flipped but did not
+  // persist would misrepresent what we are publishing.
+  async function saveSharing(next: boolean) {
+    const previous = shareMarketData;
+    setShareMarketData(next);
+    setSavingSharing(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shareMarketData: next }),
+      });
+      setSavingSharing(false);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setShareMarketData(previous);
+        setProfileError(d.error || "Failed to update data-sharing preference");
+        return;
+      }
+      setProfileSuccess(
+        next
+          ? "This company now contributes to market benchmarks."
+          : "Withdrawn. Your voyages are excluded from future market benchmarks.",
+      );
+      setTimeout(() => setProfileSuccess(null), 4000);
+    } catch {
+      setSavingSharing(false);
+      setShareMarketData(previous);
       setProfileError("A network error occurred. Please try again.");
     }
   }
@@ -218,6 +258,13 @@ export default function SettingsPage() {
         >
           <UserPlus size={16} />
           <span>Team Members</span>
+        </button>
+        <button
+          className={`${styles.tabTrigger} ${activeTab === "calendars" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("calendars")}
+        >
+          <CalendarDays size={16} />
+          <span>Port Calendars</span>
         </button>
         <button
           className={`${styles.tabTrigger} ${activeTab === "api" ? styles.tabActive : ""}`}
@@ -353,6 +400,40 @@ export default function SettingsPage() {
               {savingName ? "Saving Changes..." : "Save Changes"}
             </Button>
           </CardFooter>
+
+          <CardHeader style={{ borderTop: "1px solid var(--color-border)" }}>
+            <CardTitle>Market data sharing</CardTitle>
+            <CardDescription>
+              Whether this company&apos;s voyages contribute to industry benchmarks.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className={styles.switchRow}>
+              <input
+                type="checkbox"
+                checked={shareMarketData}
+                disabled={savingSharing || currentUserRole !== "admin"}
+                onChange={(e) => saveSharing(e.target.checked)}
+              />
+              <span>
+                <strong>Contribute to market benchmarks</strong>
+                <span className={styles.switchHint}>
+                  Your voyage timings feed aggregated, anonymised industry indices such as the
+                  Port Congestion Index and the lane benchmarks on your Analytics page. Figures
+                  are only ever published for a port and month containing at least 5 voyages
+                  from at least 3 separate companies, so no individual voyage, vessel,
+                  counterparty or company can be identified or attributed. Turning this off
+                  withdraws you from future benchmarks; benchmarks already published are not
+                  recalculated.
+                </span>
+              </span>
+            </label>
+            {currentUserRole !== "admin" && (
+              <p className={styles.switchHint} style={{ marginTop: "0.5rem" }}>
+                Only a company admin can change this.
+              </p>
+            )}
+          </CardContent>
         </Card>
       )}
 
@@ -477,6 +558,8 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
+
+      {activeTab === "calendars" && <PortCalendarManager />}
 
       {activeTab === "api" && <DeveloperSettings />}
 

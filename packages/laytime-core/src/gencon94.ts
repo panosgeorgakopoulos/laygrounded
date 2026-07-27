@@ -3,8 +3,9 @@
 // GENCON 94 references cite the form's clause numbers; ASBATANKVOY references
 // cite Part II clauses ("ASBA-II-n").
 
-import { toZonedTime } from 'date-fns-tz';
 import { Decimal } from 'decimal.js';
+
+import { zonedParts, zonedDateKey } from "./tz";
 
 import {
   BreakdownRow,
@@ -13,6 +14,7 @@ import {
   LaytimeResult,
   SofEventInput,
   EventTypeEnum,
+  PortCalendar,
 } from "./types";
 
 export class NoNorError extends Error {
@@ -44,16 +46,49 @@ function toISO(d: Date): string {
   return d.toISOString();
 }
 
+// Weekday and calendar date in the PORT's reckoning, from the pinned offset
+// table in ./tz — no Intl, no host tzdata, no Date setters.
+//
+// The previous implementation went through date-fns-tz's toZonedTime, which
+// reads the runtime's own ICU (Node and Bun disagreed on one machine: 418 zones
+// vs 445) and then rebuilt the instant with HOST-LOCAL setters, letting the
+// host's zone leak into the answer. On a host in Pacific/Apia a Singapore date
+// of 2011-12-30 came back as 2011-12-31 — a day flipped between counting and
+// excepted under SSHEX by nothing but where the server happened to be.
 function isSundayLocal(d: Date, tz: string): boolean {
-  return toZonedTime(d, tz).getDay() === 0;
+  return zonedParts(d.getTime(), tz).dayOfWeek === 0;
 }
 
 function isSaturdayLocal(d: Date, tz: string): boolean {
-  return toZonedTime(d, tz).getDay() === 6;
+  return zonedParts(d.getTime(), tz).dayOfWeek === 6;
 }
 
-// A holiday is approximated as Sunday for the engine's deterministic logic.
-function isExceptedDay(d: Date, daysBasis: string, tz: string): boolean {
+// Local calendar date (YYYY-MM-DD) in the port's own timezone. Holidays are
+// days in the port's reckoning, so the comparison has to happen in local terms.
+function localDateKey(d: Date, tz: string): string {
+  return zonedDateKey(d.getTime(), tz);
+}
+
+function isCalendarHoliday(d: Date, tz: string, calendar?: PortCalendar): boolean {
+  if (!calendar || calendar.holidays.length === 0) return false;
+  return calendar.holidays.includes(localDateKey(d, tz));
+}
+
+// Excepted days are the weekend days the basis excludes, plus any holiday the
+// supplied port calendar names. With no calendar this is exactly the old
+// Sunday/Saturday test, which is what keeps existing results identical.
+//
+// Note this deliberately reports holidays under EVERY basis, including SHINC.
+// The caller downstream decides whether an excepted hour counts, and SHINC's
+// branch counts it — so labelling stays truthful ("holiday, counts under
+// SHINC") instead of pretending the day was ordinary.
+function isExceptedDay(
+  d: Date,
+  daysBasis: string,
+  tz: string,
+  calendar?: PortCalendar
+): boolean {
+  if (isCalendarHoliday(d, tz, calendar)) return true;
   if (daysBasis.includes("SSHEX")) {
     return isSundayLocal(d, tz) || isSaturdayLocal(d, tz);
   }
@@ -65,12 +100,13 @@ function isExceptedHour(
   hour: Date,
   exceptedPeriods: Array<{ start: Date; end: Date }>,
   daysBasis: string,
-  tz: string
+  tz: string,
+  calendar?: PortCalendar
 ): boolean {
   for (const p of exceptedPeriods) {
     if (hour >= p.start && hour < p.end) return true;
   }
-  return isExceptedDay(hour, daysBasis, tz);
+  return isExceptedDay(hour, daysBasis, tz, calendar);
 }
 
 // Pre-compute intervals for O(n) checking
@@ -161,11 +197,60 @@ function getHatchIntervals(events: SofEventInput[], windowEnd: Date): Interval[]
   return intervals;
 }
 
+// Events that CLOSE an interval. At an identical timestamp these must be
+// processed before the events that open one: a stoppage cannot begin before the
+// previous stoppage has ended, and pairing them the other way round silently
+// swallows an interval (the opener is discarded because one is already open,
+// then its terminator is discarded because none is).
+const TERMINATOR_TYPES = new Set<string>([
+  "WEATHER_DELAY_END",
+  "SHIFTING_END",
+  "EXCEPTED_PERIOD_END",
+  "HATCH_CLOSE",
+  "COMPLETED_LOADING",
+  "COMPLETED_DISCHARGE",
+]);
+
+/**
+ * Total order over events, so the result is a function of the event SET rather
+ * than of the array order it happened to arrive in.
+ *
+ * Every sort in this engine compares timestamps only, and ES sorts are stable —
+ * so before this existed, two events at the same instant were resolved by input
+ * order. That made the engine's output depend on how the caller's query happened
+ * to return rows: `recompute-server.ts` orders by `occurred_at` alone, and
+ * Postgres gives no guarantee for ties, so the same claim could compute two
+ * different figures. Measured on a specimen voyage: 48 vs 60 used hours from
+ * reordering two array elements.
+ *
+ * Ordering is (time, terminators-first, type, id). The id tiebreak is what makes
+ * it total — without it two same-typed events at the same instant would still be
+ * order-dependent.
+ */
+export function canonicalEventOrder(events: SofEventInput[]): SofEventInput[] {
+  return [...events].sort((a, b) => {
+    const ta = new Date(a.occurred_at).getTime();
+    const tb = new Date(b.occurred_at).getTime();
+    if (ta !== tb) return ta - tb;
+
+    const aTerm = TERMINATOR_TYPES.has(a.event_type) ? 0 : 1;
+    const bTerm = TERMINATOR_TYPES.has(b.event_type) ? 0 : 1;
+    if (aTerm !== bTerm) return aTerm - bTerm;
+
+    if (a.event_type !== b.event_type) return a.event_type < b.event_type ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
 // === Main entrypoint ===
 export function recomputeLaytime(
-  events: SofEventInput[],
+  inputEvents: SofEventInput[],
   cpTerms: CpTerms
 ): LaytimeResult {
+  // Normalised once, at the boundary. Every downstream sort is stable, so they
+  // all inherit this order and the whole computation becomes reproducible from
+  // the event set alone — which is the property an offline verifier rests on.
+  const events = canonicalEventOrder(inputEvents);
   // Step 1: NOR validation
   const norEvents = events.filter((e) => e.event_type === "NOR_TENDERED");
   if (norEvents.length > 1) {
@@ -193,7 +278,7 @@ export function recomputeLaytime(
     }
   } else if (cpTerms.days_basis !== "SHINC") {
      let guard = 0;
-     while(isExceptedDay(laytimeCommencesAt, cpTerms.days_basis, tz) && guard < 168) {
+     while(isExceptedDay(laytimeCommencesAt, cpTerms.days_basis, tz, cpTerms.port_calendar) && guard < 168) {
         laytimeCommencesAt = addHours(laytimeCommencesAt, 1);
         guard++;
      }
@@ -312,7 +397,13 @@ export function recomputeLaytime(
         clause_ref = "GENCON94-6c";
         reasoning = "Weather working day excluded — weather delays excluded from laytime.";
       } else {
-        const excepted = isExceptedHour(hourStart, exceptedPeriods, cpTerms.days_basis, tz);
+        const excepted = isExceptedHour(
+          hourStart,
+          exceptedPeriods,
+          cpTerms.days_basis,
+          tz,
+          cpTerms.port_calendar
+        );
         if (excepted) {
           if (cpTerms.days_basis === "SHINC") {
             status = "excepted";

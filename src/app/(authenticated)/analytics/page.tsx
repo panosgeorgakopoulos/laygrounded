@@ -9,6 +9,7 @@ import { buildClausePnlReport, ClausePnlReport } from "@/lib/analytics/clause-pn
 import { loadRoiReport } from "@/lib/analytics/roi";
 import { PrefixtureIntel } from "@/components/laygrounded/prefixture-intel";
 import { RoiCalculator } from "@/components/laygrounded/roi-calculator";
+import { MarketBenchmark } from "@/components/laygrounded/market-benchmark";
 import styles from "./Analytics.module.css";
 
 export const dynamic = "force-dynamic";
@@ -227,6 +228,10 @@ export default function AnalyticsPage() {
       <Suspense fallback={<Card><div className={styles.emptyState}>Computing counterfactuals…</div></Card>}>
         <AnalyticsBody />
       </Suspense>
+
+      <div className={styles.sectionCard}>
+        <MarketBenchmark />
+      </div>
 
       <Card className={styles.sectionCard}>
         <div className={styles.cardPad}>

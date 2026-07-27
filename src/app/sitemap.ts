@@ -15,6 +15,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ["/legal/terms", 0.3],
     ["/legal/privacy", 0.3],
   ];
+  // Only listed once actually published — the page 404s while the flag is unset,
+  // and a sitemap entry pointing at a 404 is worse than no entry.
+  if (process.env.PUBLIC_CONGESTION_INDEX === "1") {
+    staticPaths.push(["/congestion", 0.9]);
+  }
   const staticRoutes: MetadataRoute.Sitemap = staticPaths.map(([p, priority]) => ({
     url: `${BASE}${p}`,
     lastModified: now,

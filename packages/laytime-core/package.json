@@ -13,9 +13,17 @@
     "./gencon94": "./src/gencon94.ts",
     "./types": "./src/types.ts",
     "./diff": "./src/diff.ts",
-    "./sensitivity": "./src/sensitivity.ts"
+    "./sensitivity": "./src/sensitivity.ts",
+    "./tz": "./src/tz.ts",
+    "./fingerprint": "./src/fingerprint.ts",
+    "./tzdata": "./src/tzdata.ts"
   },
-  "files": ["src", "dist", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "bun test"
@@ -31,7 +39,6 @@
     "dry-bulk"
   ],
   "dependencies": {
-    "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.6.0"
   }
 }

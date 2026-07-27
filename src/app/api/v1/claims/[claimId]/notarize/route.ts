@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
+import { loadClaimSnapshotInputs } from "@/lib/legal/notary-server";
 import {
   buildAuditDossier,
   canonicalJson,
@@ -43,51 +44,24 @@ export async function POST(
     }
 
     const supabase = await createClient();
-    const { data: claim } = await supabase
+    // Ownership is checked here, then the ledger is assembled by the SHARED
+    // loader. This route used to duplicate that assembly verbatim, which meant
+    // two code paths could disagree about what a snapshot commits to — and they
+    // did the moment the derivation record was added: this one kept producing
+    // pre-derivation roots while the sweep produced new ones for the same claim.
+    const { data: owner } = await supabase
       .from("claims")
-      .select("id, company_id, vessel, voyage_ref, port, cp_terms")
+      .select("id, company_id")
       .eq("id", claimId)
       .maybeSingle();
-    if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
-    if (!claim.cp_terms) throw new Error("NO_CP_TERMS");
-
-    const [{ data: events }, { data: calc }] = await Promise.all([
-      supabase
-        .from("sof_events")
-        .select("id, event_type, occurred_at")
-        .eq("claim_id", claimId)
-        .in("status", ["accepted", "edited"])
-        .order("occurred_at", { ascending: true }),
-      supabase
-        .from("laytime_calculations")
-        .select("breakdown, allowed_hours, used_hours, demurrage_amount, despatch_amount, currency, computed_at")
-        .eq("claim_id", claimId)
-        .order("computed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (!calc) throw new Error("NO_CALCULATION");
-    if (!events || events.length === 0) throw new Error("NO_CONFIRMED_EVENTS");
-
-    const cpTerms = claim.cp_terms as CpTerms;
-    const totals: CalculationTotals = {
-      allowed_hours: calc.allowed_hours,
-      used_hours: calc.used_hours,
-      time_on_demurrage_hours: Math.max(calc.used_hours - calc.allowed_hours, 0),
-      time_saved_hours: Math.max(calc.allowed_hours - calc.used_hours, 0),
-      demurrage_amount: calc.demurrage_amount ?? 0,
-      despatch_amount: calc.despatch_amount ?? 0,
-      currency: calc.currency ?? cpTerms.currency,
-    };
+    if (!owner || owner.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
 
     const asOf = new Date().toISOString();
-    const ledger: SnapshotLedger = {
-      cpTerms,
-      totals,
-      breakdown: Array.isArray(calc.breakdown) ? calc.breakdown : [],
-      events,
+    const { claim, ledger, calculationComputedAt } = await loadClaimSnapshotInputs(
+      claimId,
+      supabase,
       asOf,
-    };
+    );
     const snapshot = generateCryptographicSnapshot(claimId, ledger);
 
     const { data: entry, error: entryErr } = await supabase
@@ -101,7 +75,7 @@ export async function POST(
           as_of: asOf,
           leaf_count: snapshot.leafCount,
           leaves: snapshot.leaves,
-          calculation_computed_at: calc.computed_at,
+          calculation_computed_at: calculationComputedAt,
         },
         recorded_by: auth.userId,
       })
@@ -112,7 +86,9 @@ export async function POST(
     let mrvEntryId: string | null = null;
     if (parsed.data.includeMrv) {
       const mrv = buildMrvLedgerEntry({
-        delayHours: Math.max(calc.used_hours - calc.allowed_hours, 0),
+        // Already computed by the shared loader; recomputing it here is how the
+        // two paths would drift apart again.
+        delayHours: ledger.totals.time_on_demurrage_hours,
       });
       const { data: mrvRow, error: mrvErr } = await supabase
         .from("compliance_ledger")

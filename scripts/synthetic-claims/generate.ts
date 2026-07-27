@@ -240,8 +240,19 @@ async function main() {
     summary.push({ archetype: arch.name, cases: alloc[ai], attempts });
   }
 
+  // Hash the ENGINE, not the shim. Since the workspace extraction,
+  // src/lib/laytime/gencon94.ts is a 288-byte re-export — hashing it produced a
+  // digest that never changed no matter what the engine did, which is worse than
+  // no digest at all: a stale value that looks like provenance.
   const engineSource = fs.readFileSync(
-    path.join(REPO_ROOT, "src/lib/laytime/gencon94.ts"),
+    path.join(REPO_ROOT, "packages/laytime-core/src/gencon94.ts"),
+    "utf8"
+  );
+  // The pinned timezone table is as much a determinant of the result as the
+  // engine code: a different table means different SHEX exclusions, so the
+  // corpus is only reproducible against a stated pair.
+  const tzdataSource = fs.readFileSync(
+    path.join(REPO_ROOT, "packages/laytime-core/src/tzdata.ts"),
     "utf8"
   );
   const manifest = {
@@ -250,6 +261,7 @@ async function main() {
     count: emittedTotal,
     withPdfs: WITH_PDF,
     engineSha256: createHash("sha256").update(engineSource).digest("hex"),
+    tzdataSha256: createHash("sha256").update(tzdataSource).digest("hex"),
     byArchetype: Object.fromEntries(summary.map((s) => [s.archetype, s.cases])),
   };
   fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");

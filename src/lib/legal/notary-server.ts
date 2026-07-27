@@ -18,13 +18,17 @@ import {
   sha256Hex,
   SNAPSHOT_ALGO,
   type SnapshotLedger,
-  type TimeProofSnapshot,
-} from "./prosecution";
+} from "@/lib/legal/prosecution";
+import { type TimeProofSnapshot } from "./prosecution";
+import { buildDerivationRecord } from "@/lib/legal/derivation";
+import { canonicalEventOrder } from "@laygrounded/laytime-core/gencon94";
+import type { SofEventInput } from "@/lib/laytime/types";
 import { anchorMerkleRoot, type AnchorOutcome } from "./anchor";
 import type { CalculationTotals, CpTerms } from "@/lib/laytime/types";
 
 export interface ClaimSnapshotInputs {
   claim: { id: string; vessel: string; voyage_ref: string; port: string; cp_terms: CpTerms };
+  calculationComputedAt: string | null;
   ledger: SnapshotLedger;
 }
 
@@ -49,7 +53,10 @@ export async function loadClaimSnapshotInputs(
       .select("id, event_type, occurred_at")
       .eq("claim_id", claimId)
       .in("status", ["accepted", "edited"])
-      .order("occurred_at", { ascending: true }),
+      // Tiebreak on id: Postgres guarantees no order for equal timestamps, and
+      // a proof must pin the ordering the engine actually used.
+      .order("occurred_at", { ascending: true })
+      .order("id", { ascending: true }),
     supabase
       .from("laytime_calculations")
       .select("breakdown, allowed_hours, used_hours, demurrage_amount, despatch_amount, currency, computed_at")
@@ -72,14 +79,36 @@ export async function loadClaimSnapshotInputs(
     currency: calc.currency ?? cpTerms.currency,
   };
 
+  // The order the ENGINE would use, not the order the query returned. The
+  // derivation record exists to pin how the figures were derived, so it has to
+  // record the ordering that actually produced them.
+  const orderedEvents = canonicalEventOrder(
+    events.map((e) => ({
+      id: e.id,
+      occurred_at: e.occurred_at,
+      event_type: e.event_type as SofEventInput["event_type"],
+    })),
+  );
+
   return {
     claim: claim as ClaimSnapshotInputs["claim"],
+    // Returned so callers can record WHICH calculation was sealed without
+    // re-querying — and so they cannot accidentally seal one snapshot while
+    // citing another's timestamp.
+    calculationComputedAt: (calc.computed_at as string) ?? null,
     ledger: {
       cpTerms,
       totals,
       breakdown: Array.isArray(calc.breakdown) ? calc.breakdown : [],
-      events,
+      events: orderedEvents.map((e) => ({
+        id: e.id,
+        event_type: e.event_type,
+        occurred_at: e.occurred_at,
+      })),
       asOf,
+      // Commits the proof to HOW the numbers were derived — which engine, which
+      // timezone transitions, which event order — not merely to what they were.
+      derivation: buildDerivationRecord(orderedEvents, cpTerms.port_timezone),
     },
   };
 }
@@ -110,6 +139,10 @@ export function contentHashOf(ledger: SnapshotLedger): string {
       breakdown: ledger.breakdown,
       events: ledger.events,
       clauseFlags: ledger.clauseFlags ?? [],
+      // Included so a change in engine, timezone table or event ordering counts
+      // as a change in the record. Without it the hourly sweep would treat a
+      // re-derivation under a new engine as "unchanged" and never re-anchor it.
+      derivation: ledger.derivation ?? null,
     })
   );
 }

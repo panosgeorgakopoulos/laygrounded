@@ -24,6 +24,28 @@ export type DaysBasis = "SHINC" | "SHEX" | "SHEX-UU" | "WWDSHEX-EIU" | "SSHEX" |
 // ASBATANKVOY = tanker running-hours regime (Part II Clauses 6–8).
 export type CpForm = "GENCON94" | "ASBATANKVOY";
 
+/**
+ * A port's non-working days, supplied by the caller.
+ *
+ * Until this existed the engine approximated a holiday as a Sunday, because it
+ * had no way to know any better — which silently mis-costed every fixture at a
+ * port whose holidays fall midweek, in whichever direction the basis runs.
+ *
+ * `holidays` are LOCAL calendar dates (YYYY-MM-DD) in the claim's
+ * `port_timezone`, not instants: a holiday is a day in the port's own reckoning,
+ * and resolving it to a UTC range here would shift it across the dateline for
+ * exactly the ports where it matters most.
+ *
+ * `source` is required and carries provenance. A calendar decides whether real
+ * money counts, so an entry that cannot say where it came from should not be in
+ * a calculation at all — the same discipline the knowledge base applies to case
+ * law.
+ */
+export interface PortCalendar {
+  holidays: string[];
+  source: string;
+}
+
 export interface CpTerms {
   cp_form?: CpForm; // absent = GENCON94 (legacy rows predate the field)
   laytime_allowed_hours: number;
@@ -36,6 +58,12 @@ export interface CpTerms {
   despatch_rate: number; // per day
   currency: string; // ISO 4217
   port_timezone?: string; // IANA timezone, e.g. "Asia/Singapore"
+  /**
+   * Optional. Absent means "no calendar known", which reproduces the engine's
+   * pre-calendar behaviour exactly — that default is what keeps the 500-case
+   * regression corpus valid rather than needing to be re-blessed.
+   */
+  port_calendar?: PortCalendar;
 }
 
 export interface SofEventInput {

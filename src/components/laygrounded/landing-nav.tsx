@@ -9,7 +9,9 @@ import { Logo } from "@/components/laygrounded/Logo";
 import styles from "./IslandNav.module.css";
 
 const NAV_ITEMS = [
+  { label: "Console",    href: "/console" },
   { label: "Claims",     href: "/claims" },
+  { label: "Defense",    href: "/defense" },
   { label: "New Claim",  href: "/claims/new" },
   { label: "Analytics",  href: "/analytics" },
   { label: "Simulator",  href: "/simulator" },
