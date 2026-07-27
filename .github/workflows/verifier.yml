@@ -1,0 +1,71 @@
+# Determinism and verifier-artifact CI.
+#
+# The claim this repo makes to arbitrators is that a laytime figure is
+# reproducible from its inputs alone. That claim is only as good as the checks
+# that enforce it, so all three run on every change:
+#
+#   1. the 500-case corpus still replays,
+#   2. the pinned timezone table still agrees with the runtime's ICU,
+#   3. the readable .mjs and the sealed .wasm compute an IDENTICAL root.
+#
+# (3) is the one that cannot be faked by a passing unit test: it executes both
+# artifacts, in two different engines, over the same 500 cases.
+
+name: verifier
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      # Node is required as well, and deliberately: the wasm is executed under
+      # node:wasi while the JS artifact runs under Node's own JS engine, so the
+      # equivalence check spans two independent runtimes rather than one.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: bun install --frozen-lockfile
+
+      - name: Engine + verifier unit tests
+        run: bun test packages/
+
+      - name: 500-case corpus replay
+        run: bun test src/lib/laytime/regression.test.ts
+
+      - name: App unit tests
+        run: bun test src/lib/
+
+      # Javy is pinned exactly: its v9 release broke bytecode compatibility, so
+      # the toolchain version is part of the artifact's identity. A floating
+      # version would silently change the published wasm hash.
+      - name: Install Javy 9.0.0
+        run: |
+          curl -fsSL -o javy.gz \
+            https://github.com/bytecodealliance/javy/releases/download/v9.0.0/javy-arm64-linux-v9.0.0.gz \
+          || curl -fsSL -o javy.gz \
+            https://github.com/bytecodealliance/javy/releases/download/v9.0.0/javy-x86_64-linux-v9.0.0.gz
+          gunzip javy.gz && chmod +x javy
+
+      - name: Build both artifacts and assert they agree
+        run: bun run verify:build
+
+      - name: Publish artifact manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: verifier-artifacts
+          path: |
+            packages/laytime-verify/dist/laygrounded-verify.mjs
+            packages/laytime-verify/dist/laygrounded-verify.wasm
+            packages/laytime-verify/dist/conformance.json
+            packages/laytime-verify/dist/manifest.json

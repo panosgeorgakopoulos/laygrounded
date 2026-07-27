@@ -13,7 +13,7 @@
 //
 // Pure — the caller supplies events and persists the candidates.
 
-import { toZonedTime } from "date-fns-tz";
+import { zonedDateKey } from "@laygrounded/laytime-core/tz";
 import type { SofEventInput } from "@/lib/laytime/types";
 
 export interface CalendarCandidate {
@@ -47,12 +47,12 @@ const COMPETING_EXPLANATION_TYPES = new Set([
 
 const MS_PER_HOUR = 3_600_000;
 
+// The SAME resolution the engine uses (pinned offset table, no Intl). Two
+// implementations of "which local day is this?" would eventually disagree, and
+// the observer would then propose a holiday the engine indexes under a
+// different date.
 function localDateKey(d: Date, tz: string): string {
-  const local = toZonedTime(d, tz);
-  const y = local.getFullYear();
-  const m = String(local.getMonth() + 1).padStart(2, "0");
-  const day = String(local.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return zonedDateKey(d.getTime(), tz);
 }
 
 /**

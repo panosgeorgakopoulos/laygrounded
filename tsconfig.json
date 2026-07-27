@@ -43,6 +43,13 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // Written by packages/laytime-verify/scripts/build-artifacts.ts at build
+    // time. entry-javy targets the Javy runtime, whose `Javy` global does not
+    // exist in this project's lib set — typechecking it here would fail on a
+    // file that is never part of the app.
+    "packages/laytime-verify/dist",
+    "packages/laytime-verify/src/entry-javy.ts",
+    "packages/laytime-verify/src/entry-node.ts"
   ]
 }

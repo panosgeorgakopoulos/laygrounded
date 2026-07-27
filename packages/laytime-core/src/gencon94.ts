@@ -3,8 +3,9 @@
 // GENCON 94 references cite the form's clause numbers; ASBATANKVOY references
 // cite Part II clauses ("ASBA-II-n").
 
-import { toZonedTime } from 'date-fns-tz';
 import { Decimal } from 'decimal.js';
+
+import { zonedParts, zonedDateKey } from "./tz";
 
 import {
   BreakdownRow,
@@ -45,22 +46,27 @@ function toISO(d: Date): string {
   return d.toISOString();
 }
 
+// Weekday and calendar date in the PORT's reckoning, from the pinned offset
+// table in ./tz — no Intl, no host tzdata, no Date setters.
+//
+// The previous implementation went through date-fns-tz's toZonedTime, which
+// reads the runtime's own ICU (Node and Bun disagreed on one machine: 418 zones
+// vs 445) and then rebuilt the instant with HOST-LOCAL setters, letting the
+// host's zone leak into the answer. On a host in Pacific/Apia a Singapore date
+// of 2011-12-30 came back as 2011-12-31 — a day flipped between counting and
+// excepted under SSHEX by nothing but where the server happened to be.
 function isSundayLocal(d: Date, tz: string): boolean {
-  return toZonedTime(d, tz).getDay() === 0;
+  return zonedParts(d.getTime(), tz).dayOfWeek === 0;
 }
 
 function isSaturdayLocal(d: Date, tz: string): boolean {
-  return toZonedTime(d, tz).getDay() === 6;
+  return zonedParts(d.getTime(), tz).dayOfWeek === 6;
 }
 
 // Local calendar date (YYYY-MM-DD) in the port's own timezone. Holidays are
 // days in the port's reckoning, so the comparison has to happen in local terms.
 function localDateKey(d: Date, tz: string): string {
-  const local = toZonedTime(d, tz);
-  const y = local.getFullYear();
-  const m = String(local.getMonth() + 1).padStart(2, "0");
-  const day = String(local.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return zonedDateKey(d.getTime(), tz);
 }
 
 function isCalendarHoliday(d: Date, tz: string, calendar?: PortCalendar): boolean {

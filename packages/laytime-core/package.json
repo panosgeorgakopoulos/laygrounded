@@ -13,7 +13,8 @@
     "./gencon94": "./src/gencon94.ts",
     "./types": "./src/types.ts",
     "./diff": "./src/diff.ts",
-    "./sensitivity": "./src/sensitivity.ts"
+    "./sensitivity": "./src/sensitivity.ts",
+    "./tz": "./src/tz.ts"
   },
   "files": ["src", "dist", "README.md", "LICENSE"],
   "scripts": {
@@ -31,7 +32,6 @@
     "dry-bulk"
   ],
   "dependencies": {
-    "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.6.0"
   }
 }

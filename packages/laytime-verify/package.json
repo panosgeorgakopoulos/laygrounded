@@ -1,0 +1,21 @@
+{
+  "name": "@laygrounded/laytime-verify",
+  "version": "1.0.0",
+  "description": "Offline verifier for LayGrounded laytime calculations. Re-runs a claim from a signed bundle with no network and no trust in the issuer.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": false,
+  "sideEffects": false,
+  "main": "./src/verify.ts",
+  "types": "./src/verify.ts",
+  "exports": { ".": "./src/verify.ts" },
+  "files": ["src", "dist", "README.md"],
+  "scripts": {
+    "build": "bun scripts/build-artifacts.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@laygrounded/laytime-core": "workspace:*",
+    "decimal.js": "^10.6.0"
+  }
+}
