@@ -62,3 +62,8 @@ packages/laytime-verify/dist/
 packages/laytime-verify/src/entry-node.ts
 packages/laytime-verify/src/entry-javy.ts
 /javy
+
+# npm is not this project's package manager — Bun is (bun.lock is the
+# lockfile of record). A stray package-lock.json makes Vercel detect npm, which
+# then chokes on the `workspace:*` protocol used by packages/*.
+package-lock.json

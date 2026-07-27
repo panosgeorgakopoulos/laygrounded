@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Bun is the runtime for scripts and tests (Node also works for `next dev`).
 
+**Bun is also the package manager, and that is load-bearing for deployment.**
+`bun.lock` is the lockfile of record; `package-lock.json` is gitignored. The
+workspace dependency uses the `workspace:*` protocol, which npm's older
+resolvers reject — and Vercel picks its package manager by sniffing lockfiles,
+so a stray `package-lock.json` silently switches the build to npm and breaks it
+(`Unsupported URL Type "workspace:"`). `vercel.json` pins
+`installCommand: "bun install --frozen-lockfile"` so detection never decides.
+Do not enable `ENABLE_EXPERIMENTAL_COREPACK` on Vercel: Corepack manages
+npm/pnpm/yarn only, and would choke on the `packageManager: "bun@…"` field.
+
 ```bash
 bun install                              # install dependencies
 bun run dev                              # dev server on :3000 (output tees to dev.log)
