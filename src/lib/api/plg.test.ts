@@ -151,3 +151,31 @@ describe("telemetryToSofEventRows", () => {
     expect(String(rows[0].raw_text)).toContain("bridge-stack");
   });
 });
+
+describe("parseFixtureRecap — turn time", () => {
+  // Regression: "TURN TIME: NIL" matched no numeric pattern, so the field fell
+  // through to the 6-hour default and was reported as neither matched nor
+  // missing. The pre-fixture analyzer then priced a comfortable turn time on a
+  // fixture that grants none — substituting the safe term for the dangerous
+  // one, silently. Found by driving the analyzer on a real recap.
+  const nilForms = ["TURN TIME: NIL", "TURN TIME NONE", "Turn time - zero", "TURNTIME: NIL"];
+
+  for (const form of nilForms) {
+    test(`reads "${form}" as zero turn time, not the default`, () => {
+      const r = parseFixtureRecap(`LAYTIME: 48 HRS SHINC\n${form}\nDEM USD 18,000 PDPR`);
+      expect(r.cpTerms.turn_time_hours).toBe(0);
+      expect(r.matched).toContain("turn_time_hours");
+    });
+  }
+
+  test("still reads an explicit numeric turn time", () => {
+    const r = parseFixtureRecap("LAYTIME: 48 HRS SHINC\nTURN TIME: 12 HRS\nDEM USD 18,000 PDPR");
+    expect(r.cpTerms.turn_time_hours).toBe(12);
+    expect(r.matched).toContain("turn_time_hours");
+  });
+
+  test("reports nothing when turn time is absent, rather than claiming a match", () => {
+    const r = parseFixtureRecap("LAYTIME: 48 HRS SHINC\nDEM USD 18,000 PDPR");
+    expect(r.matched).not.toContain("turn_time_hours");
+  });
+});
