@@ -19,12 +19,20 @@ settlement-expectation or protective-notice code anywhere in `src/`. Verified by
 grep on 2026-07-29, not by reading this file. Read the plan and
 `docs/build-memory/LEDGER.md` before starting.
 
-Phase **3.1 (live demurrage meter)**, **2.4 (protective notice automation)** and
-**3.2a (auto SoF chasing)** are done — see the plan file for each. Baseline:
-1183 app tests + 64 package tests, tsc/lint/build clean.
+**Phase 2 is now genuinely complete** (2.1–2.4), plus **3.1 (live demurrage
+meter)** and **3.2a (auto SoF chasing)** — see the plan file for each.
+Baseline: 1230 app tests + 64 package tests, tsc/lint/build clean.
 
-Still open from Phase 2: **2.2 counterparty risk graph** and **2.3 settlement
-expectation model**. Still open from Phase 3: **3.2b agent-side capture**.
+Still open: **3.2b agent-side capture**, then Phases 4–6.
+
+**One open product decision, deliberately not taken in code.** Both 2.2 and 2.3
+are scoped to the viewing company's own book. Widening 2.3 (settlement
+expectation) cross-tenant is defensible — it is keyed by claim shape, not by a
+named party, and `expectSettlement` already carries the k-anonymity floor.
+Widening 2.2 (counterparty profile) is a different question and should not be
+done on engineering judgement alone: it would publish a commercial judgement
+about a named third party who has no account and no way to contest it. See the
+header of `src/lib/intel/counterparty.ts`.
 
 Shipped so far: the voyage console (`/console`), Defense Mode (`/defense`,
 inbound claim adjudication), the port congestion index (`/congestion`, publication

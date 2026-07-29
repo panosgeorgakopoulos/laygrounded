@@ -180,8 +180,18 @@ export function parseFixtureRecap(text: string): RecapParseResult {
   }
 
   // 7. Turn time.
+  //
+  // "NIL"/"NONE"/"ZERO" is matched explicitly and before the numeric form.
+  // Recaps write it that way routinely, and it is not a cosmetic difference:
+  // no turn time means laytime starts the instant NOR is tendered, which is one
+  // of the most expensive terms in a fixture. Falling through to the 6-hour
+  // default would silently substitute the safe term for the dangerous one.
+  const turnNil = text.match(/TURN\s*TIME\s*[:\-]?\s*(NIL|NONE|ZERO)\b/i);
   const turn = text.match(/TURN\s*TIME[^\n]*?([\d.]+)\s*(?:HRS|HOURS)/i);
-  if (turn) {
+  if (turnNil) {
+    terms.turn_time_hours = 0;
+    matched.push("turn_time_hours");
+  } else if (turn) {
     terms.turn_time_hours = num(turn[1]);
     matched.push("turn_time_hours");
   }
