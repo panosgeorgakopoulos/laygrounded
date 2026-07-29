@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
   expectSettlement,
+  expectMarketSettlement,
   postureFromVerdicts,
   MIN_SAMPLE_SETTLEMENTS,
   MIN_SAMPLE_COMPANIES,
+  MIN_MARKET_SETTLEMENTS,
+  MIN_MARKET_COMPANIES,
   type ClaimProfile,
   type EvidencePosture,
   type SettlementObservation,
 } from "./expectation";
+import { MIN_VOYAGES, MIN_COMPANIES } from "@/lib/intel/congestion";
 
 const TARGET: ClaimProfile = {
   cpForm: "GENCON94",
@@ -208,5 +212,123 @@ describe("postureFromVerdicts", () => {
 
   test("unverified is distinct from corroborated so an unchecked claim cannot borrow a verified one's history", () => {
     expect(postureFromVerdicts([])).not.toBe(postureFromVerdicts(["corroborated"]));
+  });
+});
+
+describe("expectMarketSettlement — k-anonymity", () => {
+  /** n observations spread across `companies` distinct companies. */
+  function spread(n: number, companies: number, over: Partial<SettlementObservation> = {}) {
+    return Array.from({ length: n }, (_, i) => obs({ companyId: `mkt-${i % companies}`, ...over }));
+  }
+
+  test("floors match the published congestion index exactly", () => {
+    expect(MIN_MARKET_SETTLEMENTS).toBe(MIN_VOYAGES);
+    expect(MIN_MARKET_COMPANIES).toBe(MIN_COMPANIES);
+    expect(MIN_MARKET_SETTLEMENTS).toBe(5);
+    expect(MIN_MARKET_COMPANIES).toBe(3);
+  });
+
+  test("enough claims from enough companies reports", () => {
+    const r = expectMarketSettlement(TARGET, spread(6, 3), "me");
+    expect(r.verdict).toBe("estimated");
+    expect(r.scope).toBe("market");
+    expect(r.sampleCompanies).toBe(3);
+  });
+
+  test("enough claims but too few companies is withheld", () => {
+    const r = expectMarketSettlement(TARGET, spread(9, 2), "me");
+    expect(r.verdict).toBe("insufficient_data");
+    expect(r.methodology).toContain("distinct companies");
+  });
+
+  test("enough companies but too few claims is withheld", () => {
+    const r = expectMarketSettlement(TARGET, spread(4, 4), "me");
+    expect(r.verdict).toBe("insufficient_data");
+  });
+
+  test("exactly at both floors reports", () => {
+    const r = expectMarketSettlement(TARGET, spread(MIN_MARKET_SETTLEMENTS, MIN_MARKET_COMPANIES), "me");
+    expect(r.verdict).toBe("estimated");
+  });
+
+  test("the single-company exemption does NOT apply to the market path", () => {
+    // On the own-book path this sample reports; as a market figure it must not,
+    // because there the whole sample is somebody else's data.
+    const oneCompany = spread(8, 1);
+    expect(expectSettlement(TARGET, oneCompany).verdict).toBe("estimated");
+    expect(expectMarketSettlement(TARGET, oneCompany, "me").verdict).toBe("insufficient_data");
+  });
+});
+
+describe("expectMarketSettlement — viewer exclusion", () => {
+  test("the viewer's own rows are stripped from the sample", () => {
+    const mine = Array.from({ length: 20 }, () => obs({ companyId: "me", settledAmount: 100_000 }));
+    const others = Array.from({ length: 6 }, (_, i) =>
+      obs({ companyId: `mkt-${i % 3}`, settledAmount: 20_000 })
+    );
+    const r = expectMarketSettlement(TARGET, [...mine, ...others], "me");
+    expect(r.sampleSize).toBe(6);
+    // 20% from the others, not diluted toward 100% by the viewer's own rows.
+    expect(r.recoveryPct!.median).toBe(20);
+    expect(r.sampleCompanies).toBe(3);
+  });
+
+  test("exclusion can push a sample below the floor, and it is then withheld", () => {
+    const rows = [
+      ...Array.from({ length: 10 }, () => obs({ companyId: "me" })),
+      ...Array.from({ length: 2 }, (_, i) => obs({ companyId: `mkt-${i}` })),
+    ];
+    expect(expectMarketSettlement(TARGET, rows, "me").verdict).toBe("insufficient_data");
+  });
+
+  test("a desk that is the entire market gets no market figure", () => {
+    const r = expectMarketSettlement(TARGET, spreadOwn(10), "me");
+    expect(r.verdict).toBe("insufficient_data");
+    expect(r.sampleSize).toBe(0);
+  });
+
+  function spreadOwn(n: number) {
+    return Array.from({ length: n }, () => obs({ companyId: "me" }));
+  }
+});
+
+describe("expectMarketSettlement — disclosure", () => {
+  function spread(n: number, companies: number, over: Partial<SettlementObservation> = {}) {
+    return Array.from({ length: n }, (_, i) => obs({ companyId: `mkt-${i % companies}`, ...over }));
+  }
+
+  test("scope is tagged on both paths so the UI cannot mislabel them", () => {
+    expect(expectSettlement(TARGET, sample(5)).scope).toBe("own");
+    expect(expectMarketSettlement(TARGET, spread(6, 3), "me").scope).toBe("market");
+  });
+
+  test("market wording says it is the market, not your book", () => {
+    const r = expectMarketSettlement(TARGET, spread(6, 3), "me");
+    expect(r.note).toContain("Across the market");
+    expect(r.methodology).toContain("other than your own");
+    expect(r.methodology).toContain("Aggregates only");
+  });
+
+  test("a withheld market figure explains the floors rather than looking empty", () => {
+    const r = expectMarketSettlement(TARGET, spread(4, 2), "me");
+    expect(r.methodology).toContain(String(MIN_MARKET_SETTLEMENTS));
+    expect(r.methodology).toContain(String(MIN_MARKET_COMPANIES));
+    expect(r.methodology).toContain("congestion index");
+  });
+
+  test("only aggregates are returned — no company identifiers leak", () => {
+    const r = expectMarketSettlement(TARGET, spread(9, 3), "me");
+    expect(JSON.stringify(r)).not.toContain("mkt-");
+    expect(Object.keys(r).sort()).toEqual([
+      "daysToSettle", "methodology", "note", "recoveryPct",
+      "sampleCompanies", "sampleSize", "scope", "tier", "verdict",
+    ]);
+  });
+
+  test("own-book behaviour is unchanged by the market addition", () => {
+    const r = expectSettlement(TARGET, sample(MIN_SAMPLE_SETTLEMENTS));
+    expect(r.verdict).toBe("estimated");
+    expect(r.tier).toBe("exact");
+    expect(r.sampleCompanies).toBe(1);
   });
 });

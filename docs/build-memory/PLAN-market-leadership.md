@@ -345,9 +345,33 @@ Two subtleties worth keeping:
   checked"; collapsing them would let an unchecked claim borrow a verified
   one's settlement history.
 
-Currently own-book only. Widening the sample cross-tenant is defensible — it is
-keyed by claim *shape*, not by a named party, and the floor is already built —
-but it is customers' settlement data, so it is not switched on silently.
+**Market comparison — added 2026-07-29 on the user's decision.**
+`expectMarketSettlement()` returns the market figure beside your own, behind
+`PUBLIC_MARKET_EXPECTATIONS=1` (same gate style as `PUBLIC_CONGESTION_INDEX`).
+
+- Floors are `MIN_VOYAGES` (5) and `MIN_COMPANIES` (3) **imported from
+  `intel/congestion.ts`, not restated**, so the two can never drift apart.
+- The viewer's company is stripped **inside** `expectMarketSettlement`, not
+  trusted to the caller's query — same rule and same reasoning as
+  `intel/benchmark.ts`: compared against yourself you read as average whatever
+  you do, and the company floor is meant to count *other* contributors.
+- The single-company exemption on the own-book path does **not** apply to the
+  market path, where the entire sample is other people's data.
+- `market: null` (feature off) is a distinct state from `market.verdict =
+  insufficient_data` (feature on, sample too thin). The UI must not show
+  "disabled" as "no data" — hence `marketUnavailableReason`.
+- `toClaimProfile()` takes only `{ cp_form, cp_terms }`. That narrow signature
+  is load-bearing: it is what stops party identity drifting back into the
+  cross-tenant path. The market query does not select `counterparty_name`.
+- Cross-tenant reads need the service-role client, so the route constructs it
+  **only after** ownership is proven and **only when** the feature is on.
+- A direct query, not a matview, because settled claims are the rarest rows in
+  the schema. Promote to a matview if that stops being true — with the
+  SECURITY DEFINER grant discipline the other matviews use.
+
+Verified live both ways: with the toggle off, cross-tenant data present in the
+DB was **not** returned; with it on, 6 claims across 3 companies produced a
+figure, and 6 claims across only 2 companies was correctly withheld.
 
 ### 2.4 **[+] Protective notice automation** — ✅ DONE 2026-07-29
 

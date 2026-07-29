@@ -20,9 +20,9 @@
 // Pure — the caller reads rows with the service-role client and passes them in.
 
 import { percentile } from "@/lib/oracle/pricing";
-import { MIN_COMPANIES } from "@/lib/intel/congestion";
+import { MIN_COMPANIES, MIN_VOYAGES } from "@/lib/intel/congestion";
 
-/** Settled claims required before any figure is reported. */
+/** Settled claims required before any figure is reported on your own book. */
 export const MIN_SAMPLE_SETTLEMENTS = 4;
 
 /**
@@ -31,6 +31,15 @@ export const MIN_SAMPLE_SETTLEMENTS = 4;
  * difference out the other; same floor as the public index.
  */
 export const MIN_SAMPLE_COMPANIES = MIN_COMPANIES;
+
+/**
+ * Market-side floors — deliberately the *same numbers* as the port congestion
+ * index (`MIN_VOYAGES` / `MIN_COMPANIES`), imported rather than restated so the
+ * two cannot drift apart. If the published index ever tightens, this tightens
+ * with it.
+ */
+export const MIN_MARKET_SETTLEMENTS = MIN_VOYAGES;
+export const MIN_MARKET_COMPANIES = MIN_COMPANIES;
 
 /**
  * Evidence posture at the time of settlement. This is the single strongest
@@ -69,7 +78,11 @@ export interface Band {
   p75: number;
 }
 
+/** Whose settlements the figure was drawn from. */
+export type ExpectationScope = "own" | "market";
+
 export interface SettlementExpectation {
+  scope: ExpectationScope;
   verdict: "estimated" | "insufficient_data";
   tier: MatchTier | null;
   sampleSize: number;
@@ -81,6 +94,19 @@ export interface SettlementExpectation {
   note: string;
   /** How the figure was produced — shown alongside it, never omitted. */
   methodology: string;
+}
+
+/** Your book and the market side by side. */
+export interface SettlementExpectationPair {
+  own: SettlementExpectation;
+  /**
+   * Null when market expectations are switched off. Distinct from a `market`
+   * carrying `insufficient_data`, which means the feature is on and the sample
+   * was too thin — the UI must not present "disabled" as "no data".
+   */
+  market: SettlementExpectation | null;
+  /** Set when `market` is null, so the reason is never guessed at. */
+  marketUnavailableReason: string | null;
 }
 
 const TIER_LABEL: Record<MatchTier, string> = {
@@ -119,8 +145,42 @@ function band(values: number[]): Band | null {
   };
 }
 
-function unusable(sampleSize: number, sampleCompanies: number, note: string): SettlementExpectation {
+const TIER_ORDER: MatchTier[] = ["exact", "posture", "form", "all"];
+
+interface SampleRule {
+  scope: ExpectationScope;
+  minSettlements: number;
+  minCompanies: number;
+  /**
+   * When false the company floor applies only to samples that actually span
+   * more than one company — the own-book case, where the floor would otherwise
+   * block a desk from reading its own data.
+   */
+  alwaysEnforceCompanyFloor: boolean;
+}
+
+const OWN_RULE: SampleRule = {
+  scope: "own",
+  minSettlements: MIN_SAMPLE_SETTLEMENTS,
+  minCompanies: MIN_SAMPLE_COMPANIES,
+  alwaysEnforceCompanyFloor: false,
+};
+
+const MARKET_RULE: SampleRule = {
+  scope: "market",
+  minSettlements: MIN_MARKET_SETTLEMENTS,
+  minCompanies: MIN_MARKET_COMPANIES,
+  alwaysEnforceCompanyFloor: true,
+};
+
+function unusable(
+  rule: SampleRule,
+  sampleSize: number,
+  sampleCompanies: number,
+  note: string
+): SettlementExpectation {
   return {
+    scope: rule.scope,
     verdict: "insufficient_data",
     tier: null,
     sampleSize,
@@ -129,24 +189,19 @@ function unusable(sampleSize: number, sampleCompanies: number, note: string): Se
     daysToSettle: null,
     note,
     methodology:
-      `Requires at least ${MIN_SAMPLE_SETTLEMENTS} settled claims; samples spanning ` +
-      `more than one company additionally require ${MIN_SAMPLE_COMPANIES} distinct companies.`,
+      rule.scope === "market"
+        ? `Market figures require at least ${rule.minSettlements} settled claims from at least ` +
+          `${rule.minCompanies} distinct companies, excluding your own. Same floors as the ` +
+          `published port congestion index.`
+        : `Requires at least ${rule.minSettlements} settled claims; samples spanning ` +
+          `more than one company additionally require ${rule.minCompanies} distinct companies.`,
   };
 }
 
-const TIER_ORDER: MatchTier[] = ["exact", "posture", "form", "all"];
-
-/**
- * Expected settlement outcome for a claim with `target`'s profile.
- *
- * `history` may be the caller's own settled claims, a cross-company sample, or
- * both — the k-anonymity floor applies only when more than one company is
- * actually represented in the chosen sample, so a desk querying purely its own
- * book is never blocked by a rule meant to protect other people's data.
- */
-export function expectSettlement(
+function runExpectation(
   target: ClaimProfile,
-  history: SettlementObservation[]
+  history: SettlementObservation[],
+  rule: SampleRule
 ): SettlementExpectation {
   // A claim with nothing claimed has no ratio to speak of; excluded here rather
   // than producing an infinite or negative recovery percentage downstream.
@@ -154,17 +209,18 @@ export function expectSettlement(
 
   for (const tier of TIER_ORDER) {
     const sample = usable.filter((h) => matches(tier, target, h.profile));
-    if (sample.length < MIN_SAMPLE_SETTLEMENTS) continue;
+    if (sample.length < rule.minSettlements) continue;
 
     const companies = new Set(sample.map((s) => s.companyId));
     // The floor exists to stop one company's outcomes being inferred from an
-    // aggregate. A single-company sample is that company reading its own data,
-    // which the floor was never meant to prevent.
-    if (companies.size > 1 && companies.size < MIN_SAMPLE_COMPANIES) continue;
+    // aggregate. On the own-book path a single-company sample is that company
+    // reading its own data, which the floor was never meant to prevent; on the
+    // market path it is always enforced, because there the whole sample is
+    // other people's data.
+    const floorApplies = rule.alwaysEnforceCompanyFloor || companies.size > 1;
+    if (floorApplies && companies.size < rule.minCompanies) continue;
 
-    const recoveryPct = band(
-      sample.map((s) => (s.settledAmount / s.claimedAmount) * 100)
-    );
+    const recoveryPct = band(sample.map((s) => (s.settledAmount / s.claimedAmount) * 100));
     const dayValues = sample
       .map((s) => s.daysToSettle)
       .filter((d): d is number => d !== null && d >= 0);
@@ -172,8 +228,10 @@ export function expectSettlement(
     const median = recoveryPct?.median ?? 0;
     const days = band(dayValues);
     const daysNote = days ? `, typically in ${Math.round(days.median)} days` : "";
+    const lead = rule.scope === "market" ? "Across the market, claims" : "Claims";
 
     return {
+      scope: rule.scope,
       verdict: "estimated",
       tier,
       sampleSize: sample.length,
@@ -181,23 +239,75 @@ export function expectSettlement(
       recoveryPct,
       daysToSettle: days,
       note:
-        `Claims like this settle at about ${median}% of the amount claimed${daysNote}. ` +
+        `${lead} like this settle at about ${median}% of the amount claimed${daysNote}. ` +
         `Based on ${sample.length} settled claim${sample.length === 1 ? "" : "s"} (${TIER_LABEL[tier]}).`,
       methodology:
         `Median of settled ÷ claimed across ${sample.length} settled claims matched on ` +
-        `${TIER_LABEL[tier]}, drawn from ${companies.size} compan${companies.size === 1 ? "y" : "ies"}. ` +
-        `p25–p75 shown as the band. Claims with no claimed amount are excluded.`,
+        `${TIER_LABEL[tier]}, drawn from ${companies.size} compan${companies.size === 1 ? "y" : "ies"}` +
+        `${rule.scope === "market" ? " other than your own" : ""}. ` +
+        `p25–p75 shown as the band. Claims with no claimed amount are excluded.` +
+        (rule.scope === "market"
+          ? ` Aggregates only — no individual company's settlements are identifiable, and the ` +
+            `sample is withheld below ${rule.minSettlements} claims or ${rule.minCompanies} companies.`
+          : ""),
     };
   }
 
   const total = usable.length;
   const companies = new Set(usable.map((s) => s.companyId)).size;
+  const noun = rule.scope === "market" ? "market settlement history" : "settled claims";
   return unusable(
+    rule,
     total,
     companies,
     total === 0
-      ? "No settled claims yet — an expectation needs settlement history to learn from."
-      : `Only ${total} settled claim${total === 1 ? "" : "s"} available; at least ${MIN_SAMPLE_SETTLEMENTS} are needed before a figure means anything.`
+      ? `No ${noun} yet — an expectation needs settlement history to learn from.`
+      : `Only ${total} settled claim${total === 1 ? "" : "s"} available${
+          rule.scope === "market" ? ` from ${companies} compan${companies === 1 ? "y" : "ies"}` : ""
+        }; at least ${rule.minSettlements} claim${rule.minSettlements === 1 ? "" : "s"}${
+          rule.scope === "market" ? ` from ${rule.minCompanies} companies` : ""
+        } are needed before a figure means anything.`
+  );
+}
+
+/**
+ * Expected settlement outcome from the caller's own settled claims.
+ *
+ * The k-anonymity floor applies only when more than one company is actually
+ * represented, so a desk querying purely its own book is never blocked by a
+ * rule meant to protect other people's data.
+ */
+export function expectSettlement(
+  target: ClaimProfile,
+  history: SettlementObservation[]
+): SettlementExpectation {
+  return runExpectation(target, history, OWN_RULE);
+}
+
+/**
+ * Expected settlement outcome across the market.
+ *
+ * `viewerCompanyId` is **excluded from the sample here**, not trusted to the
+ * caller's query. Two reasons: on a thin profile a desk would otherwise be
+ * compared largely against itself and read as perfectly average whatever it
+ * does, and the company floor is meant to count *other* contributors. The same
+ * exclusion is enforced the same way in `intel/benchmark.ts`.
+ *
+ * The sample is keyed by claim SHAPE — CP form, laytime basis, evidence
+ * posture, contested status — never by counterparty or any other party
+ * identity, and only aggregates leave this function. That is what makes it a
+ * different proposition from a per-named-entity score (see the header of
+ * `intel/counterparty.ts`).
+ */
+export function expectMarketSettlement(
+  target: ClaimProfile,
+  history: SettlementObservation[],
+  viewerCompanyId: string
+): SettlementExpectation {
+  return runExpectation(
+    target,
+    history.filter((h) => h.companyId !== viewerCompanyId),
+    MARKET_RULE
   );
 }
 

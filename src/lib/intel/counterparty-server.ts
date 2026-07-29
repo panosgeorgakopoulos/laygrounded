@@ -16,9 +16,11 @@ import {
 } from "@/lib/intel/counterparty";
 import {
   expectSettlement,
+  expectMarketSettlement,
   postureFromVerdicts,
   type ClaimProfile,
   type SettlementExpectation,
+  type SettlementExpectationPair,
   type SettlementObservation,
 } from "@/lib/settlement/expectation";
 import { computeTimeBar } from "@/lib/time-bar";
@@ -111,7 +113,20 @@ async function loadCompanyBook(companyId: string, supabase: SupabaseClient) {
   return { rows, calcs, verdicts, proposals, events } as const;
 }
 
-function toClaimProfile(claim: RawClaim, verdicts: string[], contested: boolean): ClaimProfile {
+/**
+ * Claim SHAPE, and nothing else.
+ *
+ * The parameter is deliberately narrower than `RawClaim`: everything a profile
+ * is built from is contractual form, and no party identity is reachable from
+ * here. That is what lets the same helper serve the cross-tenant market sample
+ * — the market query does not even select `counterparty_name`, and this
+ * signature is what stops it drifting back in.
+ */
+function toClaimProfile(
+  claim: { cp_form: string | null; cp_terms: { days_basis?: string } | null },
+  verdicts: string[],
+  contested: boolean
+): ClaimProfile {
   return {
     cpForm: claim.cp_form ?? "GENCON94",
     daysBasis: claim.cp_terms?.days_basis ?? "SHINC",
@@ -204,26 +219,104 @@ export async function listCounterparties(
 }
 
 /**
- * Settlement expectation for one claim, learned from the company's own settled
- * history.
+ * Whether cross-tenant market expectations are switched on.
  *
- * Own-book only, for the same reason the profile is: widening this to a
- * cross-tenant corpus is defensible (the sample is keyed by claim shape, not by
- * a named party, and `expectSettlement` already carries the k-anonymity floor
- * for it) but it is a product decision about customers' settlement data, so it
- * is not taken silently here.
+ * Same gate style as the published congestion index (`=== "1"`, opt-in). Read
+ * at request time inside a dynamic route — note the repo trap that an ISR page
+ * would freeze this at build time, so do not move this check into one.
+ */
+export function marketExpectationsEnabled(): boolean {
+  return process.env.PUBLIC_MARKET_EXPECTATIONS === "1";
+}
+
+const MARKET_SAMPLE_LIMIT = 2000;
+
+/**
+ * Cross-tenant settled claims, for the market baseline.
+ *
+ * Requires a service-role client: RLS scopes every claim read to one company,
+ * which is exactly right for user data and exactly wrong for an aggregate. The
+ * safety therefore lives here rather than in the database, and it is threefold:
+ * the caller is an authenticated route, the viewer's own company is stripped
+ * inside `expectMarketSettlement`, and only aggregates ever leave the pure
+ * model — the raw rows loaded here never reach a response.
+ *
+ * A direct query rather than a matview because settled claims are the rarest
+ * rows in the schema. If that stops being true, this is the thing to promote to
+ * a matview, with the SECURITY DEFINER grant discipline the others use.
+ */
+async function loadMarketSettlements(
+  service: SupabaseClient
+): Promise<SettlementObservation[]> {
+  const { data: claims, error } = await service
+    .from("claims")
+    .select("id, company_id, cp_form, cp_terms, settled_amount, settled_at, created_at")
+    .not("settled_amount", "is", null)
+    .limit(MARKET_SAMPLE_LIMIT);
+  if (error) throw new Error(`MARKET_QUERY_FAILED: ${error.message}`);
+
+  const rows = claims ?? [];
+  const ids = rows.map((c) => c.id);
+  if (ids.length === 0) return [];
+
+  const [{ data: calcRows }, { data: evidenceRows }, { data: proposalRows }] = await Promise.all([
+    service
+      .from("laytime_calculations")
+      .select("claim_id, demurrage_amount, despatch_amount, computed_at")
+      .in("claim_id", ids)
+      .order("computed_at", { ascending: false }),
+    service.from("evidence_checks").select("claim_id, verdict").in("claim_id", ids),
+    service.from("event_proposals").select("claim_id").in("claim_id", ids),
+  ]);
+
+  const calcs: Record<string, { demurrage_amount: number; despatch_amount: number }> = {};
+  for (const c of calcRows ?? []) {
+    if (!calcs[c.claim_id]) {
+      calcs[c.claim_id] = {
+        demurrage_amount: c.demurrage_amount ?? 0,
+        despatch_amount: c.despatch_amount ?? 0,
+      };
+    }
+  }
+  const verdicts: Record<string, string[]> = {};
+  for (const e of evidenceRows ?? []) (verdicts[e.claim_id] ??= []).push(e.verdict);
+  const contested = new Set((proposalRows ?? []).map((p) => p.claim_id));
+
+  return rows.map((c) => ({
+    companyId: c.company_id,
+    claimedAmount: claimedNet(calcs[c.id] ?? null) ?? 0,
+    settledAmount: c.settled_amount ?? 0,
+    daysToSettle: daysBetween(c.created_at, c.settled_at),
+    profile: toClaimProfile(c, verdicts[c.id] ?? [], contested.has(c.id)),
+  }));
+}
+
+/**
+ * Settlement expectation for one claim: the company's own history, and — when
+ * `PUBLIC_MARKET_EXPECTATIONS=1` — the market's alongside it.
+ *
+ * `service` is optional so the own-book answer never depends on a privileged
+ * client being available; without it the market side reports as switched off
+ * rather than silently degrading to your own numbers relabelled as the market's.
  */
 export async function loadSettlementExpectation(
   companyId: string,
   claimId: string,
-  supabase: SupabaseClient
-): Promise<SettlementExpectation> {
+  supabase: SupabaseClient,
+  service?: SupabaseClient
+): Promise<SettlementExpectationPair> {
   const { rows, calcs, verdicts, proposals } = await loadCompanyBook(companyId, supabase);
 
   const target = rows.find((c) => c.id === claimId);
   if (!target) throw new Error("CLAIM_NOT_FOUND");
 
-  const history: SettlementObservation[] = rows
+  const targetProfile = toClaimProfile(
+    target,
+    verdicts[claimId] ?? [],
+    (proposals[claimId]?.raised ?? 0) > 0
+  );
+
+  const ownHistory: SettlementObservation[] = rows
     .filter((c) => c.id !== claimId && c.settled_amount !== null)
     .map((c) => ({
       companyId,
@@ -233,8 +326,37 @@ export async function loadSettlementExpectation(
       profile: toClaimProfile(c, verdicts[c.id] ?? [], (proposals[c.id]?.raised ?? 0) > 0),
     }));
 
-  return expectSettlement(
-    toClaimProfile(target, verdicts[claimId] ?? [], (proposals[claimId]?.raised ?? 0) > 0),
-    history
-  );
+  const own = expectSettlement(targetProfile, ownHistory);
+
+  if (!marketExpectationsEnabled()) {
+    return {
+      own,
+      market: null,
+      marketUnavailableReason:
+        "Market comparison is switched off for this deployment (PUBLIC_MARKET_EXPECTATIONS).",
+    };
+  }
+  if (!service) {
+    return {
+      own,
+      market: null,
+      marketUnavailableReason: "Market comparison is unavailable — no privileged client.",
+    };
+  }
+
+  const marketHistory = await loadMarketSettlements(service);
+  return {
+    own,
+    // The target claim is excluded by id as well as by company: a claim that is
+    // itself already settled would otherwise sit in its own baseline.
+    market: expectMarketSettlement(
+      targetProfile,
+      marketHistory.filter((h) => h.companyId !== companyId),
+      companyId
+    ),
+    marketUnavailableReason: null,
+  };
 }
+
+/** Re-exported so callers can type a single expectation without reaching in. */
+export type { SettlementExpectation };
