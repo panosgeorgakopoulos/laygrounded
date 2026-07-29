@@ -291,25 +291,63 @@ a standard that arbitrators, P&I clubs, and lenders actually adopt. It also
 underwrites Phase 5 financing and is the credible basis for open-sourcing the
 engine (your Tier 4.2).
 
-### 2.2 **[Y] Counterparty risk graph — Know Your Counterparty**
+### 2.2 **[Y] Counterparty risk graph — Know Your Counterparty** — ✅ DONE 2026-07-29 (own-book scope)
 
-Genuinely net-new: `kb_clauses`/`kb_precedents` is a *clause* knowledge base,
-not a counterparty graph. Fuse settlement outcomes, dispute rates, sanctions
-screening (`compliance/sanctions.ts`), and honesty index into a reputation
-score.
+`src/lib/intel/counterparty.ts` (pure, 21 tests) + `counterparty-server.ts`;
+route `GET /api/intel/counterparty` (list) and `?name=<x>` (profile).
 
-Handle with care: this is a reputation system for named commercial entities,
-built partly from cross-tenant private data. Scope it to observable, defensible
-facts with disclosed methodology and a correction path. Do not ship
-opaque scores about identifiable counterparties.
+**Scope decision — the important part.** Every behavioural signal is computed
+from the **viewing company's own book**. This build deliberately does NOT
+create a cross-tenant reputation database keyed by counterparty name.
 
-### 2.3 **[+] Settlement expectation model**
+The distinction is not squeamishness. `honesty_index` and
+`oracle_voyage_stats` are keyed by **port and month** — places and time
+buckets. A score keyed by a **named company** is a different object: it lets
+one customer's private settlement behaviour be inferred from an aggregate, and
+it publishes a commercial judgement about a third party who has no account, no
+notice and no way to contest it. k-anonymity does not fix that, because the
+subject of the score *is* the identified entity. Widening this is a product and
+legal decision, not a migration — the pure module would not need to change.
 
-LMAA awards are largely unpublished — the industry negotiates blind. Your
-`settlements` table is a proprietary outcome corpus nobody else has. "Claims
-with this clause profile and this evidence posture settle at 61% of claimed,
-in 34 days." Prices a negotiation before it starts, and directly feeds Defense
-Mode and the co-claim network.
+Sanctions screening is the one exception (public-record data, already run per
+claim) and is reported **verbatim**, never folded into a score. A match or
+possible-match forces `elevated` and is named as the first driver.
+
+Three properties the shape enforces:
+1. **No opaque number.** Every signal carries its value, sample size and a
+   plain-language reading; the band is a *count of adverse signals*, not a
+   weighted score, and names which ones drove it. A weighted score would imply
+   precision this data lacks and hide the reasoning.
+2. **Insufficient signals are ignored, not scored neutral.** Otherwise a
+   two-claim history quietly averages out to a confident "moderate". Thin
+   history reads `unrated`.
+3. **Counterparty matching is exact, never fuzzy.** Silently merging "Cargill"
+   and "Cargill International" would attribute one legal entity's behaviour to
+   another — the precise error this kind of profile must not make.
+
+### 2.3 **[+] Settlement expectation model** — ✅ DONE 2026-07-29
+
+`src/lib/settlement/expectation.ts` (pure, 26 tests); route
+`GET /api/claims/[claimId]/settlement-expectation`.
+
+Tiered matching (`exact` → `posture` → `form` → `all`) that **always discloses
+which tier it settled on** — an estimate from a relaxed sample presenting
+itself as an exact one is worse than no estimate. Below `MIN_SAMPLE_SETTLEMENTS`
+it returns `insufficient_data` with a reason rather than a number from two
+observations.
+
+Two subtleties worth keeping:
+- **The k-anonymity floor applies only when the sample spans more than one
+  company.** A desk querying purely its own book must never be blocked by a
+  rule that exists to protect other people's data.
+- **`unverified` is a distinct posture from `corroborated`.** "We checked and
+  the archive agreed" is a materially stronger position than "we never
+  checked"; collapsing them would let an unchecked claim borrow a verified
+  one's settlement history.
+
+Currently own-book only. Widening the sample cross-tenant is defensible — it is
+keyed by claim *shape*, not by a named party, and the floor is already built —
+but it is customers' settlement data, so it is not switched on silently.
 
 ### 2.4 **[+] Protective notice automation** — ✅ DONE 2026-07-29
 
