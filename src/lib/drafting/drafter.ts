@@ -29,7 +29,25 @@ export type DraftKind =
   | "demand_letter"
   | "counter_argument"
   | "settlement_proposal"
-  | "letter_of_protest";
+  | "letter_of_protest"
+  | "protective_notice"
+  | "sof_chase";
+
+/**
+ * Kinds that may be drafted before a calculation exists.
+ *
+ * Every other kind quantifies a claim and therefore needs one. These three are
+ * the opposite: each exists precisely because the claim is not yet computable —
+ * a protest records disputed facts mid-voyage, a protective notice preserves a
+ * claim whose pack is incomplete, and a chase asks for the milestones that are
+ * blocking the calculation. Requiring totals would disable them exactly when
+ * they are needed.
+ */
+export const PRE_CALCULATION_KINDS: ReadonlySet<DraftKind> = new Set([
+  "letter_of_protest",
+  "protective_notice",
+  "sof_chase",
+]);
 export type DraftTone = "firm" | "neutral" | "conciliatory";
 
 export interface PositionAnalysis {
@@ -79,6 +97,10 @@ const KIND_BRIEFS: Record<DraftKind, string> = {
     "A commercially pragmatic settlement proposal: restate the claim's strength briefly, then propose settlement. Any settlement figure must be one of the amounts provided in the claim data — typically the computed demurrage amount; do not invent a compromise figure.",
   letter_of_protest:
     "A Letter of Protest for immediate service on the terminal/shippers by the Master or port agent, protesting a stoppage of cargo operations attributed to bad weather that independent evidence contradicts (see the evidence verdicts in the claim data — cite the contradicted weather checks explicitly, including the archive findings quoted in their summaries). Record the disputed window(s), state that the alleged weather conditions are not borne out by independent archive data, reserve all owners' rights to count the period as laytime or time on demurrage, and request the recipient note and countersign the protest. Do NOT demand payment — a protest preserves rights; it does not quantify a claim.",
+  protective_notice:
+    "A protective notice of demurrage claim, served on the charterers BEFORE the contractual time bar expires, to preserve the claim while supporting documents are still being assembled. State that owners hereby give notice of a claim for demurrage arising at the named port under the charterparty, identify the vessel, voyage and cargo operation, and cite the time-bar deadline given in the claim data. Where the claim data lists outstanding claim-pack items, state plainly that the full supporting documentation will follow and identify what is awaited. Reserve owners' rights fully. Do NOT state a final claim amount unless the claim data contains a computed demurrage figure — if it does not, say expressly that the quantum will be advised once the calculation is complete. Never imply the claim is already quantified when it is not.",
+  sof_chase:
+    "A short, courteous operational request to the port agent for the missing Statement of Facts milestones listed in the claim data. Identify the vessel, voyage and port, list each missing item as a numbered request in plain operational language, and ask for the signed SoF where it is outstanding. State briefly that the laytime calculation cannot be finalised without them. This is routine correspondence between operators, NOT legal correspondence: make no allegation, assert no breach, reserve no rights, cite no charterparty clause, and quote NO monetary amount whatsoever.",
 };
 
 const TONE_BRIEFS: Record<DraftTone, string> = {
@@ -89,6 +111,28 @@ const TONE_BRIEFS: Record<DraftTone, string> = {
 
 function systemPrompt(ctx: DraftContext, kind: DraftKind, tone: DraftTone): string {
   const form = ctx.claim.cpForm === "ASBATANKVOY" ? "ASBATANKVOY" : "GENCON 94";
+
+  // A chase is an operator emailing a port agent for a timestamp. Framing it as
+  // counsel drafting in a "dispute" produces a legal letter with reservations
+  // of rights, which is both wrong for the recipient and a good way to sour the
+  // relationship the product depends on for its input data.
+  if (kind === "sof_chase") {
+    return `You are a vessel operator writing a short routine email to the port agent for a call under ${form}.
+
+NON-NEGOTIABLE RULES:
+- Use ONLY the facts in the CLAIM DATA. Ask only for the items listed in its sofGaps.
+- Quote NO monetary amount of any kind. Cite NO charterparty clause.
+- Make no allegation, assert no breach, reserve no rights, threaten nothing.
+- All times are UTC. Do not invent names, addresses or letterheads; sign as "Operations".
+
+TASK: ${KIND_BRIEFS[kind]}
+TONE: Courteous, brief and practical — a colleague asking a colleague.
+
+OUTPUT FORMAT:
+- First line exactly: SUBJECT: <one-line subject referencing vessel and voyage>
+- Then a short email: greeting, one sentence of context, a numbered list of the items requested, a closing line offering to help.`;
+  }
+
   return `You are senior claims counsel for a vessel owner/operator, drafting ${kind.replace(/_/g, " ")} correspondence in a laytime and demurrage dispute under ${form}.
 
 NON-NEGOTIABLE GROUNDING RULES:
@@ -130,9 +174,7 @@ export async function generateDraft(
     throw new Error("DRAFTING_UNAVAILABLE");
   }
   const ctx = await assembleDraftContext(claimId, client);
-  // A protest records disputed facts mid-voyage and quantifies nothing, so it
-  // is the one kind that may be drafted before a calculation exists.
-  if (!ctx.totals && kind !== "letter_of_protest") throw new Error("NO_CALCULATION");
+  if (!ctx.totals && !PRE_CALCULATION_KINDS.has(kind)) throw new Error("NO_CALCULATION");
 
   // --- Step 1: position analysis (structured) ---
   const analysisResponse = await generateWithFallback({
@@ -161,7 +203,10 @@ export async function generateDraft(
   let letter = firstText(letterResponse);
 
   // --- Step 3: grounding verification (+ one repair round) ---
-  let grounding = verifyDraftGrounding(letter, ctx);
+  // A chase is operational traffic to a port agent, not a claim — no figure
+  // belongs in it, so the check is absolute rather than "must match the claim".
+  const groundingOpts = { forbidAmounts: kind === "sof_chase" };
+  let grounding = verifyDraftGrounding(letter, ctx, groundingOpts);
   let repaired = false;
   if (!grounding.verified) {
     repaired = true;
@@ -192,7 +237,7 @@ export async function generateDraft(
       },
     });
     letter = firstText(repairResponse);
-    grounding = verifyDraftGrounding(letter, ctx);
+    grounding = verifyDraftGrounding(letter, ctx, groundingOpts);
   }
 
   // --- Parse subject ---

@@ -1,0 +1,11 @@
+# API routes and app layout
+
+## API route conventions
+
+- Routes live under `src/app/api/`. Business errors are thrown as sentinel string messages (`"CLAIM_NOT_FOUND"`, `"INVALID_CP_TERMS"`, …) and converted by `apiError()` in `src/lib/api-errors.ts`, which maps known sentinels to their HTTP status and turns anything unknown into a logged, opaque 500. Add new sentinels to `DEFAULT_KNOWN` or pass them via `extraKnown`.
+- `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts` — there is no `src/middleware.ts`) applies per-instance in-memory rate limiting to `/api` and `/oauth/*` (`oauth-reg:` 15/min on the unauthenticated RFC-7591 registration write, `oauth:` 60/min elsewhere), a deny-by-default CORS allowlist (`ALLOWED_ORIGINS`), and redirects users with a Supabase auth cookie from `/`, `/sign-in`, `/sign-up` to `/claims`.
+
+## Layout gotchas
+
+- `src/app/(authenticated)/` is guarded client-side by the layout plus proxy redirects.
+- `src/app/rooms/[token]/` — the public claim room (server-rendered, token-authenticated, `robots noindex`); intentionally **outside** the authenticated group and the proxy matcher. Don't "fix" this by moving it in.

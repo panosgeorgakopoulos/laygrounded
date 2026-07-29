@@ -59,6 +59,16 @@ const ctx: DraftContext = {
   settlement: null,
   timeBarDays: 90,
   ets: null,
+  timeBar: {
+    timeBarDays: 90,
+    anchorEventAt: "2026-05-01T00:00:00Z",
+    deadline: "2026-07-30T00:00:00Z",
+    daysRemaining: 30,
+    state: "ok",
+    completeness: [],
+    complete: true,
+  },
+  sofGaps: [],
 };
 
 describe("verifyDraftGrounding", () => {
@@ -122,5 +132,54 @@ describe("verifyDraftGrounding", () => {
     );
     expect(r.amountsChecked).toBe(0);
     expect(r.verified).toBe(true);
+  });
+});
+
+describe("forbidAmounts — money-free correspondence", () => {
+  it("rejects an amount even when it matches a real claim figure", () => {
+    // The point of the rule: for a chase, a correct figure is still wrong.
+    const ok = verifyDraftGrounding("We claim USD 14,583.33.", ctx);
+    expect(ok.verified).toBe(true);
+
+    const forbidden = verifyDraftGrounding("We claim USD 14,583.33.", ctx, {
+      forbidAmounts: true,
+    });
+    expect(forbidden.verified).toBe(false);
+    expect(forbidden.issues[0].type).toBe("amount");
+    expect(forbidden.issues[0].message).toContain("must not quote any monetary amount");
+  });
+
+  it("passes a genuinely money-free request", () => {
+    const r = verifyDraftGrounding(
+      "Please confirm the time cargo operations completed, and send the signed SoF.",
+      ctx,
+      { forbidAmounts: true }
+    );
+    expect(r.verified).toBe(true);
+    expect(r.amountsChecked).toBe(0);
+  });
+
+  it("still ignores hours and dates under the stricter rule", () => {
+    const r = verifyDraftGrounding(
+      "Operations ran 26 hours and finished on 5 March 2024.",
+      ctx,
+      { forbidAmounts: true }
+    );
+    expect(r.verified).toBe(true);
+  });
+
+  it("reports every offending amount, not just the first", () => {
+    const r = verifyDraftGrounding("USD 14,583.33 and USD 25,000.", ctx, {
+      forbidAmounts: true,
+    });
+    expect(r.issues).toHaveLength(2);
+  });
+
+  it("leaves clause checking untouched", () => {
+    const r = verifyDraftGrounding("Per GENCON94-99 we ask for the SoF.", ctx, {
+      forbidAmounts: true,
+    });
+    expect(r.verified).toBe(false);
+    expect(r.issues[0].type).toBe("clause");
   });
 });

@@ -311,26 +311,112 @@ with this clause profile and this evidence posture settle at 61% of claimed,
 in 34 days." Prices a negotiation before it starts, and directly feeds Defense
 Mode and the co-claim network.
 
-### 2.4 **[+] Protective notice automation**
+### 2.4 **[+] Protective notice automation** — ✅ DONE 2026-07-29
 
-Claims die silently on time bars — pure, avoidable loss. `time-bar.ts` already
-computes the deadline and the pack checklist. Auto-draft and (on approval)
-auto-file a protective notice before expiry. Small build, immediate and
-provable customer money saved. Excellent renewal story.
+`src/lib/voyage/protective-notice.ts` (pure, 16 tests) decides from a
+`TimeBarStatus` whether a notice is due; the sweep in `notices-server.ts`
+drafts it and queues it for approval. Shipped together with 3.2 — see below.
+
+**The judgement call worth keeping:** an *expired* bar returns `expired`, not
+`due`. Serving a protective notice after the deadline does not revive the
+claim, and a letter implying otherwise puts a false position in writing. The
+console still shows the claim as expired; this module simply refuses to paper
+over it. Verdict precedence is `settled` → `already_filed` → `no_deadline` →
+`expired` → window check, and `already_filed` deliberately outranks the
+deadline so a re-sweep cannot double-file.
 
 ---
 
 ## Phase 3 — In-voyage engagement (4–6 weeks)
 
-### 3.1 **[Y] Live demurrage meter**
+### 3.1 **[Y] Live demurrage meter** — ✅ DONE 2026-07-29
 
-Voyage-shield already sweeps live claims and drafts letters of protest. Add the
-running exposure counter and projected demurrage from live AIS ETA through the
-engine, alerting before laytime is exhausted. Turns a post-mortem tool into a
-daily one — the retention mechanic the product currently has no equivalent of.
-Lands on the Phase 0 voyage console.
+Running exposure counter for voyages still in progress, on the Phase 0 console.
 
-### 3.2 **[Y+] Auto SoF chasing → [+] agent-side capture** ★ fix the supply side
+- `src/lib/voyage/exposure.ts` (pure, 29 tests) + `exposure-server.ts` (I/O).
+- `GET /api/claims/[claimId]/exposure`; `LiveExposureMeter` on `/console`.
+
+**How it works, and why it is not a second implementation of the counting
+rules.** The engine derives its window end from the last COMPLETED_* event, so
+"used laytime as of T" is exactly the engine's own answer for an event set whose
+operations completed at T. The module appends a *synthetic* completion at the
+cut-off and runs the real engine. Exact, not approximate, including under `-UU`
+bases — `getOperationsIntervals` already closes an unpaired operation at
+`windowEnd`.
+
+**Three things that cost time and will cost it again:**
+
+1. `used_hours` is **uncapped** and the engine **throws**
+   `CALCULATION_TIMEOUT` past 1440 hours from commencement. A fixed 60-day probe
+   trips it, and a `catch` around the probe silently reports "never exhausted".
+   The search now grows outward and lets the engine declare its own horizon.
+2. Bisect the **demurrage clock**, not `used_hours >= allowed`. The engine
+   credits a whole hour for a partial final hour, so `used_hours` reaches the
+   allowance when the *last laytime hour begins* — an hour early. Bisecting on
+   `time_on_demurrage_hours > 0` lands on the instant money starts and needs no
+   assumption that hour blocks are clock-aligned (they are aligned to
+   commencement, which an odd NOR time makes arbitrary).
+3. Alert bands must be **min(absolute, share of allowance)**. A flat 72h
+   "approaching" band fires from hour one of a 72h fixture — permanently on,
+   therefore ignored. A pure percentage fails the other way on short fixtures.
+
+**Not done:** `projectedCompletionAt` is wired through the pure module and
+tested, but `exposure-server.ts` passes `null` — no AIS ETA source is connected
+yet. The module refuses to invent a completion time, so the meter currently
+reports accrued exposure only. Connecting `market/ais-telemetry.ts` is the next
+increment.
+
+### 3.2a **[Y] Auto SoF chasing** — ✅ DONE 2026-07-29
+
+`src/lib/ingestion/sof-gaps.ts` (pure, 26 tests) finds missing milestones;
+`src/lib/voyage/notices-server.ts` drafts a chase to the agent and queues it.
+Route `POST /api/voyage-notices/run` (cron or authed, `dryRun` supported);
+`GET` on the same route is the approval queue. Migration
+`20260729000000_protective_notices_and_sof_chasing.sql` — applied and verified
+in the catalog.
+
+**Design decisions that will look arbitrary later but are not:**
+
+1. **Not `voyage_alerts`.** That table's `event_id` is `NOT NULL`, and both of
+   these are about *absent* facts. Its triage wording is also evidence-specific
+   ("Independent evidence contradicts a claimed delay"), so reusing it would
+   mislabel every notice on the console. Both features ride
+   `drafts` + `pending_human_reviews` instead, which is what that table's own
+   header comment says it is for.
+2. **Two different idempotency guards, because they fail differently.** A
+   protective notice is once-per-claim-ever, so the guard is "does a
+   `protective_notice` draft exist" — it survives a review being approved or
+   rejected, which the partial unique index does not. A chase is
+   once-per-*gap-set*: the `signature` from `detectSofGaps` is stored on the
+   review payload and compared next pass, so re-chasing an unanswered request is
+   suppressed but a newly-missing milestone still gets asked for.
+3. **Staleness gating.** Absent milestones only count as gaps after
+   `staleAfterHours` (default 48) of silence — a live voyage is *supposed* to
+   have no completion event. Two exceptions are reported immediately: a missing
+   NOR (the engine throws without one, so there is nothing to wait for) and an
+   unclosed interruption (the engine runs it to the end of the window, silently
+   skewing the result rather than failing loudly).
+4. **A chase is not legal correspondence.** It gets its own system prompt — an
+   operator emailing an agent, not counsel drafting in a dispute — and
+   `verifyDraftGrounding(..., { forbidAmounts: true })` rejects *any* monetary
+   amount, including a correct one. A figure turns a request for a timestamp
+   into an implied claim against the recipient. Prompting alone would not be
+   checkable; this is.
+
+`DraftContext` gained `timeBar` and `sofGaps` because the closed-world rule
+means a letter can only cite what is in the context. Two test fixtures
+(`grounding.test.ts`, `pdf.test.ts`) construct a full context and were updated.
+
+**Verified end to end** against the live book on 2026-07-29: the sweep's
+verdicts were checked against SQL (2 chases due on the two event-less claims, 0
+notices due because all three complete claims are ~780 days past their bars →
+the `expired` path), the `already_filed` guard was confirmed to suppress a
+re-sweep, and a duplicate pending review was confirmed rejected with 23505.
+**Not verified: the generated letters themselves** — the `GEMINI_API_KEY` is at
+quota (429 on both models in the chain). The sweep handled that correctly,
+recording the failure per-claim in `report.errors` and continuing.
+
+### 3.2b **[+] Agent-side capture** ★ fix the supply side
 
 Chasing agents for SoFs attacks the symptom. The cause is that port agents —
 who *originate* every SoF — have no tooling and are chased by email by every

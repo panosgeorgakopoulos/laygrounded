@@ -1,0 +1,5 @@
+# Agentic legal drafter
+
+`context.ts` assembles the closed-world `DraftContext` (claim, CP terms, totals, breakdown, clause flags with GENCON reference text, evidence verdicts, negotiation proposals, settlement, ETS). `drafter.ts` runs a two-step chain (step 1 = structured position analysis against a JSON schema, step 2 = the letter) through `generateWithFallback` in `src/lib/ai/gemini.ts`; the model resolves as `DRAFTER_MODEL_ID` → `GEMINI_MODEL` → `gemini-2.5-pro`, falling back along `geminiModelChain()`.
+
+`grounding.ts` then verifies **every monetary figure and clause citation in the letter against the database** (pure function, unit-tested); a failing draft gets one repair round with the violations quoted, and the final grounding verdict is stored on the `drafts` row — the UI badges drafts as "GROUNDED ✓" only when verification passed. Route: `/api/claims/[claimId]/draft` (GET list / POST generate). Kinds: demand_letter, counter_argument, settlement_proposal; tones: firm/neutral/conciliatory.

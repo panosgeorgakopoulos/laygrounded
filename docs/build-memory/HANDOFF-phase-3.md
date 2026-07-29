@@ -10,10 +10,21 @@ You are continuing work on **LayGrounded** at `/Users/panosgeorgakopoulos/Downlo
 
 ## Where things stand
 
-Phases 0–2 of `docs/build-memory/PLAN-market-leadership.md` are **done, merged to
-`main`, and pushed** (merge commit `f171c91`). Read that plan file and
-`docs/build-memory/LEDGER.md` before starting. Baseline: 1107 app tests + 64
-package tests, tsc/lint/build clean.
+Phase 0, Phase 1 and Phase **2.1** of `docs/build-memory/PLAN-market-leadership.md`
+are **done, merged to `main`, and pushed** (merge commit `f171c91`). An earlier
+version of this line claimed all of Phase 2 was done; it was not. **2.2
+(counterparty risk graph), 2.3 (settlement expectation model) and 2.4
+(protective notice automation) are unbuilt** — there is no `reputation`,
+settlement-expectation or protective-notice code anywhere in `src/`. Verified by
+grep on 2026-07-29, not by reading this file. Read the plan and
+`docs/build-memory/LEDGER.md` before starting.
+
+Phase **3.1 (live demurrage meter)**, **2.4 (protective notice automation)** and
+**3.2a (auto SoF chasing)** are done — see the plan file for each. Baseline:
+1183 app tests + 64 package tests, tsc/lint/build clean.
+
+Still open from Phase 2: **2.2 counterparty risk graph** and **2.3 settlement
+expectation model**. Still open from Phase 3: **3.2b agent-side capture**.
 
 Shipped so far: the voyage console (`/console`), Defense Mode (`/defense`,
 inbound claim adjudication), the port congestion index (`/congestion`, publication

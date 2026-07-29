@@ -66,7 +66,24 @@ export function allowedClauses(ctx: DraftContext): Set<string> {
   return clauses;
 }
 
-export function verifyDraftGrounding(text: string, ctx: DraftContext): GroundingResult {
+export interface GroundingOptions {
+  /**
+   * Reject ANY monetary amount, even one that matches a claim figure.
+   *
+   * Some correspondence must not quote money at all — a chase to a port agent
+   * is routine operational traffic, and a figure in it turns a request for a
+   * timestamp into an implied claim against the recipient. The brief tells the
+   * model that; this makes it checkable rather than merely requested, which is
+   * the same discipline the rest of the grounding layer applies.
+   */
+  forbidAmounts?: boolean;
+}
+
+export function verifyDraftGrounding(
+  text: string,
+  ctx: DraftContext,
+  opts: GroundingOptions = {}
+): GroundingResult {
   const issues: GroundingIssue[] = [];
   const amounts = allowedAmounts(ctx);
   const clauses = allowedClauses(ctx);
@@ -78,6 +95,14 @@ export function verifyDraftGrounding(text: string, ctx: DraftContext): Grounding
     const value = parseAmount(raw);
     if (isNaN(value)) continue;
     amountsChecked++;
+    if (opts.forbidAmounts) {
+      issues.push({
+        type: "amount",
+        value: m[0].trim(),
+        message: `This document must not quote any monetary amount; found ${m[0].trim()}.`,
+      });
+      continue;
+    }
     const ok = amounts.some((a) => Math.abs(a - value) <= AMOUNT_TOLERANCE);
     if (!ok) {
       issues.push({

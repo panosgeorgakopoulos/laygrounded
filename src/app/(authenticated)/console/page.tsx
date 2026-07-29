@@ -6,6 +6,8 @@ import { requireAuth } from "@/lib/server-auth";
 import { createClient } from "@/lib/supabase/server";
 import { computeTimeBar } from "@/lib/time-bar";
 import { triageBook, type TriageClaimInput, type TriageSeverity } from "@/lib/console/triage";
+import { loadCompanyExposure, type ClaimExposure } from "@/lib/voyage/exposure-server";
+import { LiveExposureMeter } from "@/components/laygrounded/live-exposure-meter";
 import type { LaytimeCalculationRow } from "@/lib/database-types";
 import styles from "./Console.module.css";
 
@@ -65,6 +67,7 @@ async function loadTriage() {
       summary: triageBook([]),
       totalClaims: 0,
       pendingCalendar: { total: 0, ports: [] as string[], firstClaimId: null },
+      exposures: [] as ClaimExposure[],
     };
   }
 
@@ -145,7 +148,23 @@ async function loadTriage() {
 
   const pendingCalendar = await loadPendingCalendarDays(auth.companyId);
 
-  return { summary: triageBook(inputs), totalClaims: claims.length, pendingCalendar };
+  // Live exposure prices each voyage through the engine, so it is the most
+  // expensive thing on this page. A failure here must not take the triage queue
+  // with it — the queue is the console's reason to exist, the meter is an
+  // addition to it.
+  let exposures: ClaimExposure[] = [];
+  try {
+    exposures = await loadCompanyExposure(auth.companyId, supabase);
+  } catch {
+    exposures = [];
+  }
+
+  return {
+    summary: triageBook(inputs),
+    totalClaims: claims.length,
+    pendingCalendar,
+    exposures,
+  };
 }
 
 function PendingCalendarWidget({
@@ -193,7 +212,7 @@ function SeverityChip({ severity }: { severity: TriageSeverity }) {
 }
 
 async function TriageQueue() {
-  const { summary, totalClaims, pendingCalendar } = await loadTriage();
+  const { summary, totalClaims, pendingCalendar, exposures } = await loadTriage();
 
   if (totalClaims === 0) {
     return (
@@ -214,6 +233,10 @@ async function TriageQueue() {
     return (
       <>
         <PendingCalendarWidget pending={pendingCalendar} />
+        {/* Shown even with an empty queue: a voyage burning laytime right now
+            needs no triage action, and "the book is clear" would otherwise be
+            the only thing on screen while money accrues. */}
+        <LiveExposureMeter exposures={exposures} />
         <div className={styles.empty}>
         <div className={styles.emptyIcon}>
           <CheckCircle2 size={30} />
@@ -231,6 +254,7 @@ async function TriageQueue() {
   return (
     <>
       <PendingCalendarWidget pending={pendingCalendar} />
+      <LiveExposureMeter exposures={exposures} />
 
       <div className={styles.summaryRow}>
         <div className={styles.stat}>

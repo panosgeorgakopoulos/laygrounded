@@ -41,6 +41,16 @@ const CTX: DraftContext = {
   settlement: null,
   timeBarDays: 90,
   ets: null,
+  timeBar: {
+    timeBarDays: 90,
+    anchorEventAt: "2026-05-01T00:00:00Z",
+    deadline: "2026-07-30T00:00:00Z",
+    daysRemaining: 30,
+    state: "ok",
+    completeness: [],
+    complete: true,
+  },
+  sofGaps: [],
 };
 
 function input(over: Partial<DemandLetterInput> = {}): DemandLetterInput {

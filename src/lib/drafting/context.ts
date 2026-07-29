@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { GENCON94_REFERENCE } from "@/lib/clause-flagging";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
+import { computeTimeBar, type TimeBarStatus } from "@/lib/time-bar";
+import { detectSofGaps, type SofGap } from "@/lib/ingestion/sof-gaps";
 
 export interface DraftContext {
   claim: {
@@ -46,6 +48,15 @@ export interface DraftContext {
   settlement: { settledAmount: number; settledAt: string | null } | null;
   timeBarDays: number;
   ets: { estimatedCostEur: number; co2Tonnes: number } | null;
+  /**
+   * The computed time-bar position. A protective notice has to cite the actual
+   * deadline and name the outstanding pack items, and the closed-world rule
+   * means it can only cite what is in here — so the deadline is assembled with
+   * the rest of the facts rather than passed alongside them.
+   */
+  timeBar: TimeBarStatus;
+  /** Missing SoF milestones — the subject of a chase request. */
+  sofGaps: SofGap[];
 }
 
 export async function assembleDraftContext(
@@ -68,6 +79,7 @@ export async function assembleDraftContext(
     { data: evidence },
     { data: proposals },
     { data: ets },
+    { count: documentCount },
   ] = await Promise.all([
     supabase.from("laytime_calculations").select("*").eq("claim_id", claimId).maybeSingle(),
     supabase
@@ -94,7 +106,13 @@ export async function assembleDraftContext(
       .select("estimated_cost_eur, co2_tonnes")
       .eq("claim_id", claimId)
       .maybeSingle(),
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("claim_id", claimId),
   ]);
+
+  const confirmedEvents = events ?? [];
 
   return {
     claim: {
@@ -150,5 +168,25 @@ export async function assembleDraftContext(
     ets: ets
       ? { estimatedCostEur: ets.estimated_cost_eur, co2Tonnes: ets.co2_tonnes }
       : null,
+    timeBar: computeTimeBar({
+      timeBarDays: claim.time_bar_days ?? 90,
+      events: confirmedEvents.map((e) => ({
+        event_type: e.event_type,
+        occurred_at: e.occurred_at,
+      })),
+      hasSofDocument: (documentCount ?? 0) > 0,
+      // The claim row's terms are the ones the engine would run; a claim whose
+      // terms fail validation never reaches a draft, so their presence here is
+      // the same test the pack checklist means.
+      hasValidCpTerms: claim.cp_terms != null,
+      hasCalculation: !!calc,
+    }),
+    sofGaps: detectSofGaps({
+      events: confirmedEvents.map((e) => ({
+        event_type: e.event_type,
+        occurred_at: e.occurred_at,
+      })),
+      now: new Date().toISOString(),
+    }).gaps,
   };
 }
