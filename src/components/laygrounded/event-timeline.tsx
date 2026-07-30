@@ -159,11 +159,27 @@ export function EventTimeline({
                         <Lock size={10} aria-hidden="true" /> LOCKED
                       </span>
                     )}
+                    {/* Resolver-derived events are labelled distinctly: an
+                        operator accepting a weather stoppage should be able to
+                        see at a glance that it came from the archive rather
+                        than from the Master's statement. */}
                     <span
                       className={styles.eventSource}
-                      style={{ color: ev.source === "ai" ? "var(--color-text-tertiary)" : "var(--color-primary)" }}
+                      style={{
+                        color:
+                          ev.source === "wwd_resolver"
+                            ? "#1e40af"
+                            : ev.source === "ai"
+                              ? "var(--color-text-tertiary)"
+                              : "var(--color-primary)",
+                      }}
+                      title={
+                        ev.source === "wwd_resolver"
+                          ? "Derived from the hourly weather archive by the Weather Working Day resolver"
+                          : undefined
+                      }
                     >
-                      {ev.source}
+                      {ev.source === "wwd_resolver" ? "weather archive" : ev.source}
                     </span>
                     <span
                       className={styles.eventStatus}

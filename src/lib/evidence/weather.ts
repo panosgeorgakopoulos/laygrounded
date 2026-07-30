@@ -20,21 +20,45 @@ export interface HourlyWeatherWindow {
   windGustKn: Array<number | null>;
 }
 
+/**
+ * Candidate query strings for a port, most specific first.
+ *
+ * The Open-Meteo geocoder matches on a place NAME and does not parse a trailing
+ * country: "Rotterdam, NL" and "Santos, BR" both return nothing while
+ * "Rotterdam" and "Santos" resolve immediately. Since `claims.port` is written
+ * by operators in exactly that "City, CC" form, the bare-name fallback is what
+ * makes real claims geocodable at all.
+ *
+ * Exported for testing — the fallback is the whole fix, so it has to be visible.
+ */
+export function geocodeCandidates(portName: string): string[] {
+  const full = portName.trim();
+  if (!full) return [];
+  const candidates = [full];
+  const head = full.split(",")[0]?.trim();
+  if (head && head !== full) candidates.push(head);
+  return candidates;
+}
+
 export async function geocodePort(portName: string): Promise<PortLocation | null> {
-  const url = `${GEOCODE_URL}?name=${encodeURIComponent(portName)}&count=1&language=en&format=json`;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    if (!res.ok) return null;
-    const json: any = await res.json();
-    const hit = json?.results?.[0];
-    if (!hit || typeof hit.latitude !== "number" || typeof hit.longitude !== "number") {
-      return null;
+  for (const candidate of geocodeCandidates(portName)) {
+    const url = `${GEOCODE_URL}?name=${encodeURIComponent(candidate)}&count=1&language=en&format=json`;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+      if (!res.ok) continue;
+      const json: any = await res.json();
+      const hit = json?.results?.[0];
+      if (!hit || typeof hit.latitude !== "number" || typeof hit.longitude !== "number") {
+        continue;
+      }
+      const label = [hit.name, hit.country].filter(Boolean).join(", ");
+      return { lat: hit.latitude, lon: hit.longitude, label };
+    } catch {
+      // Try the next candidate rather than giving up on a transient failure.
+      continue;
     }
-    const label = [hit.name, hit.country].filter(Boolean).join(", ");
-    return { lat: hit.latitude, lon: hit.longitude, label };
-  } catch {
-    return null;
   }
+  return null;
 }
 
 // Fetches hourly precipitation and wind for [startISO, endISO] at a location.
