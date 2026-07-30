@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: "Claims",     href: "/claims" },
   { label: "Defense",    href: "/defense" },
   { label: "New Claim",  href: "/claims/new" },
+  { label: "Voyages",    href: "/voyages" },
   { label: "Analytics",  href: "/analytics" },
   { label: "Simulator",  href: "/simulator" },
   { label: "Compliance", href: "/compliance" },

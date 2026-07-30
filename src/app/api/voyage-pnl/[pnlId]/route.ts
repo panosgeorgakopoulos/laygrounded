@@ -19,8 +19,14 @@ const PatchSchema = z.object({
   status: z.enum(["estimate", "actual", "closed"]).optional(),
   currency: z.string().length(3).optional(),
   notes: z.string().max(2000).optional(),
-  /** Additional port calls to link. Existing links are never removed here. */
+  /** Additional port calls to link. */
   addClaimIds: z.array(z.string().uuid()).optional(),
+  /**
+   * Port calls to unlink. Removes the link only — the claim and its laytime
+   * calculation are untouched, which is why this is a link-table delete and
+   * never a cascade.
+   */
+  removeClaimIds: z.array(z.string().uuid()).optional(),
 });
 
 /** Ownership is checked explicitly as well as by RLS, per the route convention. */
@@ -98,6 +104,15 @@ export async function PATCH(
     let rejected: string[] = [];
     if (body.addClaimIds?.length) {
       ({ rejected } = await linkClaims(pnlId, auth.companyId, body.addClaimIds, supabase));
+    }
+    if (body.removeClaimIds?.length) {
+      // Scoped to this P&L, so a stray id cannot unlink another voyage's calls.
+      const { error: unlinkErr } = await supabase
+        .from("voyage_pnl_claims")
+        .delete()
+        .eq("pnl_id", pnlId)
+        .in("claim_id", body.removeClaimIds);
+      if (unlinkErr) throw new Error(`CLAIM_UNLINK_FAILED: ${unlinkErr.message}`);
     }
 
     const loaded = await recomputeAndStorePnl(pnlId, supabase);
