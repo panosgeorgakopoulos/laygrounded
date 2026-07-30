@@ -15,12 +15,22 @@ import { apiError } from "@/lib/api-errors";
 // other tenant's calculations, which is the kind of change nobody would notice
 // until a claim was already argued.
 
+// Every threshold is tunable. A charterer whose contract says 0.4 mm/h cannot
+// use a tool that insists on 0.2 — and the resolver now attributes each fired
+// threshold to whoever set it, so a custom figure is disclosed rather than
+// hidden. Traceability is what makes tuning safe to offer.
+//
+// `null` is a first-class value meaning INSENSITIVE, distinct from omitting the
+// field (leave as-is) and from zero (stop on the first drop). The three cases
+// are genuinely different and the schema keeps them apart.
+const Threshold = z.number().finite().min(0).max(1000).nullable();
+
 const PatchSchema = z.object({
   cargoKey: z.string().min(1).max(60),
-  // Currently the only tunable. The thresholds themselves are deliberately not
-  // exposed yet — they decide money, and a settings slider is the wrong place
-  // to change what "raining hard enough to stop work" means without review.
-  minStoppageMinutes: z.number().int().min(5).max(1440),
+  minStoppageMinutes: z.number().int().min(5).max(1440).optional(),
+  precipMmPerHr: Threshold.optional(),
+  windKn: Threshold.optional(),
+  gustKn: Threshold.optional(),
 });
 
 interface Row {
@@ -64,12 +74,27 @@ export async function GET() {
         return {
           cargoKey: g.cargo_key,
           label: g.label,
-          precipMmPerHr: g.precip_mm_per_hr,
-          windKn: g.wind_kn,
-          gustKn: g.gust_kn,
+          precipMmPerHr: o ? o.precip_mm_per_hr : g.precip_mm_per_hr,
+          windKn: o ? o.wind_kn : g.wind_kn,
+          gustKn: o ? o.gust_kn : g.gust_kn,
           minStoppageMinutes: o?.min_stoppage_minutes ?? g.min_stoppage_minutes,
+          // The shared baseline, so the UI can show what a tuned figure departs
+          // from and offer an honest reset.
+          baseline: {
+            precipMmPerHr: g.precip_mm_per_hr,
+            windKn: g.wind_kn,
+            gustKn: g.gust_kn,
+            minStoppageMinutes: g.min_stoppage_minutes,
+          },
           defaultMinStoppageMinutes: g.min_stoppage_minutes,
           overridden: !!o,
+          overriddenDimensions: o
+            ? ([
+                o.precip_mm_per_hr !== g.precip_mm_per_hr ? "precipitation" : null,
+                o.wind_kn !== g.wind_kn ? "wind" : null,
+                o.gust_kn !== g.gust_kn ? "gust" : null,
+              ].filter(Boolean) as string[])
+            : [],
           sourceLabel: o?.source_label ?? g.source_label,
           notes: g.notes,
         };
@@ -93,7 +118,7 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    const { cargoKey, minStoppageMinutes } = parsed.data;
+    const { cargoKey, ...patch } = parsed.data;
 
     // The override copies the global's thresholds so the resolver reads one
     // complete row. Copying rather than referencing is deliberate: a later
@@ -101,7 +126,7 @@ export async function PATCH(req: NextRequest) {
     // tuned profile underneath them.
     const { data: global } = await supabase
       .from("cargo_weather_profiles")
-      .select("cargo_key, label, precip_mm_per_hr, wind_kn, gust_kn, min_temp_c, max_temp_c, aliases")
+      .select("cargo_key, label, precip_mm_per_hr, wind_kn, gust_kn, min_temp_c, max_temp_c, min_stoppage_minutes, aliases")
       .is("company_id", null)
       .eq("cargo_key", cargoKey)
       .maybeSingle();
@@ -109,27 +134,77 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "UNKNOWN_CARGO" }, { status: 404 });
     }
 
-    const { error } = await supabase.from("cargo_weather_profiles").upsert(
-      {
-        company_id: auth.companyId,
-        cargo_key: global.cargo_key,
-        label: global.label,
-        precip_mm_per_hr: global.precip_mm_per_hr,
-        wind_kn: global.wind_kn,
-        gust_kn: global.gust_kn,
-        min_temp_c: global.min_temp_c,
-        max_temp_c: global.max_temp_c,
-        aliases: global.aliases ?? [],
-        min_stoppage_minutes: minStoppageMinutes,
-        source_label: `Tuned by your company (baseline: ${global.label})`,
-        created_by: auth.userId,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "company_id,cargo_key" }
-    );
+    // Any existing override is the base for a partial edit; otherwise the
+    // global is. Editing one threshold must not silently reset the others a
+    // tenant already tuned.
+    const { data: existing } = await supabase
+      .from("cargo_weather_profiles")
+      .select("precip_mm_per_hr, wind_kn, gust_kn, min_stoppage_minutes")
+      .eq("company_id", auth.companyId)
+      .eq("cargo_key", cargoKey)
+      .maybeSingle();
+
+    const current = existing ?? {
+      precip_mm_per_hr: global.precip_mm_per_hr,
+      wind_kn: global.wind_kn,
+      gust_kn: global.gust_kn,
+      min_stoppage_minutes: global.min_stoppage_minutes,
+    };
+
+    // `undefined` means "leave alone"; an explicit null means "insensitive".
+    const pick = <T,>(next: T | undefined, cur: T): T => (next === undefined ? cur : next);
+
+    const row = {
+      company_id: auth.companyId,
+      cargo_key: global.cargo_key,
+      label: global.label,
+      precip_mm_per_hr: pick(patch.precipMmPerHr, current.precip_mm_per_hr),
+      wind_kn: pick(patch.windKn, current.wind_kn),
+      gust_kn: pick(patch.gustKn, current.gust_kn),
+      min_temp_c: global.min_temp_c,
+      max_temp_c: global.max_temp_c,
+      aliases: global.aliases ?? [],
+      min_stoppage_minutes: pick(patch.minStoppageMinutes, current.min_stoppage_minutes),
+      source_label: `Tuned by your company (baseline: ${global.label})`,
+      created_by: auth.userId,
+      updated_at: new Date().toISOString(),
+    };
+
+    // If the result is identical to the baseline in every respect, drop the
+    // override rather than keeping a row that claims to be a custom threshold
+    // while changing nothing — the resolver would then wrongly announce
+    // "tenant custom thresholds" over a figure that is purely ours.
+    const identical =
+      row.precip_mm_per_hr === global.precip_mm_per_hr &&
+      row.wind_kn === global.wind_kn &&
+      row.gust_kn === global.gust_kn &&
+      row.min_stoppage_minutes === global.min_stoppage_minutes;
+
+    if (identical) {
+      const { error: delErr } = await supabase
+        .from("cargo_weather_profiles")
+        .delete()
+        .eq("company_id", auth.companyId)
+        .eq("cargo_key", cargoKey);
+      if (delErr) throw new Error(`PROFILE_SAVE_FAILED: ${delErr.message}`);
+      return NextResponse.json({ saved: true, cargoKey, reverted: true });
+    }
+
+    const { error } = await supabase
+      .from("cargo_weather_profiles")
+      .upsert(row, { onConflict: "company_id,cargo_key" });
     if (error) throw new Error(`PROFILE_SAVE_FAILED: ${error.message}`);
 
-    return NextResponse.json({ saved: true, cargoKey, minStoppageMinutes });
+    return NextResponse.json({
+      saved: true,
+      cargoKey,
+      profile: {
+        precipMmPerHr: row.precip_mm_per_hr,
+        windKn: row.wind_kn,
+        gustKn: row.gust_kn,
+        minStoppageMinutes: row.min_stoppage_minutes,
+      },
+    });
   } catch (e) {
     return apiError(e, "settings/cargo-profiles/PATCH", { PROFILE_SAVE_FAILED: 503 });
   }

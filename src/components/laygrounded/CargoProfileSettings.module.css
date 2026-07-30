@@ -105,3 +105,49 @@
 }
 
 .reset:hover { border-color: #1e40af; color: #1e40af; }
+
+.provenanceNote {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin: -0.5rem 0 0.875rem;
+  max-width: 44rem;
+}
+
+.overrideNote {
+  font-size: 0.6875rem;
+  color: #1e40af;
+  margin: 0.1875rem 0 0;
+}
+
+.fields {
+  display: flex;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.field { display: flex; flex-direction: column; }
+
+.fieldLabel {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.1875rem;
+}
+
+.fields input {
+  width: 4.5rem;
+  font-size: 0.8125rem;
+  padding: 0.3125rem 0.4375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.changed {
+  border-color: #1e40af !important;
+  background: #eff6ff !important;
+  font-weight: 600;
+}

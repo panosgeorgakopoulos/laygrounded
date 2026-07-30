@@ -62,6 +62,10 @@ function toProfile(r: ProfileRow): CargoWeatherProfile {
     maxTempC: r.max_temp_c,
     minStoppageMinutes: r.min_stoppage_minutes,
     sourceLabel: r.source_label,
+    // The public tool queries `company_id is null` only, so a profile here can
+    // never be a tenant override. Pinned rather than derived so that stays true.
+    origin: "baseline",
+    overriddenDimensions: [],
   };
 }
 

@@ -30,6 +30,16 @@
 
 export type StoppageDimension = "precipitation" | "wind" | "gust" | "temperature";
 
+/**
+ * Whose threshold decided a stoppage.
+ *
+ * This exists for arbitration. When a counterparty disputes an excepted hour,
+ * the first question is "on whose rules?" — a published LayGrounded baseline is
+ * a very different thing to argue with than a threshold the claimant set for
+ * themselves. The answer has to be in the output, not in a support ticket.
+ */
+export type ThresholdOrigin = "baseline" | "tenant";
+
 export interface CargoWeatherProfile {
   cargoKey: string;
   label: string;
@@ -41,6 +51,18 @@ export interface CargoWeatherProfile {
   maxTempC: number | null;
   minStoppageMinutes: number;
   sourceLabel: string;
+  /** Whether this profile as a whole is a tenant override or the shared baseline. */
+  origin: ThresholdOrigin;
+  /**
+   * The dimensions a tenant actually changed.
+   *
+   * Per-dimension, not per-profile, because an override is rarely wholesale: a
+   * charterer may negotiate a precipitation figure and leave the crane wind
+   * limits at our baseline. Saying "tenant profile" over a block that fired on
+   * an untouched wind threshold would misattribute it, and misattribution is
+   * exactly what this field exists to prevent.
+   */
+  overriddenDimensions?: StoppageDimension[];
 }
 
 /** One hourly archive reading. Nulls are absent readings, not zeroes. */
@@ -58,19 +80,35 @@ export interface Interval {
   to: string;
 }
 
+/** One threshold that fired, and whose it was. */
+export interface FiredThreshold {
+  dimension: StoppageDimension;
+  /** The value crossed. Null only for temperature, which is a range. */
+  threshold: number | null;
+  origin: ThresholdOrigin;
+}
+
 export interface ExceptedBlock {
   from: string;
   to: string;
   hours: number;
   /** Which thresholds fired across the run. Never empty. */
   dimensions: StoppageDimension[];
+  /**
+   * The thresholds behind this block, each attributed. A tribunal reading one
+   * block should not have to cross-reference a profile to learn whose number
+   * excluded the hour.
+   */
+  thresholdSources: FiredThreshold[];
+  /** True when ANY threshold behind this block was set by the tenant. */
+  usedTenantThreshold: boolean;
   peaks: {
     precipitationMm: number | null;
     windSpeedKn: number | null;
     windGustKn: number | null;
     temperatureC: number | null;
   };
-  /** Human-readable, naming the threshold and the reading that crossed it. */
+  /** Human-readable, naming the threshold, the reading, and whose rule it was. */
   reason: string;
 }
 
@@ -89,7 +127,19 @@ export interface WwdResolution {
     /** The readings show a stoppage here; the SoF does not claim it. */
     resolvedOnly: Interval[];
   };
-  profile: { cargoKey: string; label: string; sourceLabel: string };
+  profile: {
+    cargoKey: string;
+    label: string;
+    sourceLabel: string;
+    origin: ThresholdOrigin;
+    /** Dimensions the tenant set themselves. Empty on a pure baseline profile. */
+    overriddenDimensions: StoppageDimension[];
+  };
+  /**
+   * What the tenant's thresholds changed versus the published baseline. Null on
+   * a baseline profile, or when no baseline was supplied to compare against.
+   */
+  baselineComparison: BaselineComparison | null;
   /** Anything a reader must know before relying on this. */
   warnings: string[];
 }
@@ -101,6 +151,24 @@ export interface WwdResolverInput {
   profile: CargoWeatherProfile;
   /** Weather already claimed on the SoF, for the agreement report. */
   claimed?: Interval[];
+  /**
+   * The published baseline the tenant profile departs from.
+   *
+   * Supplying it makes the effect of tuning VISIBLE IN BOTH DIRECTIONS. Without
+   * it, a threshold loosened until a stoppage disappears leaves no trace at all
+   * — the result simply reports zero, and nothing says three hours were
+   * suppressed. That is precisely the manipulation a counterparty would worry
+   * about, so the comparison is computed rather than left to trust.
+   */
+  baselineProfile?: CargoWeatherProfile;
+}
+
+/** What the tenant's tuning changed, in hours. */
+export interface BaselineComparison {
+  baselineExceptedHours: number;
+  tenantExceptedHours: number;
+  /** Positive = tuning ADDED excepted time; negative = it REMOVED some. */
+  deltaHours: number;
 }
 
 const MS_PER_HOUR = 3_600_000;
@@ -161,25 +229,67 @@ export function evaluateHour(
   return { stopped: dimensions.length > 0, dimensions };
 }
 
+/** Whose rule governs one dimension, given which dimensions the tenant changed. */
+export function originOf(
+  dimension: StoppageDimension,
+  profile: CargoWeatherProfile
+): ThresholdOrigin {
+  // A tenant profile that did not change THIS dimension is still running our
+  // published number for it, and must say so.
+  return profile.overriddenDimensions?.includes(dimension) ? "tenant" : "baseline";
+}
+
+/** Threshold value for a dimension, for attribution. */
+function thresholdOf(
+  dimension: StoppageDimension,
+  profile: CargoWeatherProfile
+): number | null {
+  switch (dimension) {
+    case "precipitation":
+      return profile.precipMmPerHr;
+    case "wind":
+      return profile.windKn;
+    case "gust":
+      return profile.gustKn;
+    case "temperature":
+      return null; // a range, reported in the reason text instead
+  }
+}
+
+const ORIGIN_TAG: Record<ThresholdOrigin, string> = {
+  baseline: "LayGrounded baseline",
+  tenant: "tenant custom threshold",
+};
+
 function describe(
   dimensions: StoppageDimension[],
   peaks: ExceptedBlock["peaks"],
-  profile: CargoWeatherProfile
+  profile: CargoWeatherProfile,
+  sources: FiredThreshold[]
 ): string {
+  const tag = (d: StoppageDimension) =>
+    `[${ORIGIN_TAG[sources.find((s) => s.dimension === d)?.origin ?? "baseline"]}]`;
+
   const parts: string[] = [];
   if (dimensions.includes("precipitation")) {
     parts.push(
-      `precipitation peaked at ${peaks.precipitationMm} mm/h against a ${profile.precipMmPerHr} mm/h threshold`
+      `precipitation peaked at ${peaks.precipitationMm} mm/h against a ${profile.precipMmPerHr} mm/h threshold ${tag("precipitation")}`
     );
   }
   if (dimensions.includes("wind")) {
-    parts.push(`wind peaked at ${peaks.windSpeedKn} kn against a ${profile.windKn} kn threshold`);
+    parts.push(
+      `wind peaked at ${peaks.windSpeedKn} kn against a ${profile.windKn} kn threshold ${tag("wind")}`
+    );
   }
   if (dimensions.includes("gust")) {
-    parts.push(`gusts peaked at ${peaks.windGustKn} kn against a ${profile.gustKn} kn threshold`);
+    parts.push(
+      `gusts peaked at ${peaks.windGustKn} kn against a ${profile.gustKn} kn threshold ${tag("gust")}`
+    );
   }
   if (dimensions.includes("temperature")) {
-    parts.push(`temperature reached ${peaks.temperatureC} °C, outside the working range`);
+    parts.push(
+      `temperature reached ${peaks.temperatureC} °C, outside the working range ${tag("temperature")}`
+    );
   }
   return `Work stopped for ${profile.label}: ${parts.join("; ")}.`;
 }
@@ -309,13 +419,20 @@ export function resolveWeatherWorkingTime(input: WwdResolverInput): WwdResolutio
     const hours = (to - runStart) / MS_PER_HOUR;
     if (hours + 1e-9 >= minHours) {
       const dims = [...runDims];
+      const sources: FiredThreshold[] = dims.map((d) => ({
+        dimension: d,
+        threshold: thresholdOf(d, profile),
+        origin: originOf(d, profile),
+      }));
       blocks.push({
         from: iso(runStart),
         to: iso(to),
         hours: round2(hours),
         dimensions: dims,
+        thresholdSources: sources,
+        usedTenantThreshold: sources.some((s) => s.origin === "tenant"),
         peaks: { ...runPeaks },
-        reason: describe(dims, runPeaks, profile),
+        reason: describe(dims, runPeaks, profile, sources),
       });
     } else {
       discardedShortRuns += 1;
@@ -357,6 +474,44 @@ export function resolveWeatherWorkingTime(input: WwdResolverInput): WwdResolutio
 
   const totalExceptedHours = round2(blocks.reduce((s, b) => s + b.hours, 0));
 
+  // Stated up front, not buried. A counterparty reading this is entitled to
+  // know that a figure rests on the claimant's own thresholds rather than a
+  // published baseline, and to know exactly which ones.
+  const tenantDims = profile.overriddenDimensions ?? [];
+  let baselineComparison: BaselineComparison | null = null;
+
+  if (tenantDims.length > 0) {
+    // Re-run under the baseline to measure the effect. `baselineProfile` is
+    // omitted on the inner call, so this cannot recurse.
+    if (input.baselineProfile) {
+      const asBaseline = resolveWeatherWorkingTime({
+        window: input.window,
+        hourly: input.hourly,
+        profile: input.baselineProfile,
+      });
+      baselineComparison = {
+        baselineExceptedHours: asBaseline.totalExceptedHours,
+        tenantExceptedHours: totalExceptedHours,
+        deltaHours: round2(totalExceptedHours - asBaseline.totalExceptedHours),
+      };
+    }
+
+    const effect = baselineComparison
+      ? baselineComparison.deltaHours === 0
+        ? "They did not change the outcome: the published baseline yields the same excepted time."
+        : baselineComparison.deltaHours > 0
+          ? `They ADDED ${baselineComparison.deltaHours}h of excepted time versus the published baseline (${baselineComparison.baselineExceptedHours}h → ${baselineComparison.tenantExceptedHours}h).`
+          : `They REMOVED ${Math.abs(baselineComparison.deltaHours)}h of excepted time versus the published baseline (${baselineComparison.baselineExceptedHours}h → ${baselineComparison.tenantExceptedHours}h).`
+      : blocks.some((b) => b.usedTenantThreshold)
+        ? "At least one excepted block was decided by a threshold set by this company rather than the published LayGrounded baseline."
+        : "No excepted block here was decided by them.";
+
+    warnings.push(
+      `This result uses TENANT CUSTOM THRESHOLDS for: ${tenantDims.join(", ")}. ` +
+        `${effect} Remaining dimensions use the LayGrounded baseline.`
+    );
+  }
+
   // --- Agreement with the SoF ---
   const resolvedIntervals = blocks.map((b) => ({ from: b.from, to: b.to }));
   const claimed = mergeIntervals(input.claimed ?? []);
@@ -377,7 +532,10 @@ export function resolveWeatherWorkingTime(input: WwdResolverInput): WwdResolutio
       cargoKey: profile.cargoKey,
       label: profile.label,
       sourceLabel: profile.sourceLabel,
+      origin: profile.origin,
+      overriddenDimensions: profile.overriddenDimensions ?? [],
     },
+    baselineComparison,
     warnings,
   };
 }
