@@ -29,6 +29,6 @@ export async function POST(req: NextRequest) {
     const report = await sweepTimeBarWebhooks({ client: service, companyId: auth.companyId });
     return NextResponse.json({ mode: "user", report });
   } catch (e) {
-    return apiError(e, "v1/audit/webhooks/run/POST");
+    return apiError(e, "v1/webhooks/run/POST");
   }
 }

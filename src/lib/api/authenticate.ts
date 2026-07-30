@@ -1,5 +1,5 @@
 // Audit Trail API gate: authenticate the key, enforce its scope, consume its
-// quota. Every /api/v1/audit/* route goes through here.
+// quota. Every /api/v1/* route goes through here.
 //
 // API callers hold no Supabase session, so the lookup necessarily runs on the
 // service role. That makes this function the ONLY thing standing between a

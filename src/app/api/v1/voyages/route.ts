@@ -27,7 +27,7 @@ const PushSchema = z.object({
   events: z.array(EventSchema).max(500).optional(),
 });
 
-// POST /api/v1/audit/voyages — push a voyage into LayGrounded.
+// POST /api/v1/voyages — push a voyage into LayGrounded.
 //
 // Idempotent on (company, external_ref): the claim upserts, so a retrying ERP
 // cannot fork one voyage into two claims. Events land as status 'suggested' —
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     caller = await authenticateApiRequest(req, "voyages:write");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/POST:auth");
+    return apiAuthFailure(e, "v1/voyages/POST:auth");
   }
 
   try {
@@ -139,18 +139,18 @@ export async function POST(req: NextRequest) {
       { status: created ? 201 : 200 }
     );
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/POST");
+    return apiAuthFailure(e, "v1/voyages/POST");
   }
 }
 
-// GET /api/v1/audit/voyages[?externalRef=...] — list, or resolve the caller's
+// GET /api/v1/voyages[?externalRef=...] — list, or resolve the caller's
 // own reference to a claim id.
 export async function GET(req: NextRequest) {
   let caller;
   try {
     caller = await authenticateApiRequest(req, "calculations:read");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/GET:auth");
+    return apiAuthFailure(e, "v1/voyages/GET:auth");
   }
 
   try {
@@ -186,6 +186,6 @@ export async function GET(req: NextRequest) {
       caller
     );
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/GET");
+    return apiAuthFailure(e, "v1/voyages/GET");
   }
 }

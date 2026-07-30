@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { resolveCaller } from "@/lib/api/caller";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
 import {
   calculateOptimalArrivalSpeed,
@@ -88,7 +88,7 @@ interface TelemetryRow {
 // (aggregates only, floor-gated, via service role).
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const caller = await resolveCaller(req, "calculations:read");
 
     const parsed = EcospeedSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
@@ -99,11 +99,11 @@ export async function POST(req: NextRequest) {
     }
     const input = parsed.data;
 
-    const supabase = await createClient();
+    const supabase = caller.client;
     const { data: profile } = await supabase
       .from("vessel_analytics_profiles")
       .select("vessel_imo, consumption_curve")
-      .eq("company_id", auth.companyId)
+      .eq("company_id", caller.companyId)
       .eq("vessel_imo", input.vesselImo)
       .maybeSingle();
     if (!profile) throw new Error("PROFILE_NOT_FOUND");
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
         .select(
           "current_speed_knots, distance_to_port_nm, predicted_congestion_delay_hours, destination_port, recorded_at"
         )
-        .eq("company_id", auth.companyId)
+        .eq("company_id", caller.companyId)
         .eq("vessel_imo", input.vesselImo)
         .order("recorded_at", { ascending: false })
         .limit(1)
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
         // from the vessel's AIS track before giving up.
         const derived = await deriveTelemetryFromAis(
           supabase,
-          auth.companyId,
+          caller.companyId,
           input.vesselImo,
           input.claimId
         );
@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
         .select("id, company_id, cp_terms")
         .eq("id", input.claimId)
         .maybeSingle();
-      if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+      if (!claim || claim.company_id !== caller.companyId) throw new Error("CLAIM_NOT_FOUND");
       demurrageRatePerDay = (claim.cp_terms as CpTerms | null)?.demurrage_rate ?? null;
     }
     demurrageRatePerDay = demurrageRatePerDay ?? DEFAULT_CP_TERMS.demurrage_rate;
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
     // Audit trail: inline readings become part of the vessel's stream.
     if (input.telemetry) {
       const { error: streamErr } = await supabase.from("vessel_telemetry_streams").insert({
-        company_id: auth.companyId,
+        company_id: caller.companyId,
         vessel_imo: input.vesselImo,
         claim_id: input.claimId ?? null,
         destination_port: destinationPort,

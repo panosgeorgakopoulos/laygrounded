@@ -109,7 +109,7 @@ export function buildProtectedResourceMetadata(issuer: string): ProtectedResourc
     // Bearer in the Authorization header only. Accepting tokens in a query
     // string would write them into every access log and Referer header.
     bearer_methods_supported: ["header"],
-    resource_documentation: `${issuer}/api/v1/audit/openapi.json`,
+    resource_documentation: `${issuer}/api/v1/openapi.json`,
   };
 }
 

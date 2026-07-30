@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
+import { resolveCaller } from "@/lib/api/caller";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
 import { MIN_DECISIVE_CHECKS } from "@/lib/intel/honesty-index";
@@ -34,7 +34,7 @@ const MIN_CONGESTION_VOYAGES = 5;
 // floors, never a claim or company id.
 export async function POST(req: NextRequest) {
   try {
-    await requireAuth();
+    await resolveCaller(req, "calculations:read");
 
     const parsed = PrefixtureSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

@@ -19,10 +19,22 @@ export const API_KEY_PREFIX = "lga_";
 // short enough to paste into an ERP config field.
 const KEY_BYTES = 24;
 
+// Least privilege, and deliberately granular: a TMS that only pulls
+// calculations gets no write scope, and a trade-finance reader gets neither.
+//
+// NOTE ON WHAT IS ABSENT: there is no `keys:manage` scope, and there must not
+// be. Key management is session-only. A scope that lets a key mint or widen
+// another key turns one leaked credential into permanent, self-renewing
+// access — the blast radius of a leak should be "revoke it", not "it already
+// made three more".
 export const API_SCOPES = [
   "voyages:write", // push voyage/SoF data in
   "calculations:read", // pull laytime calculations
+  "calculations:write", // trigger a recompute
   "disputes:read", // pull dispute / proposal status
+  "pnl:read", // pull voyage P&L snapshots
+  "documents:read", // pull dossiers, notarization records, exports
+  "compliance:read", // pull MRV / emissions / sanctions results
   "webhooks:manage", // register and remove webhooks
 ] as const;
 

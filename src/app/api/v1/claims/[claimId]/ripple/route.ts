@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/server-auth";
+import { resolveCaller } from "@/lib/api/caller";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
 import { createSubClaim, loadChain, MAX_CHAIN_DEPTH, type SubClaimResult } from "@/lib/chain/ripple";
@@ -79,20 +80,20 @@ export async function POST(
 
 // The chain as visible to the caller (RLS hides tiers owned by other tenants).
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ claimId: string }> }
 ) {
   try {
     const { claimId } = await params;
-    const auth = await requireAuth();
-    const supabase = await createClient();
+    const caller = await resolveCaller(req, "disputes:read");
+    const supabase = caller.client;
 
     const { data: claim } = await supabase
       .from("claims")
       .select("id, company_id")
       .eq("id", claimId)
       .maybeSingle();
-    if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+    if (!claim || claim.company_id !== caller.companyId) throw new Error("CLAIM_NOT_FOUND");
 
     return NextResponse.json({ chain: await loadChain(supabase, claimId) });
   } catch (e) {
