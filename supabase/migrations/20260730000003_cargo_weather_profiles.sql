@@ -122,3 +122,13 @@ update public.cargo_weather_profiles set aliases = array[
 update public.cargo_weather_profiles set aliases = array[
   'iron','ore','bauxite','manganese','nickel ore','mineral'
 ] where company_id is null and cargo_key = 'iron ore';
+
+-- ON CONFLICT (company_id, cargo_key) cannot infer a PARTIAL unique index, and
+-- uniq_cargo_profile_company carries a `where company_id is not null` predicate.
+-- The tenant-override upsert needs a plain index to infer.
+--
+-- The two coexist rather than duplicate: for tenant rows this enforces
+-- uniqueness, while for global rows Postgres treats NULLs as distinct so it
+-- enforces nothing — which is why uniq_cargo_profile_global exists separately.
+create unique index if not exists uniq_cargo_profile_company_cargo
+  on public.cargo_weather_profiles (company_id, cargo_key);

@@ -21,6 +21,10 @@ const MAX_REQUESTS = 100; // per minute
 // cheap — but not free).
 const V1_API_PREFIX = '/api/v1';
 const MAX_REQUESTS_V1 = 2000; // per minute, per IP — DoS floor, not a quota
+const PUBLIC_TOOLS_PREFIX = '/api/tools';
+// Well under the app ceiling: unauthenticated, and every call costs an upstream
+// geocode plus an archive fetch.
+const MAX_REQUESTS_PUBLIC_TOOLS = 20;
 
 // The OAuth 2.1 endpoints (/oauth/*) live OUTSIDE /api, so the ceilings above
 // never saw them. They are unauthenticated by necessity — there is no API key
@@ -47,6 +51,14 @@ function rateBucket(pathname: string): { prefix: string; ceiling: number } | nul
   }
   if (pathname === OAUTH_PREFIX || pathname.startsWith(OAUTH_PREFIX + '/')) {
     return { prefix: 'oauth:', ceiling: MAX_REQUESTS_OAUTH };
+  }
+  // The public marketing tools are unauthenticated and each call costs upstream
+  // requests, so they get their own tight ceiling well below the app's. This is
+  // the anti-flood floor only — the real "3 per day" promise is counted in
+  // Postgres (lib/tools/public-tools.ts), because an in-memory limiter cannot
+  // hold a daily quota across a serverless fleet.
+  if (pathname.startsWith(PUBLIC_TOOLS_PREFIX)) {
+    return { prefix: 'tools:', ceiling: MAX_REQUESTS_PUBLIC_TOOLS };
   }
   if (pathname.startsWith('/api')) {
     return pathname.startsWith(V1_API_PREFIX)
