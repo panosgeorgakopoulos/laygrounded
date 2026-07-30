@@ -84,6 +84,21 @@ export interface PersistedInputs {
   opsDurationHours: number;
   berthToOpsHours: number;
   operation: "loading" | "discharge";
+  /**
+   * The geocoded port position.
+   *
+   * Recorded so a stored assessment can later be placed in a weather system for
+   * portfolio risk, without re-geocoding (which could resolve differently and
+   * silently move the voyage). Optional because rows written before this field
+   * existed do not carry it — the portfolio route reports those as skipped
+   * rather than defaulting them to (0, 0), which would put every legacy voyage
+   * in the Gulf of Guinea and invent a correlation between them.
+   *
+   * Adding it does not invalidate older digests: `digestInputs` runs over the
+   * stored object, so a row without a position still verifies against its own
+   * recorded digest.
+   */
+  position?: { lat: number; lon: number };
   referenceStartISO: string;
   etaISO: string;
   etaErrorHours: { min: number; mode: number; max: number };
@@ -355,6 +370,7 @@ export async function assessPreArrivalRisk(
     opsDurationHours: req.opsDurationHours,
     berthToOpsHours,
     operation,
+    position: { lat: location.lat, lon: location.lon },
     referenceStartISO,
     etaISO: req.etaISO,
     etaErrorHours,
