@@ -12,6 +12,18 @@ import { makeRng } from "@/lib/risk/prng";
 // Thresholds are deliberately loose: CI machines are slower and noisier than a
 // laptop, and a benchmark that flakes gets deleted, which is worse than one
 // that only catches large regressions.
+//
+// TIMEOUTS. Each test here carries an explicit budget because bun's default is
+// 5s and these are the only tests in the suite that legitimately run longer.
+// Measured locally: 5k trials 450ms, 50k trials 4.2s. A two-vCPU GitHub runner
+// is roughly 5x slower, which puts the 50k case around 21s — comfortably past
+// the default, so the tests were being killed rather than failing on their
+// assertions.
+//
+// Each budget is set ABOVE that test's own wall-clock assertion, never below.
+// A timeout under the assertion would fire first and report "timed out" when
+// the real answer is "too slow" — the same information, in the form that takes
+// longest to diagnose.
 
 const CP_TERMS: CpTerms = {
   laytime_allowed_hours: 72,
@@ -71,7 +83,7 @@ describe("performance", () => {
       `      ${DEFAULT_TRIALS} trials in ${elapsed.toFixed(0)}ms ` +
         `(${((elapsed / DEFAULT_TRIALS) * 1000).toFixed(1)}µs/trial)`
     );
-  });
+  }, 30_000);
 
   test("cost scales roughly linearly in the trial count", () => {
     const time = (n: number) => {
@@ -86,7 +98,7 @@ describe("performance", () => {
     // means an accidental O(n²) — a per-trial copy of the trajectory pool, say.
     expect(large / Math.max(small, 0.01)).toBeLessThan(10);
     console.log(`      1k=${small.toFixed(0)}ms  4k=${large.toFixed(0)}ms`);
-  });
+  }, 30_000);
 
   test(`the ${MAX_TRIALS}-trial ceiling stays bounded`, () => {
     const started = performance.now();
@@ -96,7 +108,9 @@ describe("performance", () => {
     // for, even if it is not the default.
     expect(elapsed).toBeLessThan(45_000);
     console.log(`      ${MAX_TRIALS} trials in ${(elapsed / 1000).toFixed(1)}s`);
-  });
+    // 60s, not 30s: this test asserts a 45s ceiling, so a 30s budget would kill
+    // it before the assertion it exists to make could ever run.
+  }, 60_000);
 
   test("memory stays flat: trials are aggregated, not accumulated wholesale", () => {
     // Guards against retaining per-trial timelines, which at 50k trials would
@@ -106,5 +120,5 @@ describe("performance", () => {
     const growthMb = (process.memoryUsage().heapUsed - before) / 1024 / 1024;
     expect(growthMb).toBeLessThan(200);
     console.log(`      heap growth over 20k trials: ${growthMb.toFixed(1)}MB`);
-  });
+  }, 30_000);
 });

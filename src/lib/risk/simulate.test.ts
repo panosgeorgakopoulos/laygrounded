@@ -95,6 +95,14 @@ describe("reproducibility", () => {
   });
 });
 
+// The convergence tests run tens of thousands of trials by design — proving an
+// estimator converges needs enough samples for the convergence to show. That
+// puts them past bun's 5s default on a two-vCPU CI runner (locally: the CI
+// coverage check 4.2s, the stability check 1.6s), so each carries an explicit
+// budget. None of them asserts a wall-clock figure; the budget is purely a
+// ceiling on how long a hung run may sit there.
+const SLOW = 30_000;
+
 describe("convergence", () => {
   test("the standard error shrinks roughly as 1/sqrt(n)", () => {
     const inputs = baseInputs();
@@ -108,7 +116,7 @@ describe("convergence", () => {
     // statistical property, not an identity.
     expect(ratio).toBeGreaterThan(2.5);
     expect(ratio).toBeLessThan(6);
-  });
+  }, SLOW);
 
   test("the estimate stabilises as trials grow", () => {
     const inputs = baseInputs();
@@ -118,7 +126,7 @@ describe("convergence", () => {
     // Each successive refinement should move the answer less than the last.
     const deltas = runs.slice(1).map((v, i) => Math.abs(v - runs[i]));
     expect(deltas[deltas.length - 1]).toBeLessThanOrEqual(deltas[0] + 1e-9);
-  });
+  }, SLOW);
 
   test("the reported CI actually brackets a long-run reference", () => {
     // The honesty check on our own error bars: a 95% interval that does not
@@ -136,7 +144,7 @@ describe("convergence", () => {
     }
     // Expect ~19/20; require at least 15 so the test cannot flake on noise.
     expect(covered).toBeGreaterThanOrEqual(15);
-  });
+  }, SLOW);
 });
 
 describe("antithetic variates", () => {
@@ -158,7 +166,7 @@ describe("antithetic variates", () => {
         plain.distribution.expectedExposure.value - anti.distribution.expectedExposure.value
       )
     ).toBeLessThan(4 * se + 1);
-  });
+  }, SLOW);
 
   test("honour an odd trial count exactly", () => {
     const run = simulate(baseInputs(), { seed: "odd", trials: 1001 });
@@ -186,7 +194,7 @@ describe("directional sanity", () => {
     expect(stormy.distribution.expectedExposure.value).toBeGreaterThan(
       calm.distribution.expectedExposure.value
     );
-  });
+  }, SLOW);
 
   test("a longer queue means more demurrage", () => {
     const quiet = simulate(baseInputs({ waitingHoursSorted: [0, 0, 1, 1, 2, 2, 3, 4] }), {
