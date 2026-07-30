@@ -119,6 +119,19 @@ export interface OffHirePeriod {
   reason: string;
 }
 
+/**
+ * Fuel on board at delivery or redelivery, settled between the parties.
+ *
+ * Not a consumption cost: the quantity is bought at an agreed price by whoever
+ * takes the vessel over. See `TimeCharterTerms` for the direction of each.
+ */
+export interface BunkerSettlement {
+  grade: string;
+  tonnes: number;
+  pricePerTonne: number;
+  currency: string;
+}
+
 export interface TimeCharterTerms {
   hireRatePerDay: number;
   offHire: OffHirePeriod[];
@@ -126,6 +139,19 @@ export interface TimeCharterTerms {
   ilohc?: number;
   /** Communication & victualling allowance, per 30 days. */
   cvePerMonth?: number;
+  /**
+   * Bunkers on delivery (BOD) — the fuel on board when the charterer takes the
+   * vessel. The CHARTERER PAYS THE OWNER for it, so from the owner's side this
+   * is cash in.
+   */
+  bunkersOnDelivery?: BunkerSettlement;
+  /**
+   * Bunkers on redelivery (BOR) — the fuel left aboard when the vessel comes
+   * back. The OWNER PAYS THE CHARTERER for it, so from the owner's side this is
+   * cash out. The opposite direction to BOD, which is the whole reason the two
+   * are separate fields rather than one signed quantity.
+   */
+  bunkersOnRedelivery?: BunkerSettlement;
 }
 
 export interface VoyagePnlInput {
@@ -324,6 +350,37 @@ export function computeVoyagePnl(input: VoyagePnlInput): VoyagePnlResult {
         .div(MS_PER_DAY)
         .div(30);
       push("cve", "Communication & victualling", "revenue", months.mul(tc.cvePerMonth), "derived");
+    }
+
+    // --- Bunker settlement (BOD / BOR) ---
+    // Both are `transfer`, which is what keeps them out of TCE. They are an
+    // inventory settlement between the parties: no fuel was burned and no
+    // freight was earned, so counting them as revenue or voyage expense would
+    // move TCE without the voyage having performed any differently. That is the
+    // one number the market compares vessels on, so it has to stay clean.
+    if (tc.bunkersOnDelivery) {
+      const b = tc.bunkersOnDelivery;
+      push(
+        "bunkers_on_delivery",
+        `Bunkers on delivery ${b.grade} (${b.tonnes} MT x ${b.pricePerTonne})`,
+        "transfer",
+        dec(b.tonnes).mul(b.pricePerTonne),
+        "input",
+        b.currency,
+        "Charterer buys the fuel on board at delivery — cash in to the owner."
+      );
+    }
+    if (tc.bunkersOnRedelivery) {
+      const b = tc.bunkersOnRedelivery;
+      push(
+        "bunkers_on_redelivery",
+        `Bunkers on redelivery ${b.grade} (${b.tonnes} MT x ${b.pricePerTonne})`,
+        "transfer",
+        dec(b.tonnes).mul(b.pricePerTonne).neg(),
+        "input",
+        b.currency,
+        "Owner buys back the fuel remaining at redelivery — cash out from the owner."
+      );
     }
   }
 

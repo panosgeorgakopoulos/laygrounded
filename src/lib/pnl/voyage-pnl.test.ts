@@ -203,18 +203,6 @@ describe("TCE", () => {
     expect(r.warnings.some((w) => w.includes("not after"))).toBe(true);
   });
 
-  test("transfers are excluded from TCE but included in the net result", () => {
-    // The rule that keeps TCE comparable: a bunker settlement is cash moving
-    // between the parties, not something the voyage earned or consumed.
-    const base = pnl();
-    const withTransfer = computeVoyagePnl({
-      ...BASE,
-      // Injected directly, since BOD/BOR terms land in the next iteration.
-      laytime: [],
-    });
-    expect(withTransfer.transfers).toBe(0);
-    expect(base.tcePerDay).toBe(withTransfer.tcePerDay);
-  });
 });
 
 describe("multi-currency", () => {
@@ -431,5 +419,147 @@ describe("determinism and totals", () => {
       otherCosts: [{ label: "x", amount: -0.2, currency: "USD" }],
     });
     expect(r.netResult).toBe(0.3);
+  });
+});
+
+describe("bunker settlement (BOD / BOR)", () => {
+  const TC_BASE: Partial<VoyagePnlInput> = {
+    charterType: "time",
+    freight: undefined,
+    timeCharter: { hireRatePerDay: 15_000, offHire: [] },
+  };
+
+  const bod = { grade: "VLSFO", tonnes: 400, pricePerTonne: 600, currency: "USD" };
+  const bor = { grade: "VLSFO", tonnes: 150, pricePerTonne: 600, currency: "USD" };
+
+  test("BOD is cash IN to the owner — the charterer buys the fuel on board", () => {
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: { hireRatePerDay: 15_000, offHire: [], bunkersOnDelivery: bod },
+    });
+    const l = line(r, "bunkers_on_delivery")!;
+    expect(l.kind).toBe("transfer");
+    expect(l.amount).toBe(240_000); // 400 x 600
+    expect(l.note).toContain("cash in to the owner");
+  });
+
+  test("BOR is cash OUT from the owner — the opposite direction", () => {
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: { hireRatePerDay: 15_000, offHire: [], bunkersOnRedelivery: bor },
+    });
+    const l = line(r, "bunkers_on_redelivery")!;
+    expect(l.kind).toBe("transfer");
+    expect(l.amount).toBe(-90_000); // 150 x 600
+    expect(l.note).toContain("cash out from the owner");
+  });
+
+  test("both together net out to the difference", () => {
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: {
+        hireRatePerDay: 15_000,
+        offHire: [],
+        bunkersOnDelivery: bod,
+        bunkersOnRedelivery: bor,
+      },
+    });
+    expect(r.transfers).toBe(150_000); // 240,000 - 90,000
+  });
+
+  // The property the whole `transfer` kind exists for.
+  test("a bunker settlement changes the net result but NOT the TCE", () => {
+    const without = pnl(TC_BASE);
+    const with_ = pnl({
+      ...TC_BASE,
+      timeCharter: {
+        hireRatePerDay: 15_000,
+        offHire: [],
+        bunkersOnDelivery: bod,
+        bunkersOnRedelivery: bor,
+      },
+    });
+
+    expect(with_.netResult - without.netResult).toBeCloseTo(150_000, 2);
+    expect(with_.tcePerDay).toBe(without.tcePerDay);
+  });
+
+  test("a huge settlement still cannot move TCE", () => {
+    // Guards the failure mode directly: if BOD were ever reclassified as
+    // revenue, this vessel would appear to earn several times its hire rate.
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: {
+        hireRatePerDay: 15_000,
+        offHire: [],
+        bunkersOnDelivery: { grade: "VLSFO", tonnes: 5_000, pricePerTonne: 700, currency: "USD" },
+      },
+    });
+    expect(r.tcePerDay).toBe(pnl(TC_BASE).tcePerDay);
+    expect(r.transfers).toBe(3_500_000);
+  });
+
+  test("transfers are not counted as revenue or as voyage expenses", () => {
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: {
+        hireRatePerDay: 15_000,
+        offHire: [],
+        bunkersOnDelivery: bod,
+        bunkersOnRedelivery: bor,
+      },
+    });
+    expect(r.grossRevenue).toBe(450_000); // hire only
+    expect(r.voyageExpenses).toBe(0);
+    expect(r.revenueDeductions).toBe(0);
+  });
+
+  test("commission does not bite on a bunker settlement", () => {
+    // It is an inventory transfer, not earnings — brokers are not paid on it.
+    const r = pnl({
+      ...TC_BASE,
+      commissions: { addressPct: 5, brokeragePct: 0, onDemurrage: false },
+      timeCharter: { hireRatePerDay: 15_000, offHire: [], bunkersOnDelivery: bod },
+    });
+    expect(line(r, "address_commission")!.amount).toBe(-22_500); // 5% of hire only
+  });
+
+  test("an off-currency settlement is excluded from totals like any other line", () => {
+    const r = pnl({
+      ...TC_BASE,
+      timeCharter: {
+        hireRatePerDay: 15_000,
+        offHire: [],
+        bunkersOnDelivery: { ...bod, currency: "EUR" },
+      },
+    });
+    expect(line(r, "bunkers_on_delivery")!.excluded).toBe(true);
+    expect(r.transfers).toBe(0);
+  });
+
+  test("the charterer sees the settlement mirrored", () => {
+    const r = pnl({
+      ...TC_BASE,
+      perspective: "charterer",
+      timeCharter: { hireRatePerDay: 15_000, offHire: [], bunkersOnDelivery: bod },
+    });
+    // The charterer pays for the fuel it takes over.
+    expect(line(r, "bunkers_on_delivery")!.amount).toBe(-240_000);
+  });
+
+  test("absent settlement terms produce no transfer lines at all", () => {
+    const r = pnl(TC_BASE);
+    expect(line(r, "bunkers_on_delivery")).toBeUndefined();
+    expect(line(r, "bunkers_on_redelivery")).toBeUndefined();
+    expect(r.transfers).toBe(0);
+  });
+
+  test("a voyage charter ignores bunker settlement terms entirely", () => {
+    // BOD/BOR is a time-charter concept; there is no delivery on a voyage fixture.
+    const r = pnl({
+      timeCharter: { hireRatePerDay: 15_000, offHire: [], bunkersOnDelivery: bod },
+    });
+    expect(line(r, "bunkers_on_delivery")).toBeUndefined();
+    expect(r.transfers).toBe(0);
   });
 });
