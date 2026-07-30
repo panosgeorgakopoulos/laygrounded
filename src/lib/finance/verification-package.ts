@@ -13,7 +13,7 @@
 // Pure: the caller loads the rows, this arranges them. No I/O, so the exact
 // bytes a bank receives are testable.
 
-import type { CpTerms, SofEventInput } from "@/lib/laytime/types";
+import type { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
 
 /** Fingerprint of the verifier the bank should run. Straight from its manifest. */
 export interface VerifierDescriptor {
@@ -35,28 +35,19 @@ export interface NotarizationDescriptor {
 }
 
 /**
- * The figures as persisted for this claim.
+ * The figures as persisted for this claim — a complete `LaytimeResult`.
  *
- * DELIBERATELY NOT a `LaytimeResult`. `laytime_calculations` stores five of the
- * engine's seven totals — `time_on_demurrage_hours` and `time_saved_hours` are
- * not persisted — so a full result cannot be reconstructed faithfully from the
- * database. Presenting a partial object as though it were complete is worse
- * than presenting less: the verifier compares whole results, so the missing
- * fields would make a perfectly good claim report "does not verify", which is
- * precisely the wrong answer to hand a credit committee.
+ * This used to be a named SUBSET, because `laytime_calculations` stored only
+ * five of the engine's totals and a partial object presented as a whole one
+ * would make a good claim report "does not verify". All the totals are now
+ * persisted, so the package ships the whole result and the verifier does the
+ * whole-object comparison it was always built for.
  *
- * So the package ships what was actually stored, names which fields are
- * comparable, and tells the bank to compare those.
+ * The reconstruction is exact, including the ASBATANKVOY-only
+ * `demurrage_half_rate_hours` key, whose presence must match the engine's —
+ * see `calculationRowToResult`.
  */
-export interface PublishedFigures {
-  allowedHours: number;
-  usedHours: number;
-  demurrageAmount: number;
-  despatchAmount: number;
-  currency: string;
-  /** Engine breakdown rows exactly as persisted. */
-  breakdown: unknown[];
-}
+export type PublishedFigures = LaytimeResult;
 
 export interface VerificationPackageInput {
   claim: {
@@ -80,35 +71,34 @@ export interface VerificationPackageInput {
   };
 }
 
-/** Totals a bank should compare, mapping our field name to the engine's. */
-export const COMPARABLE_FIELDS: Array<{ published: string; recomputed: string }> = [
-  { published: "publishedFigures.allowedHours", recomputed: "totals.allowed_hours" },
-  { published: "publishedFigures.usedHours", recomputed: "totals.used_hours" },
-  { published: "publishedFigures.demurrageAmount", recomputed: "totals.demurrage_amount" },
-  { published: "publishedFigures.despatchAmount", recomputed: "totals.despatch_amount" },
-];
-
 export interface VerificationPackage {
   format: "laygrounded.claim-verification";
-  formatVersion: "1.0";
+  /**
+   * 1.1 — `bundle.published` now carries the whole persisted `LaytimeResult`,
+   * so the verifier returns a real `matchesPublished` boolean. 1.0 shipped a
+   * named subset in `publishedFigures` and a `comparableFields` mapping,
+   * because three of the engine's totals were not persisted; both are gone.
+   */
+  formatVersion: "1.1";
   issuedAt: string;
   claim: VerificationPackageInput["claim"];
   /**
    * Exactly the shape `verifyClaim()` in @laygrounded/laytime-verify consumes.
    *
-   * `published` is omitted on purpose — see `PublishedFigures`. The verifier
-   * therefore returns `matchesPublished: null` and simply reports what it
-   * computes from the facts; the comparison is done against `publishedFigures`
-   * on the named fields.
+   * `published` is included whenever the claim has been computed, so the
+   * verifier performs its whole-object comparison and reports
+   * `matchesPublished` plus any specific discrepancies. When the claim has not
+   * been computed there is nothing to compare and the key is absent, which the
+   * verifier reports as `matchesPublished: null`.
    */
   bundle: {
     claim: { vessel: string; voyageRef: string; port: string };
     cpTerms: CpTerms;
     events: SofEventInput[];
+    published?: PublishedFigures;
   };
+  /** The same object as `bundle.published`, surfaced for readers. */
   publishedFigures: PublishedFigures | null;
-  /** Which figures to compare, and against what. */
-  comparableFields: typeof COMPARABLE_FIELDS;
   notarization: NotarizationDescriptor | null;
   verifier: VerifierDescriptor & { downloadPath: string; conformancePath: string };
   grant: VerificationPackageInput["grant"];
@@ -131,10 +121,6 @@ export function buildVerificationPackage(
     caveats.push(
       "This claim has not been computed yet, so there are no published figures to compare the recomputation against. The verifier will still report what it computes from the facts below."
     );
-  } else {
-    caveats.push(
-      "LayGrounded persists five of the engine's seven totals, so this package publishes those five rather than a whole result object. Compare the fields named in comparableFields; the verifier's own output is complete."
-    );
   }
   if (!input.notarization) {
     caveats.push(
@@ -150,7 +136,7 @@ export function buildVerificationPackage(
 
   return {
     format: "laygrounded.claim-verification",
-    formatVersion: "1.0",
+    formatVersion: "1.1",
     issuedAt: now.toISOString(),
     claim: input.claim,
     bundle: {
@@ -161,9 +147,12 @@ export function buildVerificationPackage(
       },
       cpTerms: input.cpTerms,
       events: input.events,
+      // Spread rather than assigned: an explicit `published: undefined` would
+      // still create the key, and the canonical JSON both sides digest treats a
+      // present-but-undefined key differently from an absent one.
+      ...(input.publishedFigures ? { published: input.publishedFigures } : {}),
     },
     publishedFigures: input.publishedFigures,
-    comparableFields: COMPARABLE_FIELDS,
     notarization: input.notarization,
     verifier: {
       ...input.verifier,
@@ -175,7 +164,7 @@ export function buildVerificationPackage(
       `Download the verifier from ${VERIFIER_DOWNLOAD_PATH} and check its SHA-256 against verifier.wasmSha256 in this package.`,
       `Optionally download ${VERIFIER_CONFORMANCE_PATH} and run the ${input.verifier.conformanceCases} conformance cases; the reported root must equal verifier.conformanceRoot.`,
       "Run the verifier against the `bundle` object in this package. It is exactly the input shape verifyClaim() expects.",
-      "Compare the verifier's `recomputed.totals` against `publishedFigures`, field by field, using the mapping in `comparableFields`. Equality on those fields means the published figures follow from the stated facts under the stated charterparty terms.",
+      "Read `matchesPublished` in the verdict. `true` means the published figures follow, in full, from the stated facts under the stated charterparty terms. `false` names the disagreeing figures in `discrepancies`. `null` means this claim published nothing to compare.",
       "Nothing in this step contacts LayGrounded. The verification is yours, not ours.",
     ],
     caveats,

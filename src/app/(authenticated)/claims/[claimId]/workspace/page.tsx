@@ -57,6 +57,9 @@ interface ClaimData {
       breakdown: LaytimeResult["breakdown"] | string;
       usedHours: number;
       allowedHours: number;
+      timeOnDemurrageHours: number;
+      timeSavedHours: number;
+      demurrageHalfRateHours: number | null;
       demurrageAmount: number | null;
       despatchAmount: number | null;
       currency: string;
@@ -120,8 +123,14 @@ export default function WorkspacePage({
         totals: {
           allowed_hours: calc.allowedHours,
           used_hours: calc.usedHours,
-          time_on_demurrage_hours: Math.max(0, calc.usedHours - calc.allowedHours),
-          time_saved_hours: Math.max(0, calc.allowedHours - calc.usedHours),
+          // Read from the calculation rather than re-derived here. The old
+          // client-side arithmetic happened to match the engine, but it also
+          // dropped the ASBATANKVOY half-rate key entirely.
+          time_on_demurrage_hours: calc.timeOnDemurrageHours,
+          time_saved_hours: calc.timeSavedHours,
+          ...(calc.demurrageHalfRateHours === null
+            ? {}
+            : { demurrage_half_rate_hours: calc.demurrageHalfRateHours }),
           demurrage_amount: calc.demurrageAmount ?? 0,
           despatch_amount: calc.despatchAmount ?? 0,
           currency: calc.currency,

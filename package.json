@@ -59,6 +59,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@laygrounded/laytime-verify": "workspace:*",
     "@types/node": "26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

@@ -3,6 +3,11 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { redeemGrant } from "@/lib/finance/grants-server";
 import { buildVerificationPackage } from "@/lib/finance/verification-package";
 import { loadClaimComputationInputs } from "@/lib/laytime/recompute-server";
+import {
+  CALCULATION_RESULT_COLUMNS,
+  calculationRowToResult,
+  type PersistedCalculationRow,
+} from "@/lib/laytime/calculation-row";
 import { proofAsOf } from "@/lib/legal/notary-server";
 import { readVerifierManifest } from "@/lib/finance/verifier-manifest";
 import { bearerToken } from "@/lib/api/keys";
@@ -62,25 +67,16 @@ export async function GET(
       service
     );
 
-    // Exactly the columns that exist. `time_on_demurrage_hours` and
-    // `time_saved_hours` are NOT persisted, which is why the package publishes
-    // a named subset rather than a whole LaytimeResult.
+    // Every column the reconstruction needs, named by the helper itself so a
+    // future total cannot be added to the engine and silently left unselected
+    // here — that would publish a partial object as though it were whole.
     const { data: calc } = await service
       .from("laytime_calculations")
-      .select("breakdown, allowed_hours, used_hours, demurrage_amount, despatch_amount, currency")
+      .select(CALCULATION_RESULT_COLUMNS)
       .eq("claim_id", grant.claimId)
-      .maybeSingle();
+      .maybeSingle<PersistedCalculationRow>();
 
-    const publishedFigures = calc
-      ? {
-          allowedHours: calc.allowed_hours,
-          usedHours: calc.used_hours,
-          demurrageAmount: calc.demurrage_amount ?? 0,
-          despatchAmount: calc.despatch_amount ?? 0,
-          currency: calc.currency ?? "USD",
-          breakdown: Array.isArray(calc.breakdown) ? calc.breakdown : [],
-        }
-      : null;
+    const publishedFigures = calc ? calculationRowToResult(calc) : null;
 
     const proof = await proofAsOf(service, grant.claimId, new Date());
 
