@@ -20,7 +20,7 @@
 // Run: bun packages/laytime-verify/scripts/build-artifacts.ts [--javy <path>]
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
@@ -107,6 +107,7 @@ const javy = flag("javy") ?? join(REPO_ROOT, "javy");
 let wasmReport: { root: string; passed: number; cases: number; failed: number } | null = null;
 let wasmSha: string | null = null;
 let verifiedBy: string | null = null;
+let wasmRunner: { name: string; run: (inputPath: string) => string } | null = null;
 
 if (existsSync(javy)) {
   const javyEntry = join(PKG_ROOT, "src/entry-javy.ts");
@@ -150,20 +151,22 @@ Javy.IO.writeSync(1, out);
   // fallback so the equivalence assertion ALWAYS executes — a build that
   // silently skipped it would publish two artifacts nobody had checked against
   // each other, which is the one thing this script exists to prevent.
-  const runners: Array<{ name: string; run: () => string }> = [];
+  // Parameterised by input path: the same runner executes the conformance
+  // suite and, in step 6, the whole-object claim bundles.
+  const runners: Array<{ name: string; run: (inputPath: string) => string }> = [];
   const wasmtime = flag("wasmtime") ?? "wasmtime";
   runners.push({
     name: "wasmtime",
-    run: () =>
+    run: (inputPath: string) =>
       execFileSync(wasmtime, [wasmPath], {
-        input: readFileSync(conformancePath),
+        input: readFileSync(inputPath),
         maxBuffer: 64 * 1024 * 1024,
         encoding: "utf8",
       }),
   });
   if (!REQUIRE_WASMTIME) runners.push({
     name: "node:wasi",
-    run: () => {
+    run: (inputPath: string) => {
       const runner = join(DIST, "_run-wasi.mjs");
       writeFileSync(
         runner,
@@ -185,7 +188,7 @@ closeSync(inFd); closeSync(outFd);
       // which has no node:wasi. The point of this runner is to execute the wasm
       // in a DIFFERENT engine from the one that produced the JS artifact —
       // running both in Bun would prove nothing.
-      execFileSync(flag("node") ?? "node", [runner, wasmPath, conformancePath, outPath], {
+      execFileSync(flag("node") ?? "node", [runner, wasmPath, inputPath, outPath], {
         stdio: "inherit",
       });
       return readFileSync(outPath, "utf8");
@@ -194,7 +197,8 @@ closeSync(inFd); closeSync(outFd);
 
   for (const runner of runners) {
     try {
-      wasmReport = JSON.parse(runner.run());
+      wasmReport = JSON.parse(runner.run(conformancePath));
+      wasmRunner = runner;
       verifiedBy = runner.name;
       console.log(
         `wasm conformance via ${runner.name}: ${wasmReport!.passed}/${wasmReport!.cases} ` +
@@ -231,6 +235,91 @@ if (wasmReport) {
     );
   }
   console.log(`✓ artifacts agree on root ${mjsReport.root}`);
+}
+
+// ── 6. The whole-object claim path ───────────────────────────────────────────
+// The conformance root proves the artifacts RECOMPUTE identically. It says
+// nothing about `verifyClaim` with `published` set — the path a bank actually
+// exercises, and since format 1.1 the product's core claim. It needs its own
+// check because a "verified" verdict is only worth something if the negative
+// case is also proven: an artifact that answered `true` unconditionally would
+// pass every conformance case ever written.
+//
+// Cases are drawn from the published corpus rather than hand-written, so this
+// exercises real breakdowns, and both CP forms are required to be present —
+// GENCON 94 omits `demurrage_half_rate_hours` while ASBATANKVOY emits it, and
+// the canonical JSON treats an absent key differently from a null one.
+{
+  const successful = cases.filter((c) => c.expected?.result);
+  const pick = (form: string) =>
+    successful.find((c) => (c.cpTerms?.cp_form ?? "GENCON94") === form);
+
+  const gencon = pick("GENCON94");
+  const asba = pick("ASBATANKVOY");
+  if (!gencon || !asba) {
+    throw new Error(
+      "the corpus no longer contains a successful case for both CP forms, so the " +
+        "whole-object check cannot cover the half-rate key. Refusing to publish.",
+    );
+  }
+
+  const checks: Array<{ name: string; bundle: unknown; expect: boolean | null }> = [
+    // A faithful publication must verify.
+    { name: "gencon/intact", bundle: { ...gencon, published: gencon.expected.result }, expect: true },
+    { name: "asba/intact", bundle: { ...asba, published: asba.expected.result }, expect: true },
+    // A tampered total must NOT. This is the assertion that gives `true` meaning.
+    {
+      name: "gencon/tampered",
+      bundle: {
+        ...gencon,
+        published: {
+          ...gencon.expected.result,
+          totals: {
+            ...gencon.expected.result.totals,
+            demurrage_amount: gencon.expected.result.totals.demurrage_amount + 1000,
+          },
+        },
+      },
+      expect: false,
+    },
+    // Publishing nothing is honest, not a failure: the verdict must be null
+    // rather than a false "verified".
+    { name: "gencon/unpublished", bundle: { cpTerms: gencon.cpTerms, events: gencon.events }, expect: null },
+  ];
+
+  for (const check of checks) {
+    const inputPath = join(DIST, "_claim-check.json");
+    writeFileSync(inputPath, JSON.stringify(check.bundle));
+
+    const mjsVerdict = JSON.parse(runMjs(inputPath));
+    if (mjsVerdict.matchesPublished !== check.expect) {
+      throw new Error(
+        `WHOLE-OBJECT CHECK FAILED (${check.name}): mjs matchesPublished=` +
+          `${mjsVerdict.matchesPublished}, expected ${check.expect}.`,
+      );
+    }
+
+    if (wasmRunner) {
+      const wasmVerdict = JSON.parse(wasmRunner.run(inputPath));
+      if (wasmVerdict.matchesPublished !== check.expect) {
+        throw new Error(
+          `WHOLE-OBJECT CHECK FAILED (${check.name}): wasm matchesPublished=` +
+            `${wasmVerdict.matchesPublished}, expected ${check.expect}.`,
+        );
+      }
+      // Equality on the whole verdict, not just the boolean: the discrepancy
+      // list is what a tribunal reads, so the artifacts must agree on it too.
+      if (JSON.stringify(wasmVerdict) !== JSON.stringify(mjsVerdict)) {
+        throw new Error(
+          `ARTIFACT DIVERGENCE on claim verdict (${check.name}); neither should be published.`,
+        );
+      }
+    }
+    rmSync(inputPath, { force: true });
+  }
+  console.log(
+    `✓ whole-object claim verification agrees across artifacts (${checks.length} checks, both CP forms)`,
+  );
 }
 
 writeFileSync(
