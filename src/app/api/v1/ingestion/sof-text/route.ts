@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
-import { createClient } from "@/lib/supabase/server";
+import { resolveCaller } from "@/lib/api/caller";
 import { apiError } from "@/lib/api-errors";
 import { geocodePort } from "@/lib/evidence/weather";
 import {
@@ -44,7 +43,7 @@ const SofTextSchema = z.object({
 // confirm).
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const caller = await resolveCaller(req, "voyages:write");
 
     const parsed = SofTextSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
@@ -66,7 +65,7 @@ export async function POST(req: NextRequest) {
     }
     const warnings = [...extraction.warnings];
 
-    const supabase = await createClient();
+    const supabase = caller.client;
 
     // Resolve or create the claim.
     let claimId: string;
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
         .select("id, company_id, port, port_lat, port_lon")
         .eq("id", input.claimId)
         .maybeSingle();
-      if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+      if (!claim || claim.company_id !== caller.companyId) throw new Error("CLAIM_NOT_FOUND");
       claimId = claim.id;
       port = claim.port;
       portLat = claim.port_lat;
@@ -89,7 +88,7 @@ export async function POST(req: NextRequest) {
       const { data: claim, error: claimErr } = await supabase
         .from("claims")
         .insert({
-          company_id: auth.companyId,
+          company_id: caller.companyId,
           vessel: input.vessel ?? "TBN",
           voyage_ref: input.voyageRef ?? `SOF-${Date.now()}`,
           port: input.port ?? "TBC",
@@ -98,7 +97,7 @@ export async function POST(req: NextRequest) {
           cp_terms: DEFAULT_CP_TERMS,
           counterparty_name: input.counterpartyName ?? null,
           status: "draft",
-          created_by: auth.userId,
+          created_by: caller.userId,
         })
         .select("id, port")
         .single();

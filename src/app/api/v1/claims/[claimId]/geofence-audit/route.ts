@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
-import { createClient } from "@/lib/supabase/server";
+import { resolveCaller } from "@/lib/api/caller";
 import { apiError } from "@/lib/api-errors";
 import { runGeofenceAudit } from "@/lib/ingestion/geofence-server";
 import { fetchAisTrack } from "@/lib/evidence/ais";
@@ -33,7 +33,7 @@ const AIS_WINDOW_PAD_HOURS = 12;
 // Resolves the track to audit against: the caller's if supplied, else the
 // configured provider's over the claim's event window.
 async function resolveTrack(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   claimId: string,
   supplied: AisFix[] | undefined
 ): Promise<AisFix[]> {
@@ -80,7 +80,7 @@ export async function POST(
 ) {
   try {
     const { claimId } = await params;
-    const auth = await requireAuth();
+    const caller = await resolveCaller(req, "calculations:read");
 
     const parsed = GeofenceAuditSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
@@ -92,13 +92,13 @@ export async function POST(
 
     // Tenancy check stays here (defense in depth alongside RLS); the bridge
     // owns the audit itself and is shared with the extraction pipeline.
-    const supabase = await createClient();
+    const supabase = caller.client;
     const { data: claim } = await supabase
       .from("claims")
       .select("id, company_id")
       .eq("id", claimId)
       .maybeSingle();
-    if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+    if (!claim || claim.company_id !== caller.companyId) throw new Error("CLAIM_NOT_FOUND");
 
     const aisHistory = await resolveTrack(
       supabase,

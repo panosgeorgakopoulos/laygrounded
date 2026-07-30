@@ -127,7 +127,7 @@ export function DeveloperSettings() {
   const authServerMetaUrl = `${origin}/.well-known/oauth-authorization-server`;
 
   const loadKeys = useCallback(async () => {
-    const res = await fetch("/api/v1/audit/keys");
+    const res = await fetch("/api/v1/keys");
     const json = await readJson(res);
     if (res.ok && json?.keys) setKeys(json.keys);
   }, []);
@@ -162,7 +162,7 @@ export function DeveloperSettings() {
     setError(null);
     setNewKey(null);
     try {
-      const res = await fetch("/api/v1/audit/keys", {
+      const res = await fetch("/api/v1/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: label.trim(), scopes, rateLimitPerMinute: rateLimit }),
@@ -183,7 +183,7 @@ export function DeveloperSettings() {
     setBusy(id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/audit/keys/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/keys/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const json = await readJson(res);
         return setError(json?.error || `Revoke failed (${res.status}).`);
@@ -284,7 +284,7 @@ export function DeveloperSettings() {
     setBusy("listWebhooks");
     setError(null);
     try {
-      const res = await fetch("/api/v1/audit/webhooks", {
+      const res = await fetch("/api/v1/webhooks", {
         headers: { Authorization: `Bearer ${bearer.trim()}` },
       });
       const json = await readJson(res);
@@ -303,7 +303,7 @@ export function DeveloperSettings() {
     setError(null);
     setNewWebhookSecret(null);
     try {
-      const res = await fetch("/api/v1/audit/webhooks", {
+      const res = await fetch("/api/v1/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer.trim()}` },
         body: JSON.stringify({ url: webhookUrl.trim(), eventTypes: webhookEvents }),
@@ -322,7 +322,7 @@ export function DeveloperSettings() {
     setBusy(id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/audit/webhooks/${id}`, {
+      const res = await fetch(`/api/v1/webhooks/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${bearer.trim()}` },
       });
@@ -725,7 +725,7 @@ export function DeveloperSettings() {
         </CardHeader>
         <CardContent>
           <p style={{ marginBottom: "0.75rem" }}>
-            <a className={styles.link} href="/api/v1/audit/openapi.json" target="_blank" rel="noreferrer">
+            <a className={styles.link} href="/api/v1/openapi.json" target="_blank" rel="noreferrer">
               Open the OpenAPI 3.1 spec ↗
             </a>
           </p>

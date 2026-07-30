@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
 import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
-// DELETE /api/v1/audit/keys/{id} — revoke a key.
+// DELETE /api/v1/keys/{id} — revoke a key.
 //
 // Revoke, not delete: the row is the audit trail of what that credential was
 // allowed to do and when it was last used. Deleting it would erase the record
@@ -48,6 +48,6 @@ export async function DELETE(
 
     return NextResponse.json({ revoked: data[0].id, keyPrefix: data[0].key_prefix });
   } catch (e) {
-    return apiError(e, "v1/audit/keys/[id]/DELETE", { REVOKE_FAILED: 503 });
+    return apiError(e, "v1/keys/[id]/DELETE", { REVOKE_FAILED: 503 });
   }
 }

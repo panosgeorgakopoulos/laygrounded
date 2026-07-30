@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
-import { createClient } from "@/lib/supabase/server";
+import { resolveCaller } from "@/lib/api/caller";
 import { apiError } from "@/lib/api-errors";
 import { generateAndSealMrvReport, type MrvVoyageOverride } from "@/lib/compliance/mrv-server";
 import { EU_MRV_EMISSION_FACTORS } from "@/lib/compliance/mrv";
@@ -49,7 +48,7 @@ const ReportSchema = z.object({
 // verification and confers no regulatory standing.
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const caller = await resolveCaller(req, "compliance:read");
     const parsed = ReportSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
@@ -64,13 +63,13 @@ export async function POST(req: NextRequest) {
       overrides[claimId] = rest as MrvVoyageOverride;
     }
 
-    const supabase = await createClient();
+    const supabase = caller.client;
     const { report, seal, id } = await generateAndSealMrvReport({
-      companyId: auth.companyId,
-      companyName: auth.companyName,
+      companyId: caller.companyId,
+      companyName: caller.companyName,
       reportingPeriod: parsed.data.reportingPeriod,
       overrides,
-      userId: auth.userId,
+      userId: caller.userId ?? undefined,
       client: supabase,
       persist: parsed.data.persist,
     });
@@ -100,14 +99,14 @@ export async function POST(req: NextRequest) {
 // Latest sealed report for a period (or the most recent seal overall).
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const caller = await resolveCaller(req, "compliance:read");
     const periodRaw = req.nextUrl.searchParams.get("reportingPeriod");
-    const supabase = await createClient();
+    const supabase = caller.client;
 
     let q = supabase
       .from("mrv_reports")
       .select("id, reporting_period, report, merkle_root, signature_algo, leaf_count, submittable, verification_status, sealed_at")
-      .eq("company_id", auth.companyId)
+      .eq("company_id", caller.companyId)
       .order("sealed_at", { ascending: false })
       .limit(20);
     if (periodRaw) {

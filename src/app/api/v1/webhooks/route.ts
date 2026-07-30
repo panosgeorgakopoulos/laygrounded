@@ -12,7 +12,7 @@ const RegisterSchema = z.object({
   eventTypes: z.array(z.enum(TIME_BAR_EVENTS)).min(1),
 });
 
-// POST /api/v1/audit/webhooks — register a time-bar alert webhook.
+// POST /api/v1/webhooks — register a time-bar alert webhook.
 // The signing secret is returned exactly once, here. Same rule as the ERP
 // integration secrets and the insurer keys: it is never readable again.
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     caller = await authenticateApiRequest(req, "webhooks:manage");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/POST:auth");
+    return apiAuthFailure(e, "v1/webhooks/POST:auth");
   }
 
   try {
@@ -89,17 +89,17 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/POST");
+    return apiAuthFailure(e, "v1/webhooks/POST");
   }
 }
 
-// GET /api/v1/audit/webhooks — list registrations (never the secrets).
+// GET /api/v1/webhooks — list registrations (never the secrets).
 export async function GET(req: NextRequest) {
   let caller;
   try {
     caller = await authenticateApiRequest(req, "webhooks:manage");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/GET:auth");
+    return apiAuthFailure(e, "v1/webhooks/GET:auth");
   }
 
   try {
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
       caller
     );
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/GET");
+    return apiAuthFailure(e, "v1/webhooks/GET");
   }
 }
 

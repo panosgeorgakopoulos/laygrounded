@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
-    return apiError(e, "v1/audit/keys/POST", { AUDIT_WRITE_FAILED: 503 });
+    return apiError(e, "v1/keys/POST", { AUDIT_WRITE_FAILED: 503 });
   }
 }
 
@@ -118,6 +118,6 @@ export async function GET() {
       })),
     });
   } catch (e) {
-    return apiError(e, "v1/audit/keys/GET", { QUERY_FAILED: 503 });
+    return apiError(e, "v1/keys/GET", { QUERY_FAILED: 503 });
   }
 }

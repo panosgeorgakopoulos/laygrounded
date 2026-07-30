@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/server-auth";
-import { createClient } from "@/lib/supabase/server";
+import { resolveCaller } from "@/lib/api/caller";
 import { apiError } from "@/lib/api-errors";
 import { buildAuditDossier } from "@/lib/legal/prosecution";
 import { proofAsOf } from "@/lib/legal/notary-server";
@@ -21,15 +20,15 @@ export async function GET(
 ) {
   try {
     const { claimId } = await params;
-    const auth = await requireAuth();
-    const supabase = await createClient();
+    const caller = await resolveCaller(req, "documents:read");
+    const supabase = caller.client;
 
     const { data: claim } = await supabase
       .from("claims")
       .select("id, company_id, vessel, voyage_ref, port")
       .eq("id", claimId)
       .maybeSingle();
-    if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+    if (!claim || claim.company_id !== caller.companyId) throw new Error("CLAIM_NOT_FOUND");
 
     const asOfRaw = req.nextUrl.searchParams.get("asOf");
     const at = asOfRaw ? new Date(asOfRaw) : new Date();

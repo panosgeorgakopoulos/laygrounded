@@ -3,7 +3,7 @@ import { authenticateApiRequest } from "@/lib/api/authenticate";
 import { apiAuthFailure, apiFail, apiOk } from "@/lib/api/respond";
 import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
-// DELETE /api/v1/audit/webhooks/{id} — remove a registration.
+// DELETE /api/v1/webhooks/{id} — remove a registration.
 // Scoped by company: a key cannot delete another tenant's webhook, and a
 // wrong-tenant id is a 404 rather than a 403 (which would confirm it exists).
 export async function DELETE(
@@ -14,7 +14,7 @@ export async function DELETE(
   try {
     caller = await authenticateApiRequest(req, "webhooks:manage");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/[id]/DELETE:auth");
+    return apiAuthFailure(e, "v1/webhooks/[id]/DELETE:auth");
   }
 
   try {
@@ -43,6 +43,6 @@ export async function DELETE(
 
     return apiOk({ deleted: webhookId }, caller);
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/webhooks/[id]/DELETE");
+    return apiAuthFailure(e, "v1/webhooks/[id]/DELETE");
   }
 }

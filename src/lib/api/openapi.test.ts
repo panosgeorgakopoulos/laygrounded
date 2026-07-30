@@ -78,7 +78,7 @@ describe("buildOpenApiSpec", () => {
   });
 
   test("states that a null calculation is not zero demurrage", () => {
-    expect(spec.paths["/api/v1/audit/voyages/{claimId}"].get.description).toContain("never 0");
+    expect(spec.paths["/api/v1/voyages/{claimId}"].get.description).toContain("never 0");
   });
 
   // Regression: the spec declared 3.1.0 while using 3.0's `nullable`, which

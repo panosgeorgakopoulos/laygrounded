@@ -19,8 +19,8 @@ const MAX_REQUESTS = 100; // per minute
 // It stays in place as a crude anti-flood net for the unauthenticated case
 // (bad keys are rejected on shape before touching the database, so they are
 // cheap — but not free).
-const AUDIT_API_PREFIX = '/api/v1/audit';
-const MAX_REQUESTS_AUDIT = 2000; // per minute, per IP — DoS floor, not a quota
+const V1_API_PREFIX = '/api/v1';
+const MAX_REQUESTS_V1 = 2000; // per minute, per IP — DoS floor, not a quota
 
 // The OAuth 2.1 endpoints (/oauth/*) live OUTSIDE /api, so the ceilings above
 // never saw them. They are unauthenticated by necessity — there is no API key
@@ -49,8 +49,8 @@ function rateBucket(pathname: string): { prefix: string; ceiling: number } | nul
     return { prefix: 'oauth:', ceiling: MAX_REQUESTS_OAUTH };
   }
   if (pathname.startsWith('/api')) {
-    return pathname.startsWith(AUDIT_API_PREFIX)
-      ? { prefix: 'audit:', ceiling: MAX_REQUESTS_AUDIT }
+    return pathname.startsWith(V1_API_PREFIX)
+      ? { prefix: 'v1:', ceiling: MAX_REQUESTS_V1 }
       : { prefix: 'app:', ceiling: MAX_REQUESTS };
   }
   return null;

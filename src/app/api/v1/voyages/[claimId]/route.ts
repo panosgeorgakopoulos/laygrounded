@@ -3,7 +3,7 @@ import { authenticateApiRequest } from "@/lib/api/authenticate";
 import { apiAuthFailure, apiFail, apiOk } from "@/lib/api/respond";
 import { computeTimeBar } from "@/lib/time-bar";
 
-// GET /api/v1/audit/voyages/{claimId} — the live state of one voyage:
+// GET /api/v1/voyages/{claimId} — the live state of one voyage:
 // laytime calculation, dispute status, and time-bar countdown.
 //
 // Requires calculations:read. Dispute detail additionally requires
@@ -18,7 +18,7 @@ export async function GET(
   try {
     caller = await authenticateApiRequest(req, "calculations:read");
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/[id]/GET:auth");
+    return apiAuthFailure(e, "v1/voyages/[id]/GET:auth");
   }
 
   try {
@@ -147,7 +147,7 @@ export async function GET(
       caller
     );
   } catch (e) {
-    return apiAuthFailure(e, "v1/audit/voyages/[id]/GET");
+    return apiAuthFailure(e, "v1/voyages/[id]/GET");
   }
 }
 
