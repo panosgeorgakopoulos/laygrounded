@@ -9,6 +9,7 @@ import {
   type MarineFuel,
   type EngineTier,
 } from "@/lib/compliance/emissions";
+import { resolveEeaPort } from "@/lib/compliance/eea-ports";
 
 // The "carbon cost of delay" (A7): the ESG footprint of a claim's demurrage
 // delay — CO2 / NOx / SOx and the EU-ETS surrender cost — paired with the
@@ -26,14 +27,14 @@ export async function GET(
 
     const { data: claim } = await supabase
       .from("claims")
-      .select("id, company_id")
+      .select("id, company_id, port, ets_applicable")
       .eq("id", claimId)
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
 
     const { data: calc } = await supabase
       .from("laytime_calculations")
-      .select("used_hours, allowed_hours, demurrage_amount, currency")
+      .select("used_hours, allowed_hours, demurrage_amount, currency, computed_at")
       .eq("claim_id", claimId)
       .order("computed_at", { ascending: false })
       .limit(1)
@@ -51,16 +52,36 @@ export async function GET(
       | EngineTier
       | undefined;
 
+    // EU ETS scope. An explicit `ets_applicable` on the claim always wins; the
+    // port-string resolver is the fallback and returns UNKNOWN rather than
+    // guessing, which the estimator then presents as potential exposure.
+    //
+    // Before this was wired in, the EUA figure assumed a flat 100% coverage
+    // regardless of geography — so every non-EEA delay was billed a liability
+    // that does not exist. Two of the claims on file are Australian.
+    const resolved = resolveEeaPort(claim.port);
+    const eeaPort = claim.ets_applicable ?? resolved.eeaPort;
+    const scopeBasis =
+      claim.ets_applicable != null
+        ? "Set explicitly on the claim."
+        : resolved.reason;
+
     const report = buildCarbonCostOfDelay({
       delayHours,
       fuel,
       engineTier,
+      eeaPort,
+      // The year the calculation is about, not today — the phase-in factor is a
+      // property of when the delay happened.
+      year: new Date(calc.computed_at ?? Date.now()).getUTCFullYear(),
       demurrageAmount: calc.demurrage_amount ?? undefined,
       currency: calc.currency ?? undefined,
     });
 
     return NextResponse.json({
       report,
+      etsScopeBasis: scopeBasis,
+      port: claim.port,
       // Surface the option lists so the UI can offer the same fuels/tiers the
       // engine knows, without hardcoding them separately.
       fuels: Object.entries(MARINE_FUELS).map(([id, p]) => ({ id, label: p.label })),
