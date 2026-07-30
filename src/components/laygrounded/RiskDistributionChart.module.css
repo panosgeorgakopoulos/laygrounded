@@ -1,0 +1,268 @@
+/* Chart roles, defined once so light/dark swap in one place and the chart body
+   is written against roles rather than raw hex.
+
+   The diverging pair is blue (no demurrage) ↔ red (on demurrage) with the zero
+   rule as the neutral midpoint. Both modes validated against this app's own
+   surfaces — light #ffffff, dark #111111 — not flipped from one another. */
+.figure {
+  --viz-neg: #2a78d6;
+  --viz-pos: #e34948;
+  --viz-grid: var(--color-border);
+  --viz-axis: var(--color-border-hover);
+  --viz-ink: var(--color-text-secondary);
+  --viz-ink-muted: var(--color-text-tertiary);
+  --viz-surface: var(--color-surface);
+
+  position: relative;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .figure {
+    --viz-neg: #3987e5;
+    --viz-pos: #e66767;
+  }
+}
+
+:root[data-theme="dark"] .figure {
+  --viz-neg: #3987e5;
+  --viz-pos: #e66767;
+}
+
+.caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.captionTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.tableToggle {
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-hover);
+  padding: 0 0 1px;
+  cursor: pointer;
+}
+
+.tableToggle:hover {
+  color: var(--color-text-primary);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* Legend text wears ink tokens; the swatch beside it carries identity. */
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.swatchNeg {
+  background: var(--viz-neg);
+}
+
+.swatchPos {
+  background: var(--viz-pos);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* Thin marks, recessive chrome. */
+.grid {
+  stroke: var(--viz-grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.axis {
+  stroke: var(--viz-axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.areaNeg {
+  fill: var(--viz-neg);
+  fill-opacity: 0.42;
+  stroke: var(--viz-neg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.areaPos {
+  fill: var(--viz-pos);
+  fill-opacity: 0.42;
+  stroke: var(--viz-pos);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.zeroLine {
+  stroke: var(--color-text-tertiary);
+  stroke-width: 1.5;
+}
+
+.zeroLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--viz-ink-muted);
+}
+
+/* Dashed ONLY on the annotation lines: here dashing genuinely means
+   "threshold", which is what these two are. Gridlines stay solid. */
+.markMean,
+.markP90 {
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.markMean {
+  stroke: var(--color-text-primary);
+}
+
+.markP90 {
+  stroke: var(--viz-pos);
+}
+
+.markLabel {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--viz-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tick {
+  font-size: 10.5px;
+  fill: var(--viz-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.axisTitle {
+  font-size: 10.5px;
+  fill: var(--viz-ink-muted);
+}
+
+.crosshair {
+  stroke: var(--color-text-tertiary);
+  stroke-width: 1;
+}
+
+.hoverDot {
+  fill: var(--color-text-primary);
+  /* 2px surface ring rather than a border drawn around the mark. */
+  stroke: var(--viz-surface);
+  stroke-width: 2;
+}
+
+.tooltip {
+  position: absolute;
+  top: 0.5rem;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.tooltip strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* Wide content scrolls inside its own container; the page never scrolls
+   horizontally. */
+.tableWrap {
+  margin-top: 1rem;
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.tableCaption {
+  caption-side: top;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  color: var(--color-text-tertiary);
+  font-size: 0.7rem;
+}
+
+.table th,
+.table td {
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svg * {
+    transition: none !important;
+  }
+}

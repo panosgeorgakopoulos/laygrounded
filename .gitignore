@@ -33,6 +33,10 @@ yarn-error.log*
 # env files
 .env
 .env.*
+# The template is documentation, not a secret: CLAUDE.md tells a new developer
+# to copy it, so it has to survive a fresh clone. It carries commented
+# placeholders only — never real values.
+!.env.example
 
 # vercel
 .vercel
