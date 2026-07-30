@@ -1,0 +1,107 @@
+.wrap { margin-top: 0.5rem; }
+
+.intro {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.875rem;
+  max-width: 44rem;
+}
+
+.loading { font-size: 0.8125rem; color: var(--color-text-tertiary); }
+
+.error {
+  font-size: 0.8125rem;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.625rem;
+  margin: 0 0 0.75rem;
+}
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.row:last-child { border-bottom: none; }
+
+.main { min-width: 0; }
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.tag {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: var(--radius-sm);
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.thresholds {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  margin: 0.125rem 0 0;
+}
+
+.control { flex-shrink: 0; }
+
+.controlLabel {
+  display: block;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.1875rem;
+}
+
+.inputRow { display: flex; align-items: center; gap: 0.375rem; }
+
+.inputRow input {
+  width: 5rem;
+  font-size: 0.8125rem;
+  padding: 0.3125rem 0.4375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.unit { font-size: 0.75rem; color: var(--color-text-tertiary); }
+
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  font-size: 0.6875rem;
+  color: #166534;
+}
+
+.reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.reset:hover { border-color: #1e40af; color: #1e40af; }
