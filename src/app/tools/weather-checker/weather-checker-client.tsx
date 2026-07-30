@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CloudRain, Wind, AlertTriangle, Lock, Check } from "lucide-react";
+import { CloudRain, Wind, AlertTriangle, FileDown, Check } from "lucide-react";
 import styles from "./WeatherChecker.module.css";
 
 interface Cargo {
@@ -52,7 +52,7 @@ export function WeatherCheckerClient() {
   const [error, setError] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function WeatherCheckerClient() {
     setBusy(true);
     setError(null);
     setReport(null);
-    setUnlocked(false);
+    setDownloaded(false);
     try {
       const res = await fetch("/api/tools/weather-checker", {
         method: "POST",
@@ -100,31 +100,42 @@ export function WeatherCheckerClient() {
     }
   }
 
-  async function submitEmail(e: React.FormEvent) {
+  async function downloadReport(e: React.FormEvent) {
     e.preventDefault();
+    if (!report) return;
     setEmailBusy(true);
+    setError(null);
     try {
-      const res = await fetch("/api/tools/weather-checker/lead", {
+      // The server regenerates the report from the query rather than trusting
+      // anything posted back, so the document can only ever say what the
+      // archive actually shows.
+      const res = await fetch("/api/tools/weather-checker/report", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           email,
-          context: report
-            ? {
-                port: report.port.query,
-                cargoKey: report.profile.cargoKey,
-                start: report.window.from,
-                end: report.window.to,
-                totalExceptedHours: report.totalExceptedHours,
-              }
-            : {},
+          port: report.port.query,
+          cargoKey: report.profile.cargoKey,
+          start: report.window.from,
+          end: report.window.to,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message ?? "Could not save that address");
-      setUnlocked(true);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message ?? j.error ?? "Could not build the report");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `weather-report-${report.port.query.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDownloaded(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save that address");
+      setError(e instanceof Error ? e.message : "Could not build the report");
     } finally {
       setEmailBusy(false);
     }
@@ -246,7 +257,7 @@ export function WeatherCheckerClient() {
             <>
               {/* The first two are always visible. The rest is the hook. */}
               <ul className={styles.blocks}>
-                {(unlocked ? report.blocks : report.blocks.slice(0, 2)).map((b) => (
+                {report.blocks.map((b) => (
                   <li key={b.from} className={styles.block}>
                     <span className={styles.blockIcon}>
                       {b.dimensions.includes("precipitation") ? (
@@ -268,42 +279,44 @@ export function WeatherCheckerClient() {
                 ))}
               </ul>
 
-              {!unlocked && report.blocks.length > 2 && (
-                <form className={styles.gate} onSubmit={submitEmail}>
-                  <div className={styles.gateHead}>
-                    <Lock size={15} />
-                    <strong>
-                      {report.blocks.length - 2} more stoppage
-                      {report.blocks.length - 2 === 1 ? "" : "s"} in this window
-                    </strong>
-                  </div>
-                  <p className={styles.gateNote}>
-                    Enter your work email to see the full hour-by-hour breakdown. We will send it
-                    to you and nothing else.
-                  </p>
-                  <div className={styles.gateRow}>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      aria-label="Work email"
-                    />
-                    <button type="submit" disabled={emailBusy}>
-                      {emailBusy ? "Unlocking…" : "Show the full report"}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {unlocked && (
-                <p className={styles.unlocked}>
-                  <Check size={14} /> Full report unlocked.
-                </p>
-              )}
             </>
           )}
+
+          {/* The download gate. ALWAYS shown after a successful query — a clear
+              window is just as worth reporting to a counterparty as a wet one,
+              and gating on stoppage count lost exactly those leads. */}
+          <div className={styles.gate}>
+            {downloaded ? (
+              <p className={styles.unlocked}>
+                <Check size={14} /> Report downloaded. Check your downloads folder.
+              </p>
+            ) : (
+              <form onSubmit={downloadReport}>
+                <div className={styles.gateHead}>
+                  <FileDown size={15} />
+                  <strong>Download the detailed PDF report</strong>
+                </div>
+                <p className={styles.gateNote}>
+                  The full hour-by-hour findings, the exact thresholds applied, and the method —
+                  formatted to send to a counterparty. The summary above stays free; the document
+                  needs an email.
+                </p>
+                <div className={styles.gateRow}>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    aria-label="Work email"
+                  />
+                  <button type="submit" disabled={emailBusy}>
+                    {emailBusy ? "Preparing…" : "Download PDF"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
 
           {report.warnings.length > 0 && (
             <ul className={styles.warnings}>
