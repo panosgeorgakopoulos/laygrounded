@@ -112,11 +112,21 @@ export async function recomputeLaytimeServerFn(
   // BL-1: Upsert instead of delete + insert. The persisted calculation is the
   // product's authoritative financial output, so a failed write must surface
   // loudly rather than being swallowed and leaving stale/absent totals.
+  // Every total the engine produced, so the row can be reconstructed into a
+  // faithful `LaytimeResult`. Storing a subset is what previously forced the
+  // trade-finance package to publish named fields instead of a whole object.
+  //
+  // `demurrage_half_rate_hours` is written as NULL when the engine did not emit
+  // it (GENCON 94). NULL and 0 mean different things here — see
+  // `calculation-row.ts` — so it must not be coalesced on the way in either.
   const { error: persistErr } = await supabase.from("laytime_calculations").upsert({
     claim_id: claimId,
     breakdown: result.breakdown,
     used_hours: result.totals.used_hours,
     allowed_hours: result.totals.allowed_hours,
+    time_on_demurrage_hours: result.totals.time_on_demurrage_hours,
+    time_saved_hours: result.totals.time_saved_hours,
+    demurrage_half_rate_hours: result.totals.demurrage_half_rate_hours ?? null,
     demurrage_amount: result.totals.demurrage_amount,
     despatch_amount: result.totals.despatch_amount,
     currency: result.totals.currency,

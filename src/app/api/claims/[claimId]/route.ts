@@ -159,6 +159,11 @@ export async function GET(
         claimId: c.claim_id,
         usedHours: c.used_hours,
         allowedHours: c.allowed_hours,
+        timeOnDemurrageHours: c.time_on_demurrage_hours,
+        timeSavedHours: c.time_saved_hours,
+        // NULL when the engine did not emit the key (GENCON 94); preserved as
+        // null rather than defaulted, because 0 is a different statement.
+        demurrageHalfRateHours: c.demurrage_half_rate_hours ?? null,
         demurrageAmount: c.demurrage_amount,
         despatchAmount: c.despatch_amount,
         computedAt: c.computed_at,

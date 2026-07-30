@@ -37,6 +37,10 @@ export interface LaytimeCalculationRow {
   currency: string;
   used_hours: number;
   allowed_hours: number;
+  time_on_demurrage_hours: number;
+  time_saved_hours: number;
+  /** ASBATANKVOY only. NULL means the engine did not emit the key, not zero. */
+  demurrage_half_rate_hours: number | null;
   breakdown: LaytimeResult["breakdown"];
 }
 
