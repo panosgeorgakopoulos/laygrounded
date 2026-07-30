@@ -20,10 +20,13 @@ import {
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, SofEventInput } from "@/lib/laytime/types";
 import { Decimal } from "decimal.js";
+import { MAX_TIMELINE_HOURS, synthesizeVoyageTimeline } from "@/lib/risk/voyage-timeline";
+import { percentile } from "@/lib/risk/aggregate";
+
+// Re-exported so this module's public surface is unchanged by the extraction.
+export { percentile };
 
 const HOUR_MS = 3600_000;
-// The engine caps at 1440 iterated hours; leave margin for turn time.
-const MAX_TIMELINE_HOURS = 1200;
 
 export interface FixtureRiskInputs {
   port: string;
@@ -79,57 +82,26 @@ export function deriveStoppageFlags(window: HourlyWeatherWindow): boolean[] {
   });
 }
 
-// Builds the voyage timeline for one historical year: NOR → berth → ops that
-// pause during stoppage hours → completion once opsDurationHours of actual
-// work are done. Flags beyond the array are treated as workable.
+/**
+ * The pre-fixture voyage template: NOR → berth at +2h → ops at +3h.
+ *
+ * A thin wrapper over the shared timeline builder. This simulator has no
+ * queue model — it asks "what does this port's WEATHER cost", holding berthing
+ * constant — so the waiting time is fixed at two hours by design. The
+ * pre-arrival engine samples it from live AIS instead.
+ */
 export function synthesizeVoyage(
   startISO: string,
   stoppageFlags: boolean[],
   opsDurationHours: number
 ): SofEventInput[] {
-  const start = new Date(startISO);
-  const at = (h: number) => new Date(start.getTime() + h * HOUR_MS).toISOString();
-
-  const events: SofEventInput[] = [
-    { id: "nor", occurred_at: at(0), event_type: "NOR_TENDERED" },
-    { id: "fast", occurred_at: at(2), event_type: "ALL_FAST" },
-    { id: "ops", occurred_at: at(3), event_type: "COMMENCED_LOADING" },
-  ];
-
-  const opsStartHour = 3;
-  let worked = 0;
-  let hour = opsStartHour;
-  let weatherOpen = false;
-  let pairIndex = 0;
-
-  while (worked < opsDurationHours && hour < MAX_TIMELINE_HOURS) {
-    const stopped = stoppageFlags[hour] === true;
-    if (stopped && !weatherOpen) {
-      events.push({ id: `w${pairIndex}s`, occurred_at: at(hour), event_type: "WEATHER_DELAY" });
-      weatherOpen = true;
-    } else if (!stopped && weatherOpen) {
-      events.push({ id: `w${pairIndex}e`, occurred_at: at(hour), event_type: "WEATHER_DELAY_END" });
-      weatherOpen = false;
-      pairIndex++;
-    }
-    if (!stopped) worked++;
-    hour++;
-  }
-
-  if (weatherOpen) {
-    events.push({ id: `w${pairIndex}e`, occurred_at: at(hour), event_type: "WEATHER_DELAY_END" });
-  }
-  events.push({ id: "done", occurred_at: at(hour), event_type: "COMPLETED_LOADING" });
-  return events;
-}
-
-export function percentile(sortedAscending: number[], p: number): number {
-  if (sortedAscending.length === 0) return 0;
-  const idx = (sortedAscending.length - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sortedAscending[lo];
-  return sortedAscending[lo] + (sortedAscending[hi] - sortedAscending[lo]) * (idx - lo);
+  return synthesizeVoyageTimeline({
+    startISO,
+    waitingHours: 2,
+    berthToOpsHours: 1,
+    stoppageFlags,
+    opsDurationHours,
+  });
 }
 
 export async function simulateFixtureRisk(
