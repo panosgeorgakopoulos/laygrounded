@@ -34,6 +34,9 @@ const BunkerLiftSchema = z.object({
   currency: z.string().length(3),
 });
 
+/** Fuel on board settled at delivery/redelivery. Same shape, different meaning. */
+const BunkerSettlementSchema = BunkerLiftSchema;
+
 export const PnlTermsSchema = z.object({
   freight: z
     .object({
@@ -65,6 +68,12 @@ export const PnlTermsSchema = z.object({
         .default([]),
       ilohc: z.number().finite().min(0).optional(),
       cvePerMonth: z.number().finite().min(0).optional(),
+      // Quantities are non-negative; the DIRECTION is carried by which field
+      // this is, not by the sign. A negative BOD would otherwise silently mean
+      // "the owner paid the charterer for fuel at delivery", which is not a
+      // thing, and would flip a line on the sheet with no indication why.
+      bunkersOnDelivery: BunkerSettlementSchema.optional(),
+      bunkersOnRedelivery: BunkerSettlementSchema.optional(),
     })
     .optional(),
 });
