@@ -87,12 +87,27 @@ export async function POST(req: NextRequest) {
 
     const rows = (data ?? []) as unknown as RiskRow[];
     if (rows.length === 0) {
+      // Suggesting `includeNonDecisionGrade` is only useful if relaxing that
+      // filter would actually find something. Checking first costs one cheap
+      // count and avoids sending the caller after a remedy that cannot help.
+      let excludedByGrade = 0;
+      if (!body.includeNonDecisionGrade) {
+        let countQuery = supabase
+          .from("pre_arrival_risks")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", auth.companyId);
+        if (body.riskIds) countQuery = countQuery.in("id", body.riskIds);
+        const { count } = await countQuery;
+        excludedByGrade = count ?? 0;
+      }
+
       return NextResponse.json(
         {
           error: "NO_ASSESSMENTS",
-          message: body.includeNonDecisionGrade
-            ? "No pre-arrival assessments were found for this company."
-            : "No decision-grade pre-arrival assessments were found. Assessments built on synthetic congestion are excluded by default; pass includeNonDecisionGrade to see them anyway, clearly marked.",
+          message:
+            excludedByGrade > 0
+              ? `All ${excludedByGrade} matching assessment${excludedByGrade === 1 ? " was" : "s were"} built on synthetic congestion and are excluded by default. Pass includeNonDecisionGrade to include them, clearly marked as not decision-grade.`
+              : "No pre-arrival assessments were found for this company. Run some from the pre-arrival page first.",
         },
         { status: 422 }
       );

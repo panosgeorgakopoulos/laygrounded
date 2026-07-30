@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildChartModel, CHART, type HistogramBin } from "@/lib/risk/chart-model";
+import { buildChartModel, buildOverlayModel, CHART, type HistogramBin } from "@/lib/risk/chart-model";
 import realPayload from "@/lib/risk/__fixtures__/real-payload.json";
 
 // An SVG containing a single NaN renders as nothing at all — silently, with no
@@ -181,5 +181,97 @@ describe("edge cases", () => {
     expect(m.x(0)).toBeLessThan(m.x(100));
     // Taller bin sits higher on the plot (smaller y).
     expect(m.y(30 / 60)).toBeLessThan(m.y(10 / 60));
+  });
+});
+
+describe("buildOverlayModel", () => {
+  const bins = (spec: Array<[number, number, number]>): HistogramBin[] =>
+    spec.map(([from, to, count]) => ({ from, to, count }));
+
+  // Both series binned on ONE domain, as the portfolio simulator imposes.
+  const correlated = bins([[0, 100, 200], [100, 200, 500], [200, 300, 300]]);
+  const independent = bins([[0, 100, 400], [100, 200, 500], [200, 300, 100]]);
+
+  const model = buildOverlayModel({
+    series: [
+      { key: "correlated", histogram: correlated },
+      { key: "independent", histogram: independent },
+    ],
+    trials: 1000,
+    markers: [
+      { key: "corrP90", value: 260, label: "Correlated P90" },
+      { key: "indepP90", value: 180, label: "Independent P90" },
+    ],
+  })!;
+
+  test("produces a finite in-bounds path per series", () => {
+    expect(Object.keys(model.paths).sort()).toEqual(["correlated", "independent"]);
+    for (const d of Object.values(model.paths)) {
+      expect(d).not.toContain("NaN");
+      expect(d).not.toContain("Infinity");
+      const nums = (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+      for (let i = 0; i < nums.length; i += 2) {
+        expect(nums[i]).toBeGreaterThanOrEqual(PLOT_L - 0.5);
+        expect(nums[i]).toBeLessThanOrEqual(PLOT_R + 0.5);
+      }
+      for (let i = 1; i < nums.length; i += 2) {
+        expect(nums[i]).toBeGreaterThanOrEqual(PLOT_T - 0.5);
+        expect(nums[i]).toBeLessThanOrEqual(PLOT_B + 0.5);
+      }
+    }
+  });
+
+  test("shares one y-scale, so equal densities render at equal heights", () => {
+    // The whole point of the overlay: both middle bins hold 500 of 1000.
+    expect(model.y(500 / 1000)).toBe(model.y(500 / 1000));
+    // And the taller correlated tail sits above the shorter independent one.
+    expect(model.y(300 / 1000)).toBeLessThan(model.y(100 / 1000));
+  });
+
+  test("keeps both markers inside the plot even beyond the histogram", () => {
+    for (const m of model.markers) {
+      expect(m.x).toBeGreaterThanOrEqual(PLOT_L - 0.5);
+      expect(m.x).toBeLessThanOrEqual(PLOT_R + 0.5);
+    }
+  });
+
+  test("the uplift band spans between the two markers, low to high", () => {
+    expect(model.upliftBand).not.toBeNull();
+    expect(model.upliftBand!.fromX).toBeLessThan(model.upliftBand!.toX);
+    // Independent P90 (180) is left of correlated P90 (260).
+    const corr = model.markers.find((m) => m.key === "corrP90")!;
+    const indep = model.markers.find((m) => m.key === "indepP90")!;
+    expect(indep.x).toBeLessThan(corr.x);
+    expect(model.upliftBand!.fromX).toBeCloseTo(indep.x, 6);
+    expect(model.upliftBand!.toX).toBeCloseTo(corr.x, 6);
+  });
+
+  test("returns null rather than an empty frame", () => {
+    expect(buildOverlayModel({ series: [], trials: 1000 })).toBeNull();
+    expect(
+      buildOverlayModel({ series: [{ key: "a", histogram: correlated }], trials: 0 })
+    ).toBeNull();
+    expect(
+      buildOverlayModel({ series: [{ key: "a", histogram: [] }], trials: 1000 })
+    ).toBeNull();
+  });
+
+  test("a single series still renders", () => {
+    const one = buildOverlayModel({
+      series: [{ key: "only", histogram: correlated }],
+      trials: 1000,
+    })!;
+    expect(Object.keys(one.paths)).toEqual(["only"]);
+    expect(one.upliftBand).toBeNull();
+  });
+
+  test("survives a degenerate domain without dividing by zero", () => {
+    const flat = buildOverlayModel({
+      series: [{ key: "a", histogram: bins([[50, 50, 1000]]) }],
+      trials: 1000,
+      markers: [{ key: "m", value: 50, label: "P90" }],
+    })!;
+    expect(Number.isFinite(flat.x(50))).toBe(true);
+    expect(flat.paths.a).not.toContain("NaN");
   });
 });

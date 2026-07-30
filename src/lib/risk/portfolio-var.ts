@@ -357,8 +357,17 @@ export function simulatePortfolio(
     for (let i = 0; i < trials; i++) priceDraw(drawTrial(voyages, clusters, rng.next));
   }
 
-  const correlated = summarisePortfolio(correlatedTotals);
-  const independent = summarisePortfolio(independentTotals);
+  // Both distributions are binned on ONE shared domain.
+  //
+  // Binning each on its own min/max would give them different bin widths, so
+  // the same density would render at different heights and the overlay would
+  // misstate the comparison it exists to make. The union domain is computed
+  // once and imposed on both.
+  const allTotals = [...correlatedTotals, ...independentTotals];
+  const sharedDomain: [number, number] = [Math.min(...allTotals), Math.max(...allTotals)];
+
+  const correlated = summarisePortfolio(correlatedTotals, sharedDomain);
+  const independent = summarisePortfolio(independentTotals, sharedDomain);
 
   // ── Per-voyage tail decomposition ─────────────────────────────────────────
   const sortedTotals = [...correlatedTotals].sort((a, b) => a - b);
@@ -426,7 +435,10 @@ export function simulatePortfolio(
   };
 }
 
-function summarisePortfolio(totals: number[]): PortfolioDistribution {
+function summarisePortfolio(
+  totals: number[],
+  sharedDomain?: [number, number]
+): PortfolioDistribution {
   const sorted = [...totals].sort((a, b) => a - b);
   const p90 = percentile(sorted, 0.9);
   const tail = sorted.filter((v) => v >= p90);
@@ -443,14 +455,24 @@ function summarisePortfolio(totals: number[]): PortfolioDistribution {
       totals.filter((t) => t > 0).length,
       totals.length
     ),
-    histogram: buildHistogram(sorted),
+    histogram: buildHistogram(sorted, sharedDomain),
   };
 }
 
-function buildHistogram(sorted: number[]): Array<{ from: number; to: number; count: number }> {
+/**
+ * Bins onto `domain` when given one, so two distributions can be overlaid.
+ *
+ * Values are clamped into the range rather than dropped: a sample outside the
+ * domain is still a sample, and silently discarding it would make the bars sum
+ * to less than the trial count.
+ */
+function buildHistogram(
+  sorted: number[],
+  domain?: [number, number]
+): Array<{ from: number; to: number; count: number }> {
   if (sorted.length === 0) return [];
-  const lo = sorted[0];
-  const hi = sorted[sorted.length - 1];
+  const lo = domain ? domain[0] : sorted[0];
+  const hi = domain ? domain[1] : sorted[sorted.length - 1];
   if (hi === lo) return [{ from: lo, to: hi, count: sorted.length }];
 
   const width = (hi - lo) / HISTOGRAM_BINS;
@@ -460,7 +482,8 @@ function buildHistogram(sorted: number[]): Array<{ from: number; to: number; cou
     count: 0,
   }));
   for (const v of sorted) {
-    bins[Math.min(Math.floor((v - lo) / width), HISTOGRAM_BINS - 1)].count++;
+    const idx = Math.floor((v - lo) / width);
+    bins[Math.min(Math.max(idx, 0), HISTOGRAM_BINS - 1)].count++;
   }
   return bins;
 }
