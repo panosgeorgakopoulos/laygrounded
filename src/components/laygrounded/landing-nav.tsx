@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: "Voyages",    href: "/voyages" },
   { label: "Analytics",  href: "/analytics" },
   { label: "Simulator",  href: "/simulator" },
+  { label: "Pre-arrival", href: "/simulator/pre-arrival" },
   { label: "Compliance", href: "/compliance" },
   { label: "Knowledge",  href: "/knowledge" },
   { label: "Settings",  href: "/settings" },
