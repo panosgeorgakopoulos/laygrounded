@@ -535,7 +535,62 @@ tools. `/v1/intel/prefixture` is the numeric half; this is the clause half.
 Extension worth taking: **clause benchmarking** — "this WWD SHEX variant is more
 owner-favorable than 78% of fixtures at this port," priced from your corpus.
 
-### 5.2 **[Y] Full voyage P&L / freight & hire accounting**
+### 5.2 **[Y] Full voyage P&L / freight & hire accounting** — ✅ VOYAGE CHARTER DONE 2026-07-30
+
+`src/lib/pnl/voyage-pnl.ts` (pure, 47 tests) + `pnl-server.ts`; migration
+`20260730000000_voyage_pnl.sql` (applied, catalog-verified); routes
+`GET/POST /api/voyage-pnl` and `GET/PATCH /api/voyage-pnl/[pnlId]`.
+
+**The structural fact the schema exists for:** `claims.port` is a single column,
+so a claim is one PORT CALL, not a voyage. A load/discharge voyage is two
+claims. The P&L therefore has its own root and a `voyage_pnl_claims` join —
+modelling it on the claim would make multi-port voyages unrepresentable.
+
+Three tables: `voyage_pnl` (inputs) → `voyage_pnl_claims` (which port calls) →
+`voyage_pnl_results` (computed snapshots, append-only). Same shape as
+`laytime_calculations`: inputs stored, result recomputed and snapshotted.
+**RLS uses `is_company_member()`**, not the always-NULL `app_metadata` pattern.
+
+**Decisions that are easy to get wrong, and were:**
+
+1. **`LineKind` has four values, not two.** `deduction` (commissions, despatch)
+   and `expense` (bunkers, port costs) are both negative, but TCE and "voyage
+   expenses" mean different things by them. The first cut classified them by
+   matching on key names — which breaks the first time a key is renamed, and
+   breaks silently, in money.
+2. **TCE excludes transfers.** BOD/BOR is cash moving between the parties, not
+   something the voyage earned or consumed. Folding it in distorts the one
+   number the market compares vessels on.
+3. **Commission on demurrage is a required term** (`onDemurrage`), with no Zod
+   default — a default would silently pick a side for every fixture.
+4. **Off-hire windows are merged before subtracting.** Two causes logged for one
+   stoppage would otherwise credit the charterer twice.
+5. **Off-currency lines are shown but excluded from every total.** No silent FX.
+6. **`round2` normalises `-0`.** Negating an empty total yields `-0`, which
+   survives JSON and renders as "-0" on a balance sheet.
+7. **`linkClaims` checks claim ownership explicitly.** RLS on
+   `voyage_pnl_claims` is gated on the *P&L's* company, not the claim's, so RLS
+   alone would let a voyage reference an unreadable claim and put its demurrage
+   on the sheet.
+8. **GET recomputes rather than serving the last snapshot** — a linked claim's
+   calculation can change after a snapshot was taken.
+
+`laytime_calculations` is UNIQUE per claim (replace-on-recompute), so the
+newest-first ordering in `loadLaytimeOutcomes` is belt-and-braces, not
+load-bearing.
+
+**Verified live** against real calculations: a voyage linking a demurrage claim,
+a despatch claim, a claim with no calculation, and a foreign claim id produced
+hand-checkable totals (gross 1,058,333.33 / deductions 59,500 / expenses
+355,000 / net 643,833.33 / TCE 21,461.11), rejected the foreign claim, and named
+the uncalculated one as making the sheet incomplete. Recompute-on-read was
+proven by changing the underlying demurrage and seeing it flow through while the
+snapshot stayed stale. Fixtures removed and the demurrage restored.
+
+**Not done (next iteration):** TC bunker-adjustment (BOD/BOR) terms — the
+`transfer` line kind and its TCE exclusion are built and tested, but there are
+no input terms to populate them yet. Charterer-perspective is implemented and
+tested but unexercised in the UI.
 
 Biggest TAM unlock; also the biggest build and the most crowded competitively
 (Veson, Q88, Sea/). Freight, hire, bunkers (`market/bunker.ts` exists), port
