@@ -11,14 +11,20 @@ import {
   geocodePort,
   WEATHER_THRESHOLDS,
 } from "./weather";
-import { checkVesselPosition } from "./ais";
+import { checkVesselPosition, fetchAisTrack } from "./ais";
+import { verifyTimelineMotion } from "./micro-movement";
 import { LineageRecorder } from "@/lib/observability/lineage";
 
 export interface EvidenceCheckRow {
   id: string;
   claim_id: string;
   event_id: string | null;
-  check_type: "weather" | "position";
+  check_type:
+    | "weather"
+    | "position"
+    | "motion_cargo_operations"
+    | "motion_shifting"
+    | "motion_at_berth";
   verdict: "corroborated" | "contradicted" | "inconclusive" | "unavailable";
   summary: string;
   data: Record<string, unknown>;
@@ -211,6 +217,45 @@ export async function verifyClaimEvidence(
       output: pos.data,
       checkIndex: checks.length - 1,
     });
+  }
+
+  // --- Micro-movement: does the track agree with what the SoF says she DID? ---
+  //
+  // Lives inside this orchestrator rather than in its own route on purpose:
+  // verification is a REPLACE-on-rerun snapshot (the delete below is claim-wide),
+  // so checks persisted by a separate path would be silently wiped the next time
+  // evidence was verified. One snapshot, one writer.
+  //
+  // Bounded by the confirmed timeline itself, so we request only the track the
+  // claim actually needs.
+  if (activeEvents.length >= 2) {
+    const first = activeEvents[0].occurred_at;
+    const last = activeEvents[activeEvents.length - 1].occurred_at;
+    const track = await fetchAisTrack(claim.vessel, first, last);
+
+    for (const m of verifyTimelineMotion(track, activeEvents as any)) {
+      checks.push({
+        claim_id: claimId,
+        event_id: m.eventId,
+        check_type: m.checkType,
+        verdict: m.verdict,
+        summary: m.summary,
+        data: {
+          window: m.window,
+          thresholdSource: m.thresholdSource,
+          source: "AIS position track (derived motion)",
+        },
+      });
+      lineage.record({
+        source: "ais-provider",
+        sourceRef: process.env.AIS_PROVIDER_URL ?? "unconfigured",
+        step: `micro-movement ${m.checkType}`,
+        inputs: { vessel: claim.vessel, from: first, to: last },
+        outputSummary: { verdict: m.verdict },
+        output: { window: m.window },
+        checkIndex: checks.length - 1,
+      });
+    }
   }
 
   // --- Persist snapshot ---
