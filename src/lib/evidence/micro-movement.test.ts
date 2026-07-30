@@ -35,26 +35,20 @@ function track(
 describe("haversineMetres", () => {
   test("matches a known separation", () => {
     // 0.01° of latitude ≈ 1113 m anywhere on the globe.
-    const d = haversineMetres(
-      { at: "", lat: 51.95, lon: 4.14 },
-      { at: "", lat: 51.96, lon: 4.14 }
-    );
+    const d = haversineMetres({ lat: 51.95, lon: 4.14 }, { lat: 51.96, lon: 4.14 });
     expect(d).toBeGreaterThan(1100);
     expect(d).toBeLessThan(1120);
   });
 
   test("is zero for the same point and symmetric", () => {
-    const a: AisFix = { at: "", lat: 51.95, lon: 4.14 };
-    const b: AisFix = { at: "", lat: 52.10, lon: 4.30 };
+    const a = { lat: 51.95, lon: 4.14 };
+    const b = { lat: 52.10, lon: 4.30 };
     expect(haversineMetres(a, a)).toBeCloseTo(0, 6);
     expect(haversineMetres(a, b)).toBeCloseTo(haversineMetres(b, a), 6);
   });
 
   test("handles the antimeridian without returning a half-globe", () => {
-    const d = haversineMetres(
-      { at: "", lat: 0, lon: 179.99 },
-      { at: "", lat: 0, lon: -179.99 }
-    );
+    const d = haversineMetres({ lat: 0, lon: 179.99 }, { lat: 0, lon: -179.99 });
     expect(d).toBeLessThan(3000);
   });
 });

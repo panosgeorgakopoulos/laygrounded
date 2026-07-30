@@ -26,6 +26,10 @@
 // Pure: no I/O, no clock. The caller supplies the track.
 
 import type { SofEventInput } from "@/lib/laytime/types";
+import { haversineMetres } from "@/lib/geo";
+
+// Re-exported so this module's public surface is unchanged by the extraction.
+export { haversineMetres };
 
 export interface AisFix {
   /** ISO 8601. */
@@ -78,22 +82,8 @@ export const DEFAULT_THRESHOLDS: MicroMovementThresholds = {
   sourceLabel: "LayGrounded micro-movement baseline — overridable",
 };
 
-const EARTH_RADIUS_M = 6_371_000;
 const MS_PER_HOUR = 3_600_000;
 const M_PER_NM = 1852;
-
-/** Great-circle distance in metres. */
-export function haversineMetres(a: AisFix, b: AisFix): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLon = toRad(b.lon - a.lon);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
-}
 
 export interface MotionSegment {
   from: string;
