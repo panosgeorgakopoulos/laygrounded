@@ -18,6 +18,7 @@ import {
   type CargoWeatherProfile,
   type HourlyObservation,
   type Interval,
+  type StoppageDimension,
   type WwdResolution,
 } from "./wwd-resolver";
 
@@ -32,6 +33,8 @@ export const GENERIC_PROFILE: CargoWeatherProfile = {
   maxTempC: null,
   minStoppageMinutes: 60,
   sourceLabel: "LayGrounded generic fallback — no cargo profile matched",
+  origin: "baseline",
+  overriddenDimensions: [],
 };
 
 /** Cargo strings are free text; match on a normalised, contained key. */
@@ -53,7 +56,32 @@ interface ProfileRow {
   source_label: string;
 }
 
-function toProfile(r: ProfileRow): CargoWeatherProfile {
+/**
+ * Which dimensions a tenant row actually changed, by diffing it against the
+ * baseline it shadows.
+ *
+ * Derived rather than stored. An override row copies every threshold from the
+ * global at creation, so the row alone cannot say what was deliberately
+ * changed — and a stored "I edited precipitation" flag would drift the moment
+ * someone edited the row another way. The diff is always true by construction.
+ */
+function overriddenDimensions(
+  tenant: ProfileRow,
+  base: ProfileRow | undefined
+): StoppageDimension[] {
+  if (!base) return [];
+  const out: StoppageDimension[] = [];
+  if (tenant.precip_mm_per_hr !== base.precip_mm_per_hr) out.push("precipitation");
+  if (tenant.wind_kn !== base.wind_kn) out.push("wind");
+  if (tenant.gust_kn !== base.gust_kn) out.push("gust");
+  if (tenant.min_temp_c !== base.min_temp_c || tenant.max_temp_c !== base.max_temp_c) {
+    out.push("temperature");
+  }
+  return out;
+}
+
+function toProfile(r: ProfileRow, base?: ProfileRow): CargoWeatherProfile {
+  const isTenant = r.company_id !== null;
   return {
     cargoKey: r.cargo_key,
     label: r.label,
@@ -64,6 +92,8 @@ function toProfile(r: ProfileRow): CargoWeatherProfile {
     maxTempC: r.max_temp_c,
     minStoppageMinutes: r.min_stoppage_minutes,
     sourceLabel: r.source_label,
+    origin: isTenant ? "tenant" : "baseline",
+    overriddenDimensions: isTenant ? overriddenDimensions(r, base) : [],
   };
 }
 
@@ -75,11 +105,17 @@ function toProfile(r: ProfileRow): CargoWeatherProfile {
  * "Iron Ore Fines" should find "iron ore". Exact-key equality is tried first so
  * a precise profile always beats a loose match.
  */
+export interface ResolvedProfile {
+  profile: CargoWeatherProfile;
+  /** The published baseline this shadows, when the profile is a tenant override. */
+  baseline: CargoWeatherProfile | null;
+}
+
 export async function resolveCargoProfile(
   db: SupabaseClient,
   companyId: string,
   cargo: string
-): Promise<CargoWeatherProfile> {
+): Promise<ResolvedProfile> {
   const key = normalizeCargoKey(cargo);
 
   const { data } = await db
@@ -90,19 +126,33 @@ export async function resolveCargoProfile(
     .or(`company_id.eq.${companyId},company_id.is.null`);
 
   const rows = (data ?? []) as ProfileRow[];
-  if (rows.length === 0) return GENERIC_PROFILE;
+  if (rows.length === 0) return { profile: GENERIC_PROFILE, baseline: null };
 
   // Tenant rows first, so an override always beats the curated default.
   const ranked = [...rows].sort((a, b) => (a.company_id ? -1 : 1) - (b.company_id ? -1 : 1));
 
+  // A tenant row's provenance is only meaningful against the baseline it
+  // shadows, so the global for the same cargo travels with it.
+  const baseFor = (row: ProfileRow) =>
+    rows.find((r) => r.company_id === null && r.cargo_key === row.cargo_key);
+
   // Most specific match first. `claims.cargo` is free text — "Soybeans, 54,000
   // MT", "Iron Ore Fines" — so key-only matching misses nearly every real
   // claim, which would make the seeded defaults useless in practice.
+  const pack = (row: ProfileRow): ResolvedProfile => {
+    const base = baseFor(row);
+    return {
+      profile: toProfile(row, base),
+      // Only meaningful for a tenant row; a baseline shadows nothing.
+      baseline: row.company_id !== null && base ? toProfile(base) : null,
+    };
+  };
+
   const exact = ranked.find((r) => r.cargo_key === key);
-  if (exact) return toProfile(exact);
+  if (exact) return pack(exact);
 
   const byKey = ranked.find((r) => key.includes(r.cargo_key));
-  if (byKey) return toProfile(byKey);
+  if (byKey) return pack(byKey);
 
   // Longest alias wins, so "coking coal" beats a bare "coal" when both match.
   let best: { row: ProfileRow; len: number } | null = null;
@@ -114,9 +164,9 @@ export async function resolveCargoProfile(
       }
     }
   }
-  if (best) return toProfile(best.row);
+  if (best) return pack(best.row);
 
-  return GENERIC_PROFILE;
+  return { profile: GENERIC_PROFILE, baseline: null };
 }
 
 export interface WwdRunResult {
@@ -228,8 +278,19 @@ export async function runWwdResolver(
   }
   if (openFrom !== null) claimed.push({ from: openFrom, to: window.to });
 
-  const profile = await resolveCargoProfile(supabase, claim.company_id, claim.cargo ?? "");
-  const resolution = resolveWeatherWorkingTime({ window, hourly, profile, claimed });
+  const { profile, baseline } = await resolveCargoProfile(
+    supabase,
+    claim.company_id,
+    claim.cargo ?? ""
+  );
+  const resolution = resolveWeatherWorkingTime({
+    window,
+    hourly,
+    profile,
+    claimed,
+    // Supplied so a tenant override's effect is measured rather than trusted.
+    baselineProfile: baseline ?? undefined,
+  });
 
   if (profile.cargoKey === GENERIC_PROFILE.cargoKey) {
     resolution.warnings.push(

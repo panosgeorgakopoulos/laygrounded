@@ -144,6 +144,8 @@ export async function POST(req: NextRequest) {
     maxTempC: profileRow.max_temp_c,
     minStoppageMinutes: profileRow.min_stoppage_minutes,
     sourceLabel: profileRow.source_label,
+    origin: "baseline",
+    overriddenDimensions: [],
   };
 
   const resolution = resolveWeatherWorkingTime({ window, hourly, profile });

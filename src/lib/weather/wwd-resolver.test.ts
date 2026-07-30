@@ -3,6 +3,7 @@ import {
   resolveWeatherWorkingTime,
   evaluateHour,
   blocksToSofEvents,
+  originOf,
   type CargoWeatherProfile,
   type HourlyObservation,
   type WwdResolverInput,
@@ -18,7 +19,9 @@ const GRAIN: CargoWeatherProfile = {
   minTempC: null,
   maxTempC: null,
   minStoppageMinutes: 60,
-  sourceLabel: "test",
+  sourceLabel: "test baseline",
+  origin: "baseline",
+  overriddenDimensions: [],
 };
 
 const STEEL: CargoWeatherProfile = {
@@ -270,7 +273,9 @@ describe("reporting", () => {
     expect(r.profile).toEqual({
       cargoKey: "grain",
       label: "Grain and agribulk",
-      sourceLabel: "test",
+      sourceLabel: "test baseline",
+      origin: "baseline",
+      overriddenDimensions: [],
     });
   });
 
@@ -353,5 +358,224 @@ describe("geocodeCandidates — the 'City, CC' fallback", () => {
 
   test("an empty name yields nothing to try", () => {
     expect(geocodeCandidates("   ")).toEqual([]);
+  });
+});
+
+describe("tenant threshold overrides", () => {
+  // A tenant whose charterparty says 0.4 mm/h, against our 0.2 baseline.
+  const TENANT_LOOSER: CargoWeatherProfile = {
+    ...GRAIN,
+    precipMmPerHr: 0.4,
+    sourceLabel: "Tuned by your company",
+    origin: "tenant",
+    overriddenDimensions: ["precipitation"],
+  };
+  const TENANT_TIGHTER: CargoWeatherProfile = {
+    ...GRAIN,
+    precipMmPerHr: 0.1,
+    sourceLabel: "Tuned by your company",
+    origin: "tenant",
+    overriddenDimensions: ["precipitation"],
+  };
+
+  // THE case this feature exists for: one measurement, two answers.
+  test("0.3 mm/h stops work on the baseline but NOT on a looser tenant threshold", () => {
+    const wet = hours({ 3: { precipitationMm: 0.3 } });
+    expect(run({ hourly: wet }).totalExceptedHours).toBe(1); // baseline 0.2 fires
+    expect(run({ hourly: wet, profile: TENANT_LOOSER }).totalExceptedHours).toBe(0);
+  });
+
+  test("0.15 mm/h is ignored on the baseline but stops work on a tighter tenant threshold", () => {
+    const drizzle = hours({ 3: { precipitationMm: 0.15 } });
+    expect(run({ hourly: drizzle }).totalExceptedHours).toBe(0); // below baseline 0.2
+    expect(run({ hourly: drizzle, profile: TENANT_TIGHTER }).totalExceptedHours).toBe(1);
+  });
+
+  test("a wind override changes the answer independently of precipitation", () => {
+    const windy = hours({ 3: { windSpeedKn: 25 } });
+    // Baseline grain has NO wind threshold, so wind cannot stop it.
+    expect(run({ hourly: windy }).totalExceptedHours).toBe(0);
+    const tenantWind: CargoWeatherProfile = {
+      ...GRAIN,
+      windKn: 20,
+      origin: "tenant",
+      overriddenDimensions: ["wind"],
+    };
+    expect(run({ hourly: windy, profile: tenantWind }).totalExceptedHours).toBe(1);
+  });
+
+  test("a gust override fires where the baseline would not", () => {
+    const gusty = hours({ 3: { windGustKn: 30 } }); // baseline gust is 35
+    expect(run({ hourly: gusty }).totalExceptedHours).toBe(0);
+    const tenantGust: CargoWeatherProfile = {
+      ...GRAIN,
+      gustKn: 28,
+      origin: "tenant",
+      overriddenDimensions: ["gust"],
+    };
+    expect(run({ hourly: gusty, profile: tenantGust }).totalExceptedHours).toBe(1);
+  });
+});
+
+describe("threshold provenance", () => {
+  const TENANT_PRECIP: CargoWeatherProfile = {
+    ...GRAIN,
+    precipMmPerHr: 0.1,
+    gustKn: 35, // untouched — still ours
+    origin: "tenant",
+    overriddenDimensions: ["precipitation"],
+  };
+
+  test("a baseline block attributes every threshold to LayGrounded", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }) });
+    const b = r.blocks[0];
+    expect(b.usedTenantThreshold).toBe(false);
+    expect(b.thresholdSources).toEqual([
+      { dimension: "precipitation", threshold: 0.2, origin: "baseline" },
+    ]);
+    expect(b.reason).toContain("[LayGrounded baseline]");
+    expect(b.reason).not.toContain("tenant custom");
+  });
+
+  test("a tenant-decided block says so, in the reason a tribunal will read", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }), profile: TENANT_PRECIP });
+    const b = r.blocks[0];
+    expect(b.usedTenantThreshold).toBe(true);
+    expect(b.thresholdSources).toEqual([
+      { dimension: "precipitation", threshold: 0.1, origin: "tenant" },
+    ]);
+    expect(b.reason).toContain("[tenant custom threshold]");
+  });
+
+  // The reason per-dimension provenance exists: a partial override must not
+  // let an untouched threshold be blamed on the tenant, or vice versa.
+  test("an UNTOUCHED dimension is still attributed to the baseline on a tenant profile", () => {
+    const r = run({ hourly: hours({ 3: { windGustKn: 40 } }), profile: TENANT_PRECIP });
+    const b = r.blocks[0];
+    expect(b.dimensions).toEqual(["gust"]);
+    expect(b.thresholdSources).toEqual([
+      { dimension: "gust", threshold: 35, origin: "baseline" },
+    ]);
+    expect(b.usedTenantThreshold).toBe(false);
+    expect(b.reason).toContain("[LayGrounded baseline]");
+  });
+
+  test("a mixed block attributes each dimension separately", () => {
+    const r = run({
+      hourly: hours({ 3: { precipitationMm: 1, windGustKn: 40 } }),
+      profile: TENANT_PRECIP,
+    });
+    const b = r.blocks[0];
+    const byDim = Object.fromEntries(b.thresholdSources.map((s) => [s.dimension, s.origin]));
+    expect(byDim).toEqual({ precipitation: "tenant", gust: "baseline" });
+    expect(b.usedTenantThreshold).toBe(true);
+    expect(b.reason).toContain("[tenant custom threshold]");
+    expect(b.reason).toContain("[LayGrounded baseline]");
+  });
+
+  test("the resolution carries the profile's origin and which dimensions were tuned", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }), profile: TENANT_PRECIP });
+    expect(r.profile.origin).toBe("tenant");
+    expect(r.profile.overriddenDimensions).toEqual(["precipitation"]);
+  });
+
+  test("a tenant profile warns up front which dimensions are custom", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }), profile: TENANT_PRECIP });
+    const w = r.warnings.find((x) => x.includes("TENANT CUSTOM THRESHOLDS"));
+    expect(w).toBeDefined();
+    expect(w).toContain("precipitation");
+    expect(w).toContain("decided by a threshold set by this company");
+  });
+
+  // Honesty in the other direction: a tenant override that changed nothing
+  // material must not let a counterparty imply the figure was engineered.
+  test("a tenant profile whose overrides did NOT decide any block says exactly that", () => {
+    const r = run({ hourly: hours({ 3: { windGustKn: 40 } }), profile: TENANT_PRECIP });
+    const w = r.warnings.find((x) => x.includes("TENANT CUSTOM THRESHOLDS"));
+    expect(w).toContain("No excepted block here was decided by them");
+  });
+
+  test("a pure baseline profile raises no tenant warning at all", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }) });
+    expect(r.warnings.some((w) => w.includes("TENANT CUSTOM"))).toBe(false);
+  });
+
+  test("originOf reports per-dimension attribution directly", () => {
+    expect(originOf("precipitation", TENANT_PRECIP)).toBe("tenant");
+    expect(originOf("gust", TENANT_PRECIP)).toBe("baseline");
+    expect(originOf("precipitation", GRAIN)).toBe("baseline");
+  });
+});
+
+describe("baseline comparison — making suppression visible", () => {
+  const LOOSER: CargoWeatherProfile = {
+    ...GRAIN,
+    precipMmPerHr: 0.4,
+    origin: "tenant",
+    overriddenDimensions: ["precipitation"],
+  };
+  const TIGHTER: CargoWeatherProfile = {
+    ...GRAIN,
+    precipMmPerHr: 0.1,
+    origin: "tenant",
+    overriddenDimensions: ["precipitation"],
+  };
+
+  // THE failure this exists to prevent. Loosening a threshold until a stoppage
+  // vanishes leaves NO trace in the blocks — the result simply reports zero.
+  // Without the comparison, three suppressed hours are invisible.
+  test("a loosened threshold that REMOVES excepted time reports the removal", () => {
+    const wet = hours({ 3: { precipitationMm: 0.3 } });
+    const r = run({ hourly: wet, profile: LOOSER, baselineProfile: GRAIN });
+    expect(r.totalExceptedHours).toBe(0);
+    expect(r.baselineComparison).toEqual({
+      baselineExceptedHours: 1,
+      tenantExceptedHours: 0,
+      deltaHours: -1,
+    });
+    const w = r.warnings.find((x) => x.includes("TENANT CUSTOM THRESHOLDS"))!;
+    expect(w).toContain("REMOVED 1h");
+    expect(w).toContain("1h → 0h");
+  });
+
+  test("a tightened threshold that ADDS excepted time reports the addition", () => {
+    const drizzle = hours({ 3: { precipitationMm: 0.15 } });
+    const r = run({ hourly: drizzle, profile: TIGHTER, baselineProfile: GRAIN });
+    expect(r.baselineComparison).toEqual({
+      baselineExceptedHours: 0,
+      tenantExceptedHours: 1,
+      deltaHours: 1,
+    });
+    expect(r.warnings.find((x) => x.includes("TENANT CUSTOM"))!).toContain("ADDED 1h");
+  });
+
+  test("an override that changes nothing says so plainly", () => {
+    const wet = hours({ 3: { precipitationMm: 5 } }); // over both thresholds
+    const r = run({ hourly: wet, profile: LOOSER, baselineProfile: GRAIN });
+    expect(r.baselineComparison!.deltaHours).toBe(0);
+    expect(r.warnings.find((x) => x.includes("TENANT CUSTOM"))!).toContain(
+      "did not change the outcome"
+    );
+  });
+
+  test("a baseline profile has no comparison to make", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }) });
+    expect(r.baselineComparison).toBeNull();
+  });
+
+  test("a tenant profile with no baseline supplied degrades honestly", () => {
+    const r = run({ hourly: hours({ 3: { precipitationMm: 1 } }), profile: TIGHTER });
+    expect(r.baselineComparison).toBeNull();
+    expect(r.warnings.find((x) => x.includes("TENANT CUSTOM"))).toBeDefined();
+  });
+
+  test("the comparison does not recurse", () => {
+    // The inner run omits baselineProfile; a recursive call would blow the stack.
+    const r = run({
+      hourly: hours({ 3: { precipitationMm: 0.3 } }),
+      profile: LOOSER,
+      baselineProfile: GRAIN,
+    });
+    expect(r.baselineComparison).not.toBeNull();
   });
 });
