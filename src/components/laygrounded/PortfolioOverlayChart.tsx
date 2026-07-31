@@ -17,7 +17,12 @@
 // modes (CVD ΔE 24.7 light / 26.8 dark against a ≥8 target).
 
 import { useId, useMemo, useState } from "react";
-import { buildOverlayModel, CHART, type HistogramBin } from "@/lib/risk/chart-model";
+import {
+  buildOverlayModel,
+  CHART,
+  MARKER_LABEL_ROW_HEIGHT,
+  type HistogramBin,
+} from "@/lib/risk/chart-model";
 import styles from "./PortfolioOverlayChart.module.css";
 
 interface Props {
@@ -192,7 +197,12 @@ export default function PortfolioOverlayChart({
           return (
             <g key={m.key}>
               <line className={cls} x1={m.x} x2={m.x} y1={PAD.top} y2={base} />
-              <text className={styles.markLabel} x={m.x} y={base + 32} textAnchor={anchor}>
+              <text
+                className={styles.markLabel}
+                x={m.x}
+                y={base + 32 + m.row * MARKER_LABEL_ROW_HEIGHT}
+                textAnchor={anchor}
+              >
                 {m.label} {compact(m.value, currency)}
               </text>
             </g>
@@ -220,7 +230,11 @@ export default function PortfolioOverlayChart({
             {(t * 100).toFixed(yTop < 0.1 ? 1 : 0)}%
           </text>
         ))}
-        <text className={styles.axisTitle} x={PAD.left} y={H - 6}>
+        <text
+          className={styles.axisTitle}
+          x={PAD.left}
+          y={H - 6 + Math.max(0, ...markers.map((m) => m.row)) * MARKER_LABEL_ROW_HEIGHT}
+        >
           Total demurrage cost across the book, per simulated quarter
         </text>
       </svg>
