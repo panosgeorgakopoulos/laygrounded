@@ -10,7 +10,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9315616",
   "voyageRef": "V23-870",
   "port": "Newcastle",
-  "cargo": "Wheat in bulk",
+  "cargo": "Wheat in bulk, 6,500 MT",
   "counterpartyName": "Cargill Ocean Transportation",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -95,7 +95,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9436733",
   "voyageRef": "V26-077",
   "port": "Singapore",
-  "cargo": "Wheat in bulk",
+  "cargo": "Wheat in bulk, 5,800 MT",
   "counterpartyName": "Bunge Chartering S.A.",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -194,7 +194,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9151462",
   "voyageRef": "V25-126",
   "port": "Rotterdam",
-  "cargo": "Corn in bulk",
+  "cargo": "Corn in bulk, 30,200 MT",
   "counterpartyName": "Trafigura Maritime Logistics Pte Ltd",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -279,7 +279,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9880166",
   "voyageRef": "V24-533",
   "port": "Richards Bay",
-  "cargo": "Bauxite",
+  "cargo": "Bauxite, 57,000 MT",
   "counterpartyName": "Louis Dreyfus Company Suisse S.A.",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -364,7 +364,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9861574",
   "voyageRef": "V23-202",
   "port": "Newcastle",
-  "cargo": "Corn in bulk",
+  "cargo": "Corn in bulk, 19,900 MT",
   "counterpartyName": "Glencore International AG",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -505,7 +505,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9024683",
   "voyageRef": "V25-442",
   "port": "Gibraltar",
-  "cargo": "Steam coal",
+  "cargo": "Steam coal, 27,900 MT",
   "counterpartyName": "Oldendorff Carriers GmbH & Co. KG",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -674,7 +674,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9854181",
   "voyageRef": "V24-948",
   "port": "Richards Bay",
-  "cargo": "Iron ore fines",
+  "cargo": "Iron ore fines, 2,300 MT",
   "counterpartyName": "Rio Tinto Shipping Pte Ltd",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -787,7 +787,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9418365",
   "voyageRef": "V24-853",
   "port": "Rotterdam",
-  "cargo": "Wheat in bulk",
+  "cargo": "Wheat in bulk, 52,100 MT",
   "counterpartyName": "COFCO Resources S.A.",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -872,7 +872,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9126780",
   "voyageRef": "V24-023",
   "port": "Qingdao",
-  "cargo": "Bauxite",
+  "cargo": "Bauxite, 29,000 MT",
   "counterpartyName": "ADM International Sàrl",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -971,7 +971,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9581992",
   "voyageRef": "V26-907",
   "port": "Singapore",
-  "cargo": "Urea prills",
+  "cargo": "Urea prills, 36,700 MT",
   "counterpartyName": "Vitol S.A.",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1056,7 +1056,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9145592",
   "voyageRef": "V26-454",
   "port": "Santos",
-  "cargo": "Iron ore fines",
+  "cargo": "Iron ore fines, 14,600 MT",
   "counterpartyName": "Gunvor SA",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1169,7 +1169,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9227209",
   "voyageRef": "V26-914",
   "port": "Houston",
-  "cargo": "Wheat in bulk",
+  "cargo": "Wheat in bulk, 15,800 MT",
   "counterpartyName": "Klaveness Combination Carriers",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1282,7 +1282,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9740598",
   "voyageRef": "V25-437",
   "port": "Santos",
-  "cargo": "Gasoil",
+  "cargo": "Gasoil, 11,000 MT",
   "counterpartyName": "NYK Bulkship (Asia) Pte Ltd",
   "cpForm": "ASBATANKVOY",
   "cpTerms": {
@@ -1368,7 +1368,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9474993",
   "voyageRef": "V23-638",
   "port": "Houston",
-  "cargo": "Fuel oil 380cst",
+  "cargo": "Fuel oil 380cst, 3,800 MT",
   "counterpartyName": "Pacific Basin Chartering Ltd",
   "cpForm": "ASBATANKVOY",
   "cpTerms": {
@@ -1482,7 +1482,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9066045",
   "voyageRef": "V25-618",
   "port": "Rotterdam",
-  "cargo": "Wheat in bulk",
+  "cargo": "Wheat in bulk, 25,100 MT",
   "counterpartyName": "Norden Tankers & Bulkers",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1665,7 +1665,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9561617",
   "voyageRef": "V25-430",
   "port": "Richards Bay",
-  "cargo": "Steam coal",
+  "cargo": "Steam coal, 11,300 MT",
   "counterpartyName": "Ultrabulk A/S",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1764,7 +1764,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9749697",
   "voyageRef": "V23-182",
   "port": "Newcastle",
-  "cargo": "Corn in bulk",
+  "cargo": "Corn in bulk, 6,300 MT",
   "counterpartyName": "Western Bulk Carriers",
   "cpForm": "GENCON94",
   "cpTerms": {
@@ -1849,7 +1849,7 @@ export const seedScenarios: SeedScenario[] = [
   "vesselImo": "9813125",
   "voyageRef": "V25-116",
   "port": "Houston",
-  "cargo": "Corn in bulk",
+  "cargo": "Corn in bulk, 1,400 MT",
   "counterpartyName": "Swiss Marine Services S.A.",
   "cpForm": "GENCON94",
   "cpTerms": {

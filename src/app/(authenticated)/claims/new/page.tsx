@@ -18,6 +18,10 @@ const createClaimSchema = z.object({
   vessel: z.string().min(1, "Vessel name is required"),
   voyageRef: z.string().min(1, "Voyage reference is required"),
   port: z.string().min(1, "Port is required"),
+  // Optional: a claim is valid without it, and NULL means "not recorded"
+  // rather than "the whole port" — the efficiency benchmark cascades to port
+  // level and says so. See migration 20260731000004.
+  terminalName: z.string().max(120).optional(),
   cargo: z.string().min(1, "Cargo description is required"),
   cpForm: z.string().min(1),
 });
@@ -100,6 +104,14 @@ export default function NewClaimPage() {
                 {...register("port")}
                 disabled={isSubmitting}
                 error={errors.port?.message}
+              />
+
+              <Input
+                label="TERMINAL / BERTH (OPTIONAL)"
+                placeholder="e.g. ECT Delta"
+                {...register("terminalName")}
+                disabled={isSubmitting}
+                error={errors.terminalName?.message}
               />
 
               <Input
