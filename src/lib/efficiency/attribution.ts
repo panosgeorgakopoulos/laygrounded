@@ -104,6 +104,11 @@ export interface AttributionInput {
   marketTonnesPerDay?: number | null;
   marketSampleSize?: number;
   marketUnavailableReason?: string | null;
+  /** "terminal" or "port" — which bucket the market median came from. */
+  marketScope?: "terminal" | "port" | null;
+  marketLabel?: string | null;
+  /** Set when a terminal was asked for but the port median was used. */
+  marketFellBackToPortReason?: string | null;
   demurrageRatePerDay: number;
   currency: string;
   /**
@@ -159,10 +164,12 @@ export function attributeInefficiency(input: AttributionInput): EfficiencyAttrib
   const market =
     input.marketTonnesPerDay && input.marketTonnesPerDay > 0
       ? compare(
-          "Market median for this lane",
+          input.marketScope === "terminal"
+            ? `Market median at ${input.marketLabel ?? "this terminal"}`
+            : `Market median at ${input.marketLabel ?? "this port"}`,
           input.marketTonnesPerDay,
           achieved,
-          `cross-tenant aggregate, n=${input.marketSampleSize ?? "?"}`
+          `cross-tenant aggregate, n=${input.marketSampleSize ?? "?"}, scope=${input.marketScope ?? "port"}`
         )
       : null;
 
@@ -257,6 +264,9 @@ export function attributeInefficiency(input: AttributionInput): EfficiencyAttrib
   }
   if (input.marketUnavailableReason) {
     caveats.push(`Market comparison unavailable: ${input.marketUnavailableReason}`);
+  }
+  if (input.marketFellBackToPortReason) {
+    caveats.push(input.marketFellBackToPortReason);
   }
 
   // VERIFIED AGAINST THE ENGINE, not assumed. Explicit EXCEPTED_PERIOD events

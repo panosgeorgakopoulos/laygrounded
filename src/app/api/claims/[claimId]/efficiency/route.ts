@@ -55,7 +55,7 @@ export async function POST(
 
     const { data: claim } = await supabase
       .from("claims")
-      .select("id, company_id, vessel, port, cargo, cp_terms")
+      .select("id, company_id, vessel, port, terminal_name, cargo, cp_terms")
       .eq("id", claimId)
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
@@ -107,11 +107,15 @@ export async function POST(
     let marketTonnesPerDay: number | null = null;
     let marketSampleSize: number | undefined;
     let marketUnavailableReason: string | null = null;
+    let marketScope: "terminal" | "port" | null = null;
+    let marketLabel: string | null = null;
+    let marketFellBackToPortReason: string | null = null;
 
     if (body.includeMarket !== false) {
       const service = createServiceRoleClient();
       const market = await marketRateForLane(service, {
         port: claim.port,
+        terminal: claim.terminal_name,
         cargo: claim.cargo,
         excludeCompanyId: auth.companyId,
         basis: body.basis ?? "net",
@@ -119,6 +123,9 @@ export async function POST(
       marketTonnesPerDay = market.rate?.medianTonnesPerDay ?? null;
       marketSampleSize = market.rate?.sampleSize;
       marketUnavailableReason = market.unavailableReason;
+      marketScope = market.rate?.scope ?? null;
+      marketLabel = market.rate?.terminalLabel ?? market.rate?.portLabel ?? null;
+      marketFellBackToPortReason = market.fellBackToPortReason;
     }
 
     const attribution = attributeInefficiency({
@@ -127,6 +134,9 @@ export async function POST(
       marketTonnesPerDay,
       marketSampleSize,
       marketUnavailableReason,
+      marketScope,
+      marketLabel,
+      marketFellBackToPortReason,
       demurrageRatePerDay: cp.data.demurrage_rate,
       currency: cp.data.currency,
       cpForm: cp.data.cp_form ?? "GENCON94",
@@ -142,6 +152,7 @@ export async function POST(
     return NextResponse.json({
       vessel: claim.vessel,
       port: claim.port,
+      terminalName: claim.terminal_name,
       cargo: claim.cargo,
       operation: isDischarge ? "discharge" : "loading",
       attribution,
