@@ -6,6 +6,11 @@ import { apiError } from "@/lib/api-errors";
 import { planVirtualArrival } from "@/lib/optimization/virtual-arrival";
 import { selectCongestionAdapter } from "@/lib/risk/sources/resolve-congestion";
 import type { ConsumptionCurve } from "@/lib/compliance/carbon";
+import {
+  referenceCurve,
+  VESSEL_CLASSES,
+  type VesselClass,
+} from "@/lib/optimization/reference-curves";
 
 // Virtual Arrival: the port's live queue, turned into a speed instruction.
 //
@@ -42,6 +47,11 @@ const BodySchema = z.object({
       at_berth_aux_tonnes_per_day: z.number().min(0).max(100),
     })
     .optional(),
+  /**
+   * A generic curve for the class, when the vessel's own is not on file.
+   * Explicitly not decision-grade — see reference-curves.ts.
+   */
+  vesselClass: z.enum(["handysize", "supramax", "panamax", "capesize"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -80,12 +90,24 @@ export async function POST(req: NextRequest) {
       if (stored?.sea_curve?.length) curve = stored;
     }
 
+    // A generic class curve is the LAST resort, and it costs the plan its
+    // decision-grade status — same discipline as the mock congestion feed.
+    let curveIsGeneric = false;
+    let curveSource = "Vessel's own consumption curve";
+    if (!curve && body.vesselClass) {
+      const ref = referenceCurve(body.vesselClass as VesselClass);
+      curve = ref.curve;
+      curveIsGeneric = true;
+      curveSource = ref.sourceLabel;
+    }
+
     if (!curve) {
       return NextResponse.json(
         {
           error: "NO_CONSUMPTION_CURVE",
           message:
-            "No fuel consumption curve is on file for this vessel and none was supplied. Fuel burn is hull-specific, so a speed recommendation cannot be produced without one.",
+            "No fuel consumption curve is on file for this vessel and none was supplied. Fuel burn is hull-specific, so a speed recommendation cannot be produced without one. Supply a curve, a vesselImo with a stored profile, or a vesselClass for a clearly-labelled generic reference.",
+          vesselClasses: VESSEL_CLASSES,
         },
         { status: 422 }
       );
@@ -149,7 +171,8 @@ export async function POST(req: NextRequest) {
       port: body.port,
       // Surfaced at the top level, as on the risk routes: a plan built on a
       // mock queue must be impossible to mistake for a measured one.
-      decisionGrade: provenance.source !== "mock",
+      decisionGrade: provenance.source !== "mock" && !curveIsGeneric,
+      curve: { generic: curveIsGeneric, source: curveSource },
       queue: {
         hoursUsed: plan.queueHours,
         percentile: plan.queuePercentile,
@@ -168,7 +191,12 @@ export async function POST(req: NextRequest) {
       assumptions: plan.recommendation.assumptions,
       evidence: plan.recommendation.evidence,
       provenance: plan.provenance,
-      caveats: plan.caveats,
+      caveats: curveIsGeneric
+        ? [
+            `GENERIC HULL: ${curveSource}. Fuel and carbon figures are indicative only — load this vessel's own consumption curve before acting on the speed.`,
+            ...plan.caveats,
+          ]
+        : plan.caveats,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

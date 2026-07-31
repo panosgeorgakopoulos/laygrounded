@@ -17,8 +17,12 @@ interface Line {
   emphasis?: boolean;
 }
 
+type TenantRole = "owner" | "charterer" | "trader";
+
 interface Addendum {
   allocation: "charterer_liability" | "unrecovered_owner_cost" | "unallocated";
+  direction: "receivable" | "payable" | "none" | "undetermined";
+  tenantRole: TenantRole | null;
   title: string;
   amountEur: number;
   bearer: string;
@@ -59,6 +63,7 @@ interface Payload {
     charterer: string | null;
     owner: string | null;
     hasBimcoEtsClause: boolean | null;
+    tenantRole: TenantRole | null;
   };
 }
 
@@ -103,22 +108,22 @@ export default function ClaimEmissionsPage({
     void load();
   }, [load]);
 
-  const setClause = async (value: boolean | null) => {
+  const patchClaim = async (patch: Record<string, unknown>) => {
     setSaving(true);
     // Optimistic, but rolled back to the SERVER-CONFIRMED value on failure
     // rather than to whatever was there when the page loaded.
-    const previous = data?.claim.hasBimcoEtsClause ?? null;
+    const previous = data?.claim;
     try {
       const res = await fetch(`/api/claims/${claimId}/ets-addendum`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hasBimcoEtsClause: value }),
+        body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error("Could not save the clause status.");
+      if (!res.ok) throw new Error("Could not save that.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setData((d) => (d ? { ...d, claim: { ...d.claim, hasBimcoEtsClause: previous } } : d));
+      setData((d) => (d && previous ? { ...d, claim: previous } : d));
     } finally {
       setSaving(false);
     }
@@ -169,8 +174,58 @@ export default function ClaimEmissionsPage({
             <span className={styles.allocLabel}>{a.title}</span>
             <span className={styles.allocAmount}>EUR {num(a.amountEur)}</span>
             <span className={styles.allocBearer}>Borne by {a.bearer}</span>
+            {/* The direction is the tenant-facing fact: the same amount is a
+                receivable to an owner and a payable to a charterer. */}
+            {a.direction !== "undetermined" && (
+              <span
+                className={`${styles.direction} ${
+                  a.direction === "receivable"
+                    ? styles.dirIn
+                    : a.direction === "payable"
+                      ? styles.dirOut
+                      : styles.dirNone
+                }`}
+              >
+                {a.direction === "receivable"
+                  ? "Recoverable by you"
+                  : a.direction === "payable"
+                    ? "Payable by you"
+                    : "No liability for you"}
+              </span>
+            )}
             {a.warning && <p className={styles.allocWarning}>{a.warning}</p>}
             <p className={styles.allocBasis}>{a.basis}</p>
+          </section>
+
+          <section className={styles.clauseCard} aria-label="Your role on this fixture">
+            <div>
+              <h2 className={styles.sectionTitle}>Your role on this fixture</h2>
+              <p className={styles.sectionSub}>
+                Decides which way the money runs. Under an identical ETS clause the same amount
+                is recoverable by an owner and payable by a charterer.
+              </p>
+            </div>
+            <div className={styles.clauseChoices} role="group" aria-label="Tenant role">
+              {[
+                { v: "owner" as const, label: "Owner" },
+                { v: "charterer" as const, label: "Charterer" },
+                { v: "trader" as const, label: "Trader" },
+                { v: null, label: "Not recorded" },
+              ].map((opt) => (
+                <button
+                  key={String(opt.v)}
+                  type="button"
+                  className={`${styles.choice} ${
+                    data.claim.tenantRole === opt.v ? styles.choiceOn : ""
+                  }`}
+                  aria-pressed={data.claim.tenantRole === opt.v}
+                  disabled={saving}
+                  onClick={() => patchClaim({ tenantRole: opt.v })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </section>
 
           <section className={styles.clauseCard} aria-label="Charterparty ETS clause">
@@ -196,7 +251,7 @@ export default function ClaimEmissionsPage({
                   }`}
                   aria-pressed={data.claim.hasBimcoEtsClause === opt.v}
                   disabled={saving}
-                  onClick={() => setClause(opt.v)}
+                  onClick={() => patchClaim({ hasBimcoEtsClause: opt.v })}
                 >
                   {opt.label}
                 </button>

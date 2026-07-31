@@ -32,6 +32,7 @@ function input(overrides: Partial<EtsAddendumInput> = {}): EtsAddendumInput {
       currency: "USD",
     }),
     hasBimcoEtsClause: true,
+    tenantRole: "owner",
     euaPriceEur: 82.4,
     euaPriceProvenance: LIVE_PRICE,
     etsScopeBasis: "NL is in the EEA.",
@@ -190,5 +191,78 @@ describe("the figures", () => {
     expect(JSON.stringify(buildEtsAddendum(input()))).toBe(
       JSON.stringify(buildEtsAddendum(input()))
     );
+  });
+});
+
+describe("tenant role reverses the direction of the money", () => {
+  // THE REASON THE COLUMN EXISTS. Under one identical clause the same amount is
+  // a receivable to an owner and a payable to a charterer. Reporting only the
+  // amount would let a charterer invoice a cost they actually owe.
+
+  test("owner + clause → RECEIVABLE", () => {
+    const a = buildEtsAddendum(input({ tenantRole: "owner", hasBimcoEtsClause: true }));
+    expect(a.direction).toBe("receivable");
+    expect(a.allocation).toBe("charterer_liability");
+    expect(a.warning).toBeNull();
+  });
+
+  test("charterer + the SAME clause → PAYABLE, and says so", () => {
+    const a = buildEtsAddendum(input({ tenantRole: "charterer", hasBimcoEtsClause: true }));
+    expect(a.direction).toBe("payable");
+    expect(a.warning).toContain("payable, not a claim");
+    // Same money, opposite direction.
+    expect(a.amountEur).toBe(
+      buildEtsAddendum(input({ tenantRole: "owner", hasBimcoEtsClause: true })).amountEur
+    );
+  });
+
+  test("owner + no clause → PAYABLE (the owner absorbs it)", () => {
+    const a = buildEtsAddendum(input({ tenantRole: "owner", hasBimcoEtsClause: false }));
+    expect(a.direction).toBe("payable");
+    expect(a.warning).toContain("stays with");
+  });
+
+  test("charterer + no clause → NONE (not the charterer's cost at all)", () => {
+    const a = buildEtsAddendum(input({ tenantRole: "charterer", hasBimcoEtsClause: false }));
+    expect(a.direction).toBe("none");
+    expect(a.warning).toContain("You carry no liability");
+  });
+
+  test("a TRADER is undetermined, not silently mapped to a side", () => {
+    // A trader is routinely a charterer on one fixture and a disponent owner on
+    // the next. Guessing would reintroduce the inference this column removed.
+    const a = buildEtsAddendum(input({ tenantRole: "trader", hasBimcoEtsClause: true }));
+    expect(a.direction).toBe("undetermined");
+    expect(a.footnotes[0]).toContain("does not by itself say which side");
+  });
+
+  test("an unrecorded role is undetermined and asks to be set", () => {
+    const a = buildEtsAddendum(input({ tenantRole: null, hasBimcoEtsClause: true }));
+    expect(a.direction).toBe("undetermined");
+    expect(a.footnotes[0]).toContain("has not been recorded");
+  });
+
+  test("a non-EEA berth has NO direction regardless of role", () => {
+    for (const role of ["owner", "charterer", "trader", null] as const) {
+      const a = buildEtsAddendum(
+        input({
+          tenantRole: role,
+          hasBimcoEtsClause: true,
+          carbonCost: buildCarbonCostOfDelay({ delayHours: 72, eeaPort: false, year: 2026 }),
+        })
+      );
+      expect(a.direction).toBe("none");
+      expect(a.amountEur).toBe(0);
+    }
+  });
+
+  test("the role travels on the result so a reader can check it", () => {
+    expect(buildEtsAddendum(input({ tenantRole: "charterer" })).tenantRole).toBe("charterer");
+    expect(buildEtsAddendum(input({ tenantRole: null })).tenantRole).toBeNull();
+  });
+
+  test("no footnote claims the roles were inferred — they are recorded now", () => {
+    const a = buildEtsAddendum(input({ tenantRole: "owner" }));
+    expect(a.footnotes.some((f) => f.includes("inferred"))).toBe(false);
   });
 });

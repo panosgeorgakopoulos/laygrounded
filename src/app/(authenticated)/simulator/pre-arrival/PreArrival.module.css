@@ -466,3 +466,127 @@
   line-height: 1.5;
   color: var(--color-text-tertiary);
 }
+
+/* ── Eco-speed / JIT mitigation panel ─────────────────────────────────── */
+
+.mitigationCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.mitigationHead {
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.sectionSub {
+  margin-top: 0.3rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  max-width: 620px;
+}
+
+.mitigationForm {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.planResult {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.planHeadline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.actionTag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* Status colours always beside a word, never carrying meaning alone. */
+.actionSlow { color: #0a7d0a; background: rgba(12, 163, 12, 0.13); }
+.actionFast { color: #8a5d00; background: rgba(250, 178, 25, 0.18); }
+.actionHold { color: var(--color-text-secondary); background: var(--color-primary-subtle); }
+
+:root[data-theme="dark"] .actionSlow { color: #4ade80; }
+:root[data-theme="dark"] .actionFast { color: #fab219; }
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .actionSlow { color: #4ade80; }
+  :root:where(:not([data-theme="light"])) .actionFast { color: #fab219; }
+}
+
+.planSpeed {
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.planSpeed strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.fragile {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #8a5d00;
+  background: rgba(250, 178, 25, 0.16);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.45rem;
+}
+
+:root[data-theme="dark"] .fragile { color: #fab219; }
+
+.savingsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 0.9rem;
+}
+
+.saving {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--color-surface);
+  padding: 0.7rem 0.85rem;
+}
+
+.savingVal {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.planNote {
+  margin-top: 0.9rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
