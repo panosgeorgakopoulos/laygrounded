@@ -43,6 +43,20 @@ export interface SimulationResult {
   trials: number;
   antithetic: boolean;
   distribution: RiskDistribution;
+  /**
+   * The raw per-trial outcomes.
+   *
+   * Deliberately here and NOT on `RiskDistribution`. `verifyReplay()` compares
+   * the whole stored distribution against a fresh recomputation over the union
+   * of both objects' keys, so any new key on `RiskDistribution` would make every
+   * previously-stored assessment fail replay — and byte-identical replay is the
+   * property the parametric-insurance and audit stories rest on. `distribution`
+   * is the sealed document; this field is scratch for the caller.
+   *
+   * Not persisted: 50k trials is megabytes, and it is exactly reproducible from
+   * (inputs, seed, trials, antithetic) anyway.
+   */
+  outcomes: TrialOutcome[];
 }
 
 export function simulate(inputs: TrialInputs, options: SimulationOptions): SimulationResult {
@@ -84,5 +98,6 @@ export function simulate(inputs: TrialInputs, options: SimulationOptions): Simul
     trials: outcomes.length,
     antithetic,
     distribution: summarize(outcomes),
+    outcomes,
   };
 }

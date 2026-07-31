@@ -2,38 +2,52 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { dispatchErpEvents } from "@/lib/events/erp-dispatch";
+import { dispatchHinterlandWebhooks } from "@/lib/events/webhook-dispatch";
 import { runPendingSyncJobs } from "@/lib/integrations/sync";
+import { runPendingDeliveries } from "@/lib/webhooks/delivery";
 import { apiError } from "@/lib/api-errors";
 
-// Drains `domain_events` into ERP sync jobs, then drains the sync queue.
+// Drains `domain_events` into both downstream queues, then delivers.
 //
 // Two callers, following the established `run-sync` pattern:
-//   * a scheduler with the CRON_SECRET header — dispatches across ALL companies;
+//   * a scheduler with the CRON_SECRET header — sweeps ALL companies;
 //   * an authenticated user — the same sweep, for observability during a demo.
 //
-// Both run as service-role: the dispatcher reads `integrations` and `claims`
-// across the tenant boundary by design, and tenancy comes from each event's
-// own `company_id` rather than from the caller. That is the whole reason
+// Both run as service-role: the dispatchers read `integrations`, `api_webhooks`
+// and `claims` across the tenant boundary by design, and tenancy comes from each
+// event's own `company_id` rather than from the caller. That is the whole reason
 // `domain_events.company_id` is NOT NULL.
+//
+// The two consumers are INDEPENDENT. Each has its own row in
+// `domain_event_consumptions`, so a hinterland failure cannot stop ERP pushes
+// and vice versa — which is why the erp block below cannot be folded into the
+// same try as the hinterland one.
 export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const isCron = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
 
   try {
     if (!isCron) {
-      // Authenticated callers are allowed to trigger the sweep but get no
-      // tenant-scoped variant: the dispatcher is a global worker, and a
-      // per-company version would need a different, narrower query.
       await requireAuth();
     }
 
     const service = createServiceRoleClient();
-    const dispatch = await dispatchErpEvents(service, { limit: isCron ? 200 : 50 });
+    const eventLimit = isCron ? 200 : 50;
+    const deliverLimit = isCron ? 25 : 10;
+
+    const erp = await dispatchErpEvents(service, { limit: eventLimit });
+    const hinterland = await dispatchHinterlandWebhooks(service, { limit: eventLimit });
+
     // Drain what was just enqueued so a manual trigger shows an end-to-end
     // result rather than "enqueued, check back later".
-    const delivery = await runPendingSyncJobs(service, isCron ? 25 : 10);
+    const syncDelivery = await runPendingSyncJobs(service, deliverLimit);
+    const webhookDelivery = await runPendingDeliveries(service, deliverLimit);
 
-    return NextResponse.json({ mode: isCron ? "cron" : "manual", dispatch, delivery });
+    return NextResponse.json({
+      mode: isCron ? "cron" : "manual",
+      dispatch: { erp, hinterland },
+      delivery: { erp: syncDelivery, hinterland: webhookDelivery },
+    });
   } catch (e) {
     return apiError(e, "events/dispatch/POST");
   }

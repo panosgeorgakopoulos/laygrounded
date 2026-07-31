@@ -83,6 +83,25 @@ export function estimatePercentile(sortedAscending: number[], p: number): Estima
   return { value, standardError: (hi - lo) / (2 * Z95), ci95: [lo, hi] };
 }
 
+/**
+ * A percentile of a per-trial TIME series, in hours.
+ *
+ * Kept out of `RiskDistribution` on purpose — see the note on
+ * `SimulationResult.outcomes`. `RiskDistribution` is a sealed document that
+ * `verifyReplay()` compares field-for-field against a fresh recomputation, so
+ * new keys there retroactively break every stored assessment. This is computed
+ * by the caller from `outcomes` and stored in its own column.
+ *
+ * Exists because the distribution reports time only as MEANS. A hinterland
+ * partner re-planning trucks needs the tail: a mean wait of 10h routinely hides
+ * a P90 of 40h, and the whole point of the notification is the bad case.
+ */
+export function percentileOfHours(values: number[], p: number): number | null {
+  const finite = values.filter((v) => Number.isFinite(v));
+  if (finite.length === 0) return null;
+  return percentile([...finite].sort((a, b) => a - b), p);
+}
+
 export interface TrialOutcome {
   /** Owner's perspective: demurrage earned minus despatch paid. */
   net: number;

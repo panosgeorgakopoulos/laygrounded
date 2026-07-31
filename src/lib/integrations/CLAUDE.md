@@ -43,7 +43,9 @@ Written rather than imported because the only XML here is a handful of SOAP shap
 
 ## The outbox bridge
 
-`src/lib/events/erp-dispatch.ts` is the **first consumer of `domain_events`** and the reason ERP work never blocks a request. Two queues, on purpose:
+`src/lib/events/erp-dispatch.ts` was the first consumer of `domain_events` and is the reason ERP work never blocks a request. It is **no longer the only one** — `webhook-dispatch.ts` consumes the same log, so processing state is per-consumer in `domain_event_consumptions` (read `src/lib/webhooks/CLAUDE.md` before adding a third). Use `readUnprocessedFor` / `markProcessedBy` / `markFailedBy` with `CONSUMERS.ERP`; gating on `domain_events.processed_at` would break the other consumer.
+
+Two queues, on purpose:
 
 ```
 state change ──trigger──▶ domain_events ──dispatch──▶ sync_jobs ──▶ ERP

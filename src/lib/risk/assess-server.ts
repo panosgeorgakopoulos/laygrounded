@@ -37,6 +37,7 @@ import {
   type DimensionProvenance,
 } from "@/lib/risk/provenance";
 import { simulate, DEFAULT_TRIALS, type SimulationResult } from "@/lib/risk/simulate";
+import { percentileOfHours } from "@/lib/risk/aggregate";
 import type { StoppageTrajectory, TrialInputs } from "@/lib/risk/trial";
 
 export interface AssessRequest {
@@ -475,6 +476,19 @@ export async function persistAssessment(
       demurrage_probability: assessment.simulation.distribution.demurrageProbability.value,
       expected_exposure: assessment.simulation.distribution.expectedExposure.value,
       p90_exposure: assessment.simulation.distribution.percentiles.p90.value,
+      // P90 of TIME, not money. Denormalized columns rather than fields on the
+      // distribution: `verifyReplay` compares the stored distribution key-for-key
+      // against a fresh run, so a new key there would break replay for every
+      // assessment already on disk. Null when outcomes are unavailable — the
+      // hinterland consumer then reports "cannot say" instead of using a mean.
+      p90_waiting_hours: percentileOfHours(
+        assessment.simulation.outcomes.map((o) => o.waitingHours),
+        0.9
+      ),
+      p90_stoppage_hours: percentileOfHours(
+        assessment.simulation.outcomes.map((o) => o.stoppageHours),
+        0.9
+      ),
       currency: req.cpTerms.currency,
       lead_time_hours: assessment.horizon.leadTimeHours,
       horizon_mode: assessment.horizon.mode,

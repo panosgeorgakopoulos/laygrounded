@@ -31,14 +31,29 @@ interface EventRow {
   last_error: string | null;
 }
 
+interface ConsumptionRow {
+  event_id: number;
+  consumer: string;
+  processed_at: string | null;
+  attempts: number;
+  last_error: string | null;
+}
+
 interface State {
   events: EventRow[];
   claims: Array<{ id: string; status: string; company_id: string }>;
   integrations: IntegrationRow[];
   syncJobs: Array<{ integration_id: string; kind: string; claim_id: string | null; idempotency_key: string }>;
+  /** Per-(event, consumer) processing state — the multi-consumer outbox model. */
+  consumptions: ConsumptionRow[];
   /** Idempotency keys that should report a unique violation (already queued). */
   duplicateKeys: Set<string>;
   failIntegrationsRead?: boolean;
+}
+
+/** Reads this consumer's state for an event, as the RPC's anti-join would. */
+function consumptionFor(state: State, eventId: number, consumer: string): ConsumptionRow | undefined {
+  return state.consumptions.find((c) => c.event_id === eventId && c.consumer === consumer);
 }
 
 function integration(over: Partial<IntegrationRow> = {}): IntegrationRow {
@@ -77,6 +92,27 @@ function claimEvent(over: Partial<EventRow> = {}): EventRow {
 /** A minimal Supabase query-builder double covering the calls this path makes. */
 function makeDb(state: State): SupabaseClient {
   const api = {
+    // Mirrors `unprocessed_domain_events`: the anti-join against this
+    // consumer's completed rows. Crucially it is PER CONSUMER, so a fixture
+    // where the ERP dispatcher has finished an event still shows that event as
+    // outstanding for 'hinterland'.
+    rpc(fn: string, args: Record<string, unknown>) {
+      if (fn !== "unprocessed_domain_events") {
+        return Promise.resolve({ data: [], error: null });
+      }
+      const consumer = String(args.p_consumer);
+      const after = Number(args.p_after ?? 0);
+      const rows = state.events
+        .filter((e) => e.id > after)
+        .filter((e) => !consumptionFor(state, e.id, consumer)?.processed_at)
+        .sort((a, b) => a.id - b.id)
+        .slice(0, Number(args.p_limit ?? 100))
+        .map((e) => {
+          const c = consumptionFor(state, e.id, consumer);
+          return { ...e, processed_at: c?.processed_at ?? null, attempts: c?.attempts ?? 0, last_error: c?.last_error ?? null };
+        });
+      return Promise.resolve({ data: rows, error: null });
+    },
     from(table: string) {
       const ctx: {
         table: string;
@@ -86,6 +122,16 @@ function makeDb(state: State): SupabaseClient {
       } = { table, action: "select", payload: null, filters: {} };
 
       const run = (shape: "single" | "many") => {
+        if (ctx.table === "domain_event_consumptions") {
+          // markProcessedBy/markFailedBy upsert DIFFERENT subsets of columns,
+          // so the payload is genuinely partial.
+          const p = ctx.payload as Partial<ConsumptionRow> & { event_id: number; consumer: string };
+          const existing = consumptionFor(state, p.event_id, p.consumer);
+          if (existing) Object.assign(existing, p);
+          else state.consumptions.push({ attempts: 0, last_error: null, processed_at: null, ...p });
+          return { data: null, error: null };
+        }
+
         if (ctx.table === "domain_events") {
           if (ctx.action === "update") {
             const row = state.events.find((e) => e.id === ctx.filters.id);
@@ -153,6 +199,7 @@ function baseState(over: Partial<State> = {}): State {
     claims: [{ id: CLAIM, status: "demurrage", company_id: COMPANY }],
     integrations: [integration()],
     syncJobs: [],
+    consumptions: [],
     duplicateKeys: new Set(),
     ...over,
   };
@@ -174,7 +221,7 @@ describe("a finalized claim reaches the ERP", () => {
     // distributed transaction by hand.
     const state = baseState();
     await dispatchErpEvents(makeDb(state));
-    expect(state.events[0].processed_at).not.toBeNull();
+    expect(consumptionFor(state, 1, 'erp')?.processed_at).toBeTruthy();
   });
 
   test("the sync job's idempotency key derives from the event's", async () => {
@@ -218,7 +265,7 @@ describe("a finalized claim reaches the ERP", () => {
     const report = await dispatchErpEvents(makeDb(state));
     expect(state.syncJobs).toHaveLength(0);
     expect(report.skipped).toBe(1);
-    expect(state.events[0].processed_at).not.toBeNull();
+    expect(consumptionFor(state, 1, 'erp')?.processed_at).toBeTruthy();
   });
 });
 
@@ -235,7 +282,7 @@ describe("drafts must never reach an accounting system", () => {
       expect(state.syncJobs).toHaveLength(0);
       expect(report.skipped).toBe(1);
       // Still processed: it is a decision, not a deferral.
-      expect(state.events[0].processed_at).not.toBeNull();
+      expect(consumptionFor(state, 1, 'erp')?.processed_at).toBeTruthy();
     });
   }
 
@@ -312,7 +359,7 @@ describe("tenancy and missing aggregates", () => {
     const report = await dispatchErpEvents(makeDb(state));
     expect(report.failed).toBe(0);
     expect(report.skipped).toBe(1);
-    expect(state.events[0].processed_at).not.toBeNull();
+    expect(consumptionFor(state, 1, 'erp')?.processed_at).toBeTruthy();
   });
 
   test("an event with no claim_id in its payload is skipped safely", async () => {
@@ -329,30 +376,36 @@ describe("failure handling", () => {
     const report = await dispatchErpEvents(makeDb(state));
 
     expect(report.failed).toBe(1);
-    expect(state.events[0].attempts).toBe(1);
-    expect(state.events[0].last_error).toContain("INTEGRATIONS_READ_FAILED");
+    expect(consumptionFor(state, 1, 'erp')?.attempts).toBe(1);
+    expect(consumptionFor(state, 1, "erp")?.last_error).toContain("INTEGRATIONS_READ_FAILED");
     // NOT processed: it must be retried.
-    expect(state.events[0].processed_at).toBeNull();
+    expect(consumptionFor(state, 1, 'erp')?.processed_at).toBeFalsy();
   });
 
   test("a poison event is left alone once it hits the attempt ceiling", async () => {
     // Retrying it forever burns an attempt every sweep and hides fresher
     // failures behind it.
     const state = baseState({
-      events: [claimEvent({ attempts: MAX_ATTEMPTS })],
+      consumptions: [
+        { event_id: 1, consumer: "erp", processed_at: null, attempts: MAX_ATTEMPTS, last_error: "boom" },
+      ],
       failIntegrationsRead: true,
     });
     const report = await dispatchErpEvents(makeDb(state));
     expect(report.deadLettered).toBe(1);
     expect(report.failed).toBe(0);
-    expect(state.events[0].attempts).toBe(MAX_ATTEMPTS); // untouched
+    expect(consumptionFor(state, 1, "erp")?.attempts).toBe(MAX_ATTEMPTS); // untouched
   });
 
   test("one failing event does not stop the others", async () => {
     const state = baseState({
       events: [
-        claimEvent({ id: 1, attempts: MAX_ATTEMPTS }), // dead-lettered
+        claimEvent({ id: 1 }),
         claimEvent({ id: 2, idempotency_key: "claim.recomputed:calc-2" }),
+      ],
+      consumptions: [
+        // Event 1 is poisoned for THIS consumer only.
+        { event_id: 1, consumer: "erp", processed_at: null, attempts: MAX_ATTEMPTS, last_error: "boom" },
       ],
     });
     const report = await dispatchErpEvents(makeDb(state));
