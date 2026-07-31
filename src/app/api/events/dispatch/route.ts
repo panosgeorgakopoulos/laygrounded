@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { dispatchErpEvents } from "@/lib/events/erp-dispatch";
 import { dispatchHinterlandWebhooks } from "@/lib/events/webhook-dispatch";
+import { dispatchSettlementPayloads } from "@/lib/events/settlement-dispatch";
 import { runPendingSyncJobs } from "@/lib/integrations/sync";
 import { runPendingDeliveries } from "@/lib/webhooks/delivery";
 import { apiError } from "@/lib/api-errors";
@@ -18,10 +19,9 @@ import { apiError } from "@/lib/api-errors";
 // event's own `company_id` rather than from the caller. That is the whole reason
 // `domain_events.company_id` is NOT NULL.
 //
-// The two consumers are INDEPENDENT. Each has its own row in
-// `domain_event_consumptions`, so a hinterland failure cannot stop ERP pushes
-// and vice versa — which is why the erp block below cannot be folded into the
-// same try as the hinterland one.
+// The three consumers are INDEPENDENT. Each has its own row in
+// `domain_event_consumptions`, so a hinterland failure cannot stop ERP pushes,
+// and neither can stop a settlement payload being generated.
 export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const isCron = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
 
     const erp = await dispatchErpEvents(service, { limit: eventLimit });
     const hinterland = await dispatchHinterlandWebhooks(service, { limit: eventLimit });
+    const settlement = await dispatchSettlementPayloads(service, { limit: eventLimit });
 
     // Drain what was just enqueued so a manual trigger shows an end-to-end
     // result rather than "enqueued, check back later".
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       mode: isCron ? "cron" : "manual",
-      dispatch: { erp, hinterland },
+      dispatch: { erp, hinterland, settlement },
       delivery: { erp: syncDelivery, hinterland: webhookDelivery },
     });
   } catch (e) {

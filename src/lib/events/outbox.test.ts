@@ -17,12 +17,17 @@ describe("event type names", () => {
 
   test("names are facts, not commands", () => {
     // A command has exactly one legitimate consumer, at which point the queue
-    // is an RPC with worse failure modes. Guard the convention explicitly.
-    const imperatives = ["recompute", "assess", "settle", "run", "send", "create"];
+    // is an RPC with worse failure modes. THAT is the rule being guarded.
+    //
+    // The shape is either a past-tense verb ("recomputed") or an adjectival
+    // state ("settlement_ready") — both describe what is now true and admit any
+    // number of consumers. An imperative ("recompute_claim") names an action
+    // with an owner, and is what must never appear here.
+    const imperatives = ["recompute", "assess", "settle", "run", "send", "create", "notify"];
     for (const name of Object.values(EVENT_TYPES)) {
       const verb = name.split(".")[1];
       expect(imperatives).not.toContain(verb);
-      expect(verb).toMatch(/(ed|changed)$/);
+      expect(verb).toMatch(/(ed|changed|_ready)$/);
     }
   });
 });

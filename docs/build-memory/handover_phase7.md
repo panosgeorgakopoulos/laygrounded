@@ -1,8 +1,8 @@
 # Phase 7 — wrap-up and handover
 
-State as of `main` after "Merge: ERP-agnostic sync layer" and the hinterland
-webhook epic. Phase 7 was **Epic C: Autonomous Ops & Enterprise Integrations**,
-in two parts: the ERP-agnostic sync layer, and hinterland supply-chain webhooks.
+State as of `main` after the Epic C merges. Phase 7 was **Epic C: Autonomous
+Ops & Enterprise Integrations**, in three parts: the ERP-agnostic sync layer,
+hinterland supply-chain webhooks, and settlement payload generation.
 
 Read this with `handover_phase6.md` (still current for the engine, ETS and
 terminal-attribution work) and `strategic_roadmap_and_architecture.md`.
@@ -57,6 +57,33 @@ Details in `src/lib/integrations/CLAUDE.md`. The load-bearing decisions:
 - **Schedules are plans.** `pull_schedules` lands in `erp_vessel_schedules` and
   is never promoted to a claim.
 
+### Part 3 — settlement payload generation
+
+| Piece | Where |
+|---|---|
+| Payload generation (pure) | `src/lib/settlement/escrow.ts` |
+| DB bridge + persistence | `src/lib/settlement/escrow-server.ts` |
+| Third outbox consumer | `src/lib/events/settlement-dispatch.ts` |
+| Agreement transition | `POST /api/claims/[claimId]/agree` |
+
+Details in `src/lib/settlement/CLAUDE.md`. Four rules decide what goes in the
+number, and each exists because the alternative moves money nobody agreed to:
+only undisputed agreed claims settle; a terminal shortfall is not a deduction
+without a `DeductionBasis` (the Phase 6 decision, unchanged); carbon settles
+only when its allocation is determined; **currencies are never netted** —
+components in different currencies become separate legs, because inventing an
+FX rate moves real money on a fabricated number.
+
+**We deliberately do not compute the EIP-712 keccak digest.** No audited keccak
+implementation exists in this project, and hand-rolling one to authorise money
+movement is a bad trade against handing the signer the typed-data object it
+already knows how to hash. `digestOf()` is SHA-256 over our canonical JSON — it
+pins OUR document, and is **not** the EIP-712 signing hash.
+
+**Terminal and carbon are caller-supplied, not loaded**, because neither is
+persisted (see §5). The ETS figure depends on a live EUA price, and a mock price
+reaching a payment instruction is what the provenance discipline exists to stop.
+
 ### Part 2 — hinterland supply-chain webhooks
 
 | Piece | Where |
@@ -109,6 +136,7 @@ outstanding and re-dispatched it.
 |---|---|
 | `20260801000000_erp_providers_and_schedules.sql` | widened `integrations_provider_check` (DANAOS/FORTUNE/ULYSSES) and `sync_jobs_kind_check` (`push_pnl`, `pull_schedules`); added `erp_vessel_schedules` |
 | `20260801000001_hinterland_webhooks.sql` | `domain_event_consumptions` + `unprocessed_domain_events()`; `api_webhook_deliveries.next_attempt_at` + `'dead'` status; `api_webhooks.config`; `pre_arrival_risks.p90_waiting_hours` / `p90_stoppage_hours` |
+| `20260801000002_settlement_agreement.sql` | `claims.agreed_at` / `agreed_by` / `agreed_calculation_id`; `settlement_payloads`; `emit_domain_event()` gains an `agreed_claim` branch; trigger emitting `claim.settlement_ready` |
 
 **`p90_waiting_hours` is a denormalized COLUMN, not a field on
 `RiskDistribution`, and that is load-bearing.** `verifyReplay()` compares the
@@ -143,23 +171,34 @@ the hinterland consumer skips those rows rather than inventing a figure.
   statements, so this was a verification-script artefact, not a schema fault.
 - **`RAISE NOTICE` output is invisible through `execute_sql`.** A `DO` block that
   "passes" proves only that nothing raised. Return a result set instead.
+- **Three more schema mismatches `tsc` could not see**, caught by checking the
+  catalog before writing the loader: `clause_flags` has no `flag_type`,
+  `metadata` or `claim_id` (it is keyed on `event_id`); `drafts` has no
+  `metadata` column and its `kind` CHECK has no `ets_addendum`. **Neither the
+  terminal shortfall nor the ETS allocation is persisted anywhere** — both are
+  computed on demand, which is why `escrow-server.ts` takes them as arguments.
+- **Despatch must be signed NEGATIVE** in the settlement ledger. Every component
+  is signed from the owner's perspective; a positive despatch made the charterer
+  the debtor on a sum the owner owes — the payment running backwards. Caught by
+  a test, not by review.
+- **A per-PROVIDER mock allowlist does not work.** `"danaos"` would cover a live
+  partner's Danaos integration, which is the exact leak the allowlist prevents.
+  Only identity-scoped entries (integration UUID, or `company:<uuid>`) do.
 
 ---
 
 ## 6. Environment
 
-New: **`ALLOW_MOCK_ERP_IN_PRODUCTION`** (default off). Permits mock-mode ERP
-integrations to serve fixtures while `NODE_ENV=production`.
+**`ALLOWED_MOCK_INTEGRATIONS`** (default empty) replaced the global
+`ALLOW_MOCK_ERP_IN_PRODUCTION`. Entries are integration UUIDs, or
+`company:<uuid>` for a whole demo tenant. Unset means **nothing** may serve
+fixtures in production; the refusal message names the id to add.
 
-**It is currently ON for investor demos**, set in local `.env` for the
-`docker compose` stack. It is **global, not per-tenant**: while it is on, ANY
-integration with `config.mode = "mock"` serves fixtures, including a real design
-partner's if theirs is ever mis-set. **Turn it off before onboarding a live
-tenant**, or make it per-integration first (an `integrations.config` allowlist
-would be the narrower fix).
+Deliberately **not** a provider list: `"danaos"` would also cover a live design
+partner's Danaos integration, which is precisely the leak being prevented.
 
-Cron cadence: `POST /api/events/dispatch` every ~5 min (dispatches both
-consumers, then delivers both queues), alongside the existing
+Cron cadence: `POST /api/events/dispatch` every ~5 min (dispatches all three
+consumers, then drains both delivery queues), alongside the existing
 `POST /api/integrations/run-sync`.
 
 ---
@@ -169,7 +208,9 @@ consumers, then delivers both queues), alongside the existing
 1. **No adapter has met a live ERP.** The mappings are plausible, tenant-
    overridable and untested against a real deployment. First contact should be a
    `integrations.config` change, not a code push — that is what the design buys.
-2. **`ALLOW_MOCK_ERP_IN_PRODUCTION` is global.** See §6.
+2. **The demo needs an allowlist entry.** Create the mock integration, then put
+   its id in `ALLOWED_MOCK_INTEGRATIONS` (locally and on Vercel). Until then a
+   production-mode mock pull is refused, by design.
 3. **`p90_waiting_hours` is not backfilled**, so hinterland delay notifications
    only fire for assessments made after 2026-08-01. This is correct, and it means
    a demo needs a freshly-run assessment.
@@ -185,20 +226,30 @@ consumers, then delivers both queues), alongside the existing
    conformance root → verifier artifacts.
 7. **Cross-tenant matviews remain data-starved.** Unchanged from Phase 6; only
    tenants shipping real claims fix it.
+8. **No bank or wallet details are stored.** `escrow-server.ts` emits parties by
+   name with null IBAN/BIC/wallet, reported through `missingForBank` /
+   `missingForChain`. A counterparty banking table is the next step before any
+   payload is actionable end to end.
+9. **Nothing consumes `settlement_payloads`.** Generation is done; execution
+   (bank submission or contract call) is deliberately a separate decision, and
+   carries custody/KYC questions the roadmap flagged under C2.
 
 ---
 
 ## 8. Verification state
 
 - `tsc --noEmit` clean; `eslint src/lib src/app` clean.
-- **2053 tests pass** (0 fail) across 94 files, including 129 new integration
-  tests and 64 new webhook tests.
+- **2111 tests pass** (0 fail) across 96 files, including 129 integration tests,
+  64 webhook tests, 42 settlement-payload tests and 17 mock-policy tests.
 - Production build clean; `/api/events/dispatch` registered.
 - **Live-database checks**, not just unit tests:
   - new provider INSERT accepted; `ON CONFLICT (integration_id, external_ref)`
     proven to update in place (two upserts → one row);
   - `unprocessed_domain_events` proven independent per consumer: acking for
     `erp` dropped it to 0 outstanding while `hinterland` still saw 1;
-  - `unprocessed_domain_events` ACL confirmed
-    `postgres=X/postgres, service_role=X/postgres` — no anon/authenticated.
+  - `unprocessed_domain_events` and `emit_domain_event` ACLs confirmed
+    `postgres=X/postgres, service_role=X/postgres` — no anon/authenticated;
+  - the agreement trigger verified end to end: setting `agreed_at` emitted
+    exactly one `claim.settlement_ready`, and a re-stamp plus an unrelated edit
+    emitted no second event.
 - All live fixtures deleted; leftover counts verified zero.

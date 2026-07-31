@@ -23,6 +23,15 @@ export const EVENT_TYPES = {
   CLAIM_RECOMPUTED: "claim.recomputed",
   RISK_ASSESSED: "risk.assessed",
   SETTLEMENT_CHANGED: "settlement.changed",
+  /**
+   * Both sides agreed the calculation — emitted on the `claims.agreed_at`
+   * NULL → NOT NULL transition.
+   *
+   * A state fact rather than a past-tense verb, and still not a command: it
+   * describes what is now true of the claim, and any number of processors may
+   * act on it (or none).
+   */
+  SETTLEMENT_READY: "claim.settlement_ready",
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
@@ -44,6 +53,8 @@ export const CONSUMERS = {
   ERP: "erp",
   /** Notifies hinterland logistics partners of delays worth re-planning for. */
   HINTERLAND: "hinterland",
+  /** Generates settlement instructions (EIP-712 / ISO 20022) for agreed claims. */
+  SETTLEMENT: "settlement",
 } as const;
 
 export type Consumer = (typeof CONSUMERS)[keyof typeof CONSUMERS];

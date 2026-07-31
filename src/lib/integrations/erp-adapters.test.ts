@@ -50,7 +50,7 @@ function row(
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
-  delete process.env.ALLOW_MOCK_ERP_IN_PRODUCTION;
+  delete process.env.ALLOWED_MOCK_INTEGRATIONS;
 });
 
 /** Captures the outbound request and replies with a canned body. */
@@ -148,11 +148,29 @@ describe("mock data is refused in production", () => {
     });
   });
 
-  test("ALLOW_MOCK_ERP_IN_PRODUCTION=1 permits it", async () => {
+  test("allowlisting THIS integration permits it", async () => {
     await withNodeEnv("production", async () => {
-      process.env.ALLOW_MOCK_ERP_IN_PRODUCTION = "1";
+      const r = row("DANAOS", { config: { mode: "mock" } });
+      process.env.ALLOWED_MOCK_INTEGRATIONS = r.id;
+      expect((await new DanaosAdapter(r).pullVoyages(null)).length).toBeGreaterThan(0);
+    });
+  });
+
+  test("allowlisting a DIFFERENT integration does not permit this one", async () => {
+    // The whole reason the allowlist is identity-scoped rather than
+    // provider-scoped: a demo entry must never cover a live partner's row.
+    await withNodeEnv("production", async () => {
+      process.env.ALLOWED_MOCK_INTEGRATIONS = "99999999-9999-4999-8999-999999999999";
       const adapter = new DanaosAdapter(row("DANAOS", { config: { mode: "mock" } }));
-      expect((await adapter.pullVoyages(null)).length).toBeGreaterThan(0);
+      await expect(adapter.pullVoyages(null)).rejects.toThrow(/not allowlisted/);
+    });
+  });
+
+  test("allowlisting the company permits its integrations", async () => {
+    await withNodeEnv("production", async () => {
+      const r = row("DANAOS", { config: { mode: "mock" } });
+      process.env.ALLOWED_MOCK_INTEGRATIONS = `company:${r.company_id}`;
+      expect((await new DanaosAdapter(r).pullVoyages(null)).length).toBeGreaterThan(0);
     });
   });
 
