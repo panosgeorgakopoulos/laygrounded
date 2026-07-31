@@ -35,6 +35,18 @@ export type LiabilityAllocation =
   | "unrecovered_owner_cost"
   | "unallocated";
 
+/** Which side of the fixture the tenant is on. */
+export type TenantRole = "owner" | "charterer" | "trader";
+
+/**
+ * Which way the money runs FOR THE TENANT.
+ *
+ * The same allowance cost is a receivable to an owner with a BIMCO clause and a
+ * payable to a charterer under the identical clause. Reporting only the amount
+ * would let a charterer invoice a cost they actually owe.
+ */
+export type LiabilityDirection = "receivable" | "payable" | "none" | "undetermined";
+
 export interface EtsAddendumInput {
   claim: {
     id: string;
@@ -49,6 +61,11 @@ export interface EtsAddendumInput {
   carbonCost: CarbonCostOfDelay;
   /** Tri-state: null means nobody has recorded whether the CP has the clause. */
   hasBimcoEtsClause: boolean | null;
+  /**
+   * Which side the tenant is on. NULL means not recorded — the allocation is
+   * then declined rather than inferred from the engine's money convention.
+   */
+  tenantRole: TenantRole | null;
   euaPriceEur: number;
   euaPriceProvenance: DataProvenance;
   /** How the EEA determination was made, for the document's own record. */
@@ -65,6 +82,9 @@ export interface AddendumLine {
 
 export interface EtsAddendum {
   allocation: LiabilityAllocation;
+  /** Which way the amount runs for the tenant. */
+  direction: LiabilityDirection;
+  tenantRole: TenantRole | null;
   /** The heading a reader sees. Never "charterer liability" without a clause. */
   title: string;
   /** EUR. Zero when the berth is outside EU ETS scope. */
@@ -89,7 +109,7 @@ const num = (n: number, dp = 2) =>
   n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
 export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
-  const { carbonCost, hasBimcoEtsClause } = input;
+  const { carbonCost, hasBimcoEtsClause, tenantRole } = input;
   const amountEur = new Decimal(carbonCost.etsCostEur).toDecimalPlaces(2).toNumber();
   const inScope = carbonCost.etsScope.share > 0;
 
@@ -101,6 +121,15 @@ export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
   let bearer: string;
   let basis: string;
   let warning: string | null = null;
+  let direction: LiabilityDirection = "undetermined";
+
+  // The tenant's side decides which way the money runs. A trader is treated as
+  // undetermined rather than mapped to either side: they are routinely a
+  // charterer on one fixture and a disponent owner on the next, and guessing
+  // reintroduces exactly the inference this column removed.
+  const tenantIsOwner = tenantRole === "owner";
+  const tenantIsCharterer = tenantRole === "charterer";
+  const roleKnown = tenantIsOwner || tenantIsCharterer;
 
   if (!inScope) {
     // No liability exists at all, so there is nothing to allocate. Saying
@@ -111,6 +140,7 @@ export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
     basis =
       "The berth is outside EU ETS scope, so the demurrage period's emissions carry no allowance-surrender obligation. " +
       carbonCost.etsScope.note;
+    direction = "none";
   } else if (hasBimcoEtsClause === true) {
     allocation = "charterer_liability";
     title = "EU-ETS Carbon Liability — Charterer";
@@ -119,6 +149,14 @@ export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
       `The surrender obligation under Dir. 2003/87/EC Art. 3ga rests on ${owner} as the shipping company. ` +
       `The charterparty carries a BIMCO ETS Emission Scheme clause (or equivalent), under which the cost of ` +
       `allowances attributable to this delay is recoverable from ${charterer}.`;
+    // THE REVERSAL. Under one identical clause this is money the owner
+    // recovers and money the charterer pays.
+    direction = tenantIsOwner ? "receivable" : tenantIsCharterer ? "payable" : "undetermined";
+    if (tenantIsCharterer) {
+      warning =
+        `This charterparty carries an ETS clause, so ${eur(amountEur)} of allowance cost arising from this ` +
+        `delay is recoverable from you by ${owner}. It is a payable, not a claim.`;
+    }
   } else if (hasBimcoEtsClause === false) {
     allocation = "unrecovered_owner_cost";
     title = "EU-ETS Carbon Cost — unrecovered by Owner";
@@ -128,9 +166,14 @@ export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
       `This charterparty carries NO ETS clause, so there is no contractual route to recover the cost from ` +
       `${charterer}. Art. 3gc requires Member States to ensure a right of reimbursement from the entity ` +
       `commercially responsible for the ship's operation, but that right is given effect through the contract.`;
-    warning =
-      `This charterparty has no BIMCO ETS clause, so ${eur(amountEur)} of allowance cost arising from this ` +
-      `delay stays with ${owner}. Adding an ETS clause to future fixtures is what makes this recoverable.`;
+    // No clause: the shipping company absorbs it. That is a cost to an owner
+    // tenant and nothing at all to a charterer tenant.
+    direction = tenantIsOwner ? "payable" : tenantIsCharterer ? "none" : "undetermined";
+    warning = tenantIsCharterer
+      ? `This charterparty has no ETS clause, so ${eur(amountEur)} of allowance cost stays with ${owner}. ` +
+        `You carry no liability for it — but expect it to be priced into future fixtures.`
+      : `This charterparty has no BIMCO ETS clause, so ${eur(amountEur)} of allowance cost arising from this ` +
+        `delay stays with ${owner}. Adding an ETS clause to future fixtures is what makes this recoverable.`;
   } else {
     allocation = "unallocated";
     title = "EU-ETS Carbon Liability — allocation not determined";
@@ -185,8 +228,18 @@ export function buildEtsAddendum(input: EtsAddendumInput): EtsAddendum {
   const decisionGrade =
     input.euaPriceProvenance.source !== "mock" && carbonCost.etsScope.scopeCertain;
 
+  if (inScope && !roleKnown) {
+    footnotes.unshift(
+      tenantRole === "trader"
+        ? "This company is recorded as a trader, which does not by itself say which side of THIS fixture it is on — a trader is routinely a charterer on one and a disponent owner on the next. The amount is stated without a direction; set the role on the claim to resolve it."
+        : "This company's role on this fixture has not been recorded, so the amount is stated without saying whether it is recoverable or payable. Set the role on the claim to resolve it."
+    );
+  }
+
   return {
     allocation,
+    direction,
+    tenantRole: tenantRole ?? null,
     title,
     amountEur,
     bearer,

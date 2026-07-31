@@ -32,7 +32,7 @@ async function build(
     // separate charterer/owner columns. tsc cannot see a wrong column name in
     // supabase-js, so this list was checked rather than assumed.
     .select(
-      "id, company_id, vessel, voyage_ref, port, cargo, counterparty_name, ets_applicable, has_bimco_ets_clause"
+      "id, company_id, vessel, voyage_ref, port, cargo, counterparty_name, ets_applicable, has_bimco_ets_clause, tenant_role"
     )
     .eq("id", claimId)
     .maybeSingle();
@@ -70,15 +70,18 @@ async function build(
     currency: calc.currency ?? undefined,
   });
 
-  // PARTY ROLES. The claim records one counterparty, not two named sides. The
-  // engine's whole money convention is owner-perspective (net = demurrage
-  // earned - despatch paid), and demurrage is claimed BY the owner AGAINST the
-  // charterer, so the tenant is the owner and the counterparty is the
-  // charterer. That is an assumption, not a fact on the record — a
-  // charterer-side fixture would invert it — so the addendum states it in a
-  // footnote rather than presenting it as recorded.
-  const owner = companyName || null;
-  const charterer = claim.counterparty_name || null;
+  // PARTY ROLES, now READ rather than inferred.
+  //
+  // `tenant_role` says which side this company is on, so the two named parties
+  // follow from it instead of from the engine's money convention. When it is
+  // unrecorded the addendum declines to give the amount a direction — the same
+  // discipline as the clause flag, and the reason this column exists.
+  const tenantRole = (claim.tenant_role ?? null) as "owner" | "charterer" | "trader" | null;
+  const counterparty = claim.counterparty_name || null;
+  const tenant = companyName || null;
+
+  const owner = tenantRole === "charterer" ? counterparty : tenant;
+  const charterer = tenantRole === "charterer" ? tenant : counterparty;
 
   const addendum = buildEtsAddendum({
     claim: {
@@ -92,17 +95,24 @@ async function build(
     },
     carbonCost,
     hasBimcoEtsClause: claim.has_bimco_ets_clause ?? null,
+    tenantRole,
     euaPriceEur: quote.priceEur,
     euaPriceProvenance: quote.provenance,
     etsScopeBasis,
     issuedAtISO: nowISO,
   });
 
-  addendum.footnotes.push(
-    `Party roles are inferred, not recorded: this claim carries a single counterparty (${charterer ?? "not recorded"}), and the owner's perspective is assumed, so ${owner ?? "the tenant"} is treated as the shipping company. Correct this before relying on the allocation if the fixture is charterer-side.`
-  );
-
-  return { claim, calc, carbonCost, addendum, quote, owner, charterer, requestedBy: userEmail };
+  return {
+    claim,
+    calc,
+    carbonCost,
+    addendum,
+    quote,
+    owner,
+    charterer,
+    tenantRole,
+    requestedBy: userEmail,
+  };
 }
 
 export async function GET(
@@ -164,6 +174,7 @@ export async function GET(
         charterer: built.charterer,
         owner: built.owner,
         hasBimcoEtsClause: built.claim.has_bimco_ets_clause ?? null,
+        tenantRole: built.tenantRole,
       },
     });
   } catch (e) {
@@ -181,12 +192,30 @@ export async function PATCH(
     const auth = await requireAuth();
     const body = await req.json().catch(() => ({}));
 
-    const value = body?.hasBimcoEtsClause;
+    // Both fields are optional; a request may set either or both.
+    const hasClause = body?.hasBimcoEtsClause;
+    const role = body?.tenantRole;
+    const ROLES = ["owner", "charterer", "trader"];
+
+    if (role !== undefined && role !== null && !ROLES.includes(role)) {
+      return NextResponse.json(
+        { error: "VALIDATION_ERROR", message: `tenantRole must be one of ${ROLES.join(", ")}, or null.` },
+        { status: 400 }
+      );
+    }
+
+    const value = hasClause;
     // Tri-state on purpose: null clears the record back to "not checked", which
     // is a different statement from "no clause".
-    if (value !== true && value !== false && value !== null) {
+    if (value !== undefined && value !== true && value !== false && value !== null) {
       return NextResponse.json(
         { error: "VALIDATION_ERROR", message: "hasBimcoEtsClause must be true, false or null." },
+        { status: 400 }
+      );
+    }
+    if (value === undefined && role === undefined) {
+      return NextResponse.json(
+        { error: "VALIDATION_ERROR", message: "Supply hasBimcoEtsClause, tenantRole, or both." },
         { status: 400 }
       );
     }
@@ -199,13 +228,14 @@ export async function PATCH(
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
 
-    const { error } = await supabase
-      .from("claims")
-      .update({ has_bimco_ets_clause: value, updated_at: new Date().toISOString() })
-      .eq("id", claimId);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (value !== undefined) patch.has_bimco_ets_clause = value;
+    if (role !== undefined) patch.tenant_role = role;
+
+    const { error } = await supabase.from("claims").update(patch).eq("id", claimId);
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ hasBimcoEtsClause: value });
+    return NextResponse.json({ hasBimcoEtsClause: value ?? null, tenantRole: role ?? null });
   } catch (e) {
     return apiError(e, "claims/ets-addendum/PATCH");
   }

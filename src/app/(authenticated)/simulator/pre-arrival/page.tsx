@@ -99,6 +99,38 @@ function defaultEta(daysAhead: number): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
+interface SpeedOption {
+  speedKnots: number;
+  etaISO: string;
+  fuelTonnes: number;
+  waitingHours: number;
+}
+
+interface VirtualArrivalPlan {
+  decisionGrade: boolean;
+  curve: { generic: boolean; source: string };
+  queue: { hoursUsed: number; percentile: number; observations: number };
+  action: "increase_speed" | "decrease_speed" | "maintain_speed";
+  recommendation: string;
+  current: SpeedOption;
+  optimal: SpeedOption;
+  savings: {
+    fuelTonnes: number;
+    fuelUsd: number;
+    etsUsd: number;
+    co2Tonnes: number;
+    totalUsd: number;
+  };
+  actionRobust: boolean;
+  sensitivity: Array<{
+    percentile: number;
+    queueHours: number;
+    optimalSpeedKnots: number;
+    action: string;
+  }>;
+  caveats: string[];
+}
+
 export default function PreArrivalRiskPage() {
   const [vessel, setVessel] = useState("");
   const [voyageRef, setVoyageRef] = useState("");
@@ -118,6 +150,16 @@ export default function PreArrivalRiskPage() {
   const [running, setRunning] = useState(false);
   const [stage, setStage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+
+  // ── Eco-Speed / JIT mitigation panel ───────────────────────────────────
+  // Paired with the risk figure on purpose: the Monte Carlo says how exposed
+  // this call is, and this says what can still be done about it.
+  const [vesselClass, setVesselClass] = useState("supramax");
+  const [currentSpeed, setCurrentSpeed] = useState(13);
+  const [distanceNm, setDistanceNm] = useState(600);
+  const [plan, setPlan] = useState<VirtualArrivalPlan | null>(null);
+  const [planRunning, setPlanRunning] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const run = async () => {
     if (!vessel.trim()) {
@@ -181,6 +223,35 @@ export default function PreArrivalRiskPage() {
       clearTimeout(t2);
       setRunning(false);
       setStage("");
+    }
+  };
+
+  const optimise = async () => {
+    setPlanRunning(true);
+    setPlanError(null);
+    try {
+      const res = await fetch("/api/optimization/virtual-arrival", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          port,
+          currentSpeedKnots: currentSpeed,
+          distanceToPortNm: distanceNm,
+          demurrageRatePerDay: demRate,
+          vesselClass,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPlanError(body.message || body.error || "Could not compute an arrival plan.");
+        setPlan(null);
+        return;
+      }
+      setPlan(body as VirtualArrivalPlan);
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPlanRunning(false);
     }
   };
 
@@ -360,6 +431,107 @@ export default function PreArrivalRiskPage() {
               <strong>{money(d.conditionalExposure.value, currency)}</strong> on average — the
               number to plan the exception around, as distinct from the expected exposure above.
             </p>
+          </section>
+
+          {/* ── The mitigation, directly beneath the risk ──────────────────
+              The pairing IS the pitch: the simulation says how exposed this
+              call is, and this says what can still be done about it while the
+              vessel is at sea. */}
+          <section className={styles.mitigationCard} aria-label="Eco-speed / JIT optimisation">
+            <div className={styles.mitigationHead}>
+              <div>
+                <h2 className={styles.sectionTitle}>Eco-speed / just-in-time arrival</h2>
+                <p className={styles.sectionSub}>
+                  Sailing fast into a queue buys nothing but bunkers and EUAs. Given the same
+                  live queue used above, this prices every arrival speed against fuel, carbon,
+                  waiting and the laycan.
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.mitigationForm}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="vesselClass">Vessel class</label>
+                <select id="vesselClass" className={styles.select} value={vesselClass}
+                  onChange={(e) => setVesselClass(e.target.value)}>
+                  <option value="handysize">Handysize (~30k dwt)</option>
+                  <option value="supramax">Supramax (~58k dwt)</option>
+                  <option value="panamax">Panamax (~82k dwt)</option>
+                  <option value="capesize">Capesize (~180k dwt)</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="currentSpeed">Current speed (kn)</label>
+                <input id="currentSpeed" type="number" min={1} max={25} step={0.5}
+                  className={styles.input} value={currentSpeed}
+                  onChange={(e) => setCurrentSpeed(Number(e.target.value))} />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="distanceNm">Distance to port (nm)</label>
+                <input id="distanceNm" type="number" min={1} max={20000}
+                  className={styles.input} value={distanceNm}
+                  onChange={(e) => setDistanceNm(Number(e.target.value))} />
+              </div>
+              <button className={styles.runBtn} onClick={optimise} disabled={planRunning}>
+                {planRunning ? "Optimising…" : "Optimise arrival"}
+              </button>
+            </div>
+
+            {planError && <p className={styles.error} role="alert">{planError}</p>}
+
+            {plan && (
+              <div className={styles.planResult}>
+                <div className={styles.planHeadline}>
+                  <span className={`${styles.actionTag} ${
+                    plan.action === "decrease_speed" ? styles.actionSlow
+                      : plan.action === "increase_speed" ? styles.actionFast : styles.actionHold
+                  }`}>
+                    {plan.action === "decrease_speed" ? "Slow down"
+                      : plan.action === "increase_speed" ? "Speed up" : "Maintain"}
+                  </span>
+                  <span className={styles.planSpeed}>
+                    {plan.current.speedKnots} → <strong>{plan.optimal.speedKnots} kn</strong>
+                  </span>
+                  {!plan.actionRobust && (
+                    <span className={styles.fragile}>Not stable across queue uncertainty</span>
+                  )}
+                </div>
+
+                <div className={styles.savingsRow}>
+                  {[
+                    { k: "Bunkers saved", v: `${plan.savings.fuelTonnes.toFixed(1)} t` },
+                    { k: "Fuel cost", v: money(plan.savings.fuelUsd, currency) },
+                    { k: "ETS avoided", v: money(plan.savings.etsUsd, currency) },
+                    { k: "CO2 avoided", v: `${plan.savings.co2Tonnes.toFixed(1)} t` },
+                    { k: "Total saving", v: money(plan.savings.totalUsd, currency) },
+                  ].map((s) => (
+                    <div key={s.k} className={styles.saving}>
+                      <span className={styles.statKey}>{s.k}</span>
+                      <span className={`${styles.savingVal} tnum`}>{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className={styles.planNote}>{plan.recommendation}</p>
+
+                <details className={styles.details}>
+                  <summary className={styles.summary}>
+                    How the advice holds as the queue moves ({plan.sensitivity.length} scenarios)
+                  </summary>
+                  <ul className={styles.caveatList}>
+                    {plan.sensitivity.map((sc) => (
+                      <li key={sc.percentile}>
+                        P{Math.round(sc.percentile * 100)} queue {sc.queueHours}h →{" "}
+                        {sc.optimalSpeedKnots} kn ({sc.action.replace("_", " ")})
+                      </li>
+                    ))}
+                  </ul>
+                  <ul className={styles.caveatList}>
+                    {plan.caveats.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </details>
+              </div>
+            )}
           </section>
 
           <section className={styles.statsGrid} aria-label="Simulated voyage averages">
