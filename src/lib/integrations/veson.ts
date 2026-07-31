@@ -7,7 +7,10 @@
 // shapes. Field mapping stays in one place (`mapVoyage`) for the same reason.
 
 import { ErpAdapter } from "./adapter";
+import { filterSince, mockVoyages } from "./fixtures";
+import { mapEventType } from "./normalize";
 import {
+  AdapterCapabilities,
   InboundEvent,
   NormalizedInvoice,
   NormalizedVoyage,
@@ -43,12 +46,28 @@ const DEFAULT_VOYAGE_QUERY = `
 `;
 
 export class VesonImosAdapter extends ErpAdapter {
-  private cfg(key: string, fallback: string): string {
-    const v = this.integration.config[key];
-    return typeof v === "string" && v ? v : fallback;
+  get capabilities(): AdapterCapabilities {
+    return {
+      pullVoyages: true,
+      pushInvoice: true,
+      pushLedger: true,
+      // Both are real IMOS concepts (itineraries; the voyage P&L is a core
+      // feature). They are declared false because THIS adapter has no mapping
+      // for them, not because the ERP lacks them — a capability is a statement
+      // about what the code can do, and claiming one it cannot honour would
+      // surface as an IntegrationUnsupportedError from the base class after
+      // the job was already accepted.
+      pullSchedules: false,
+      pushVoyagePnl: false,
+    };
   }
 
   async pullVoyages(sinceISO: string | null): Promise<NormalizedVoyage[]> {
+    if (this.mode === "mock") {
+      this.assertModeAllowed();
+      return filterSince(mockVoyages(this.integration.id, { prefix: "VES" }), sinceISO);
+    }
+
     const data = await this.request<{
       data?: { voyages?: { nodes?: VesonVoyageNode[] } };
       errors?: Array<{ message: string }>;
@@ -83,6 +102,11 @@ export class VesonImosAdapter extends ErpAdapter {
   }
 
   async pushInvoice(invoice: NormalizedInvoice): Promise<PushResult> {
+    if (this.mode === "mock") {
+      this.assertModeAllowed();
+      return { externalId: `VES-MOCK-INV-${invoice.claimId.slice(0, 8)}`, raw: { mocked: true } };
+    }
+
     const res = await this.request<{ id?: string }>(
       this.cfg("invoice_path", "/api/v1/laytime/invoices"),
       {
@@ -106,6 +130,11 @@ export class VesonImosAdapter extends ErpAdapter {
   }
 
   async pushLedger(invoice: NormalizedInvoice): Promise<PushResult> {
+    if (this.mode === "mock") {
+      this.assertModeAllowed();
+      return { externalId: `VES-MOCK-LED-${invoice.claimId.slice(0, 8)}`, raw: { mocked: true } };
+    }
+
     const res = await this.request<{ id?: string }>(
       this.cfg("ledger_path", "/api/v1/laytime/ledgers"),
       {
@@ -128,13 +157,12 @@ export class VesonImosAdapter extends ErpAdapter {
   }
 
   parseInboundEvent(payload: unknown): InboundEvent {
-    const p = payload as any;
-    const eventId = String(p?.eventId ?? p?.id ?? "");
-    const type =
-      p?.eventType === "voyage.created" || p?.eventType === "voyage.updated"
-        ? p.eventType
-        : "unknown";
-    const voyage = p?.voyage ? this.mapVoyage(p.voyage as VesonVoyageNode) : null;
-    return { eventId, type, voyage, raw: payload };
+    const p = (payload ?? {}) as Record<string, unknown>;
+    return {
+      eventId: String(p.eventId ?? p.id ?? ""),
+      type: mapEventType(p.eventType),
+      voyage: p.voyage ? this.mapVoyage(p.voyage as VesonVoyageNode) : null,
+      raw: payload,
+    };
   }
 }
