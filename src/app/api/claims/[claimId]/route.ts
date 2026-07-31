@@ -28,6 +28,8 @@ const UpdateClaimSchema = z.object({
   timeBarDays: z.number().int().min(1).max(365).optional(),
   vesselImo: z.string().max(16).nullable().optional(),
   counterpartyName: z.string().max(200).nullable().optional(),
+  /** Berth within the port. Null clears it back to "not recorded". */
+  terminalName: z.string().max(120).nullable().optional(),
   // Settlement recording: what the claim actually closed at. Null clears a
   // mistaken entry.
   settledAmount: z.number().min(0).nullable().optional(),
@@ -128,6 +130,7 @@ export async function GET(
       companyId: claim.company_id,
       voyageRef: claim.voyage_ref,
       cpForm: claim.cp_form,
+      terminalName: claim.terminal_name ?? null,
       cpTerms: claim.cp_terms,
       createdBy: claim.created_by,
       createdAt: claim.created_at,
@@ -228,6 +231,11 @@ export async function PATCH(
     if (parsed.data.timeBarDays !== undefined) data.time_bar_days = parsed.data.timeBarDays;
     if (parsed.data.vesselImo !== undefined) data.vessel_imo = parsed.data.vesselImo;
     if (parsed.data.counterpartyName !== undefined) data.counterparty_name = parsed.data.counterpartyName;
+    // Blank string clears it: an operator emptying the field means "not
+    // recorded", which the benchmark reads as "cascade to port level".
+    if (parsed.data.terminalName !== undefined) {
+      data.terminal_name = parsed.data.terminalName?.trim() || null;
+    }
     if (parsed.data.settledAmount !== undefined) data.settled_amount = parsed.data.settledAmount;
     if (parsed.data.settledAt !== undefined) {
       data.settled_at = parsed.data.settledAt
@@ -249,6 +257,7 @@ export async function PATCH(
       companyId: updated.company_id,
       voyageRef: updated.voyage_ref,
       cpForm: updated.cp_form,
+      terminalName: updated.terminal_name ?? null,
       cpTerms: updated.cp_terms,
       createdBy: updated.created_by,
       createdAt: updated.created_at,

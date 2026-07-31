@@ -13,6 +13,8 @@ const CreateClaimSchema = z.object({
   cpForm: z.string().default("GENCON94"),
   vesselImo: z.string().max(16).optional(),
   counterpartyName: z.string().max(200).optional(),
+  /** Berth within the port. Optional: NULL means "not recorded". */
+  terminalName: z.string().max(120).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -120,6 +122,9 @@ export async function POST(req: NextRequest) {
         cp_terms: DEFAULT_CP_TERMS,
         vessel_imo: parsed.data.vesselImo ?? null,
         counterparty_name: parsed.data.counterpartyName ?? null,
+        // Empty string from a blank form field is "not recorded", not a
+        // terminal literally named "".
+        terminal_name: parsed.data.terminalName?.trim() || null,
         created_by: auth.userId,
         status: "draft",
       })

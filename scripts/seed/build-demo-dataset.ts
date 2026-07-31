@@ -132,6 +132,43 @@ function loadArchetype(archetype: string, take: number): CorpusCase[] {
   return files.map((f) => JSON.parse(readFileSync(join(CORPUS_DIR, f), "utf8")) as CorpusCase);
 }
 
+/**
+ * Gives the demo cargo a tonnage that is COHERENT with the laytime allowance.
+ *
+ * The corpus describes cargo as "Fuel oil 380cst" with no quantity, and sets
+ * `laytime_allowed_hours` and `load_rate` independently — so a demo claim would
+ * show a terminal beating its stipulated rate three- to sevenfold, and the
+ * efficiency benchmark could not run at all for want of a tonnage.
+ *
+ * The identity a charterparty actually holds is:
+ *
+ *     allowed_hours = (cargo / rate) x 24
+ *
+ * DERIVED IN THE DIRECTION THAT IS SAFE: tonnage is computed FROM the corpus's
+ * allowed hours and rate, never the reverse. `laytime_allowed_hours` is the
+ * engine's input and every one of the 500 conformance expectations is pinned to
+ * it — recomputing it here would change the corpus and the published WASM root.
+ * Tonnage is a free variable the engine never reads, so it is the one to move.
+ */
+function coherentCargo(
+  cargo: string,
+  cpTerms: Record<string, unknown>,
+  isDischarge: boolean
+): string {
+  const allowedHours = Number(cpTerms.laytime_allowed_hours);
+  const rate = Number(isDischarge ? cpTerms.discharge_rate : cpTerms.load_rate);
+  if (!Number.isFinite(allowedHours) || !Number.isFinite(rate) || allowedHours <= 0 || rate <= 0) {
+    return cargo;
+  }
+
+  // Round to 100 MT — a real fixture quotes a round parcel, and the rounding
+  // error against the allowance is far below the noise in any real SoF.
+  const tonnes = Math.round((rate * (allowedHours / 24)) / 100) * 100;
+  if (tonnes <= 0) return cargo;
+
+  return `${cargo}, ${tonnes.toLocaleString("en-US")} MT`;
+}
+
 let globalIdx = 0;
 const scenarios: string[] = [];
 
@@ -162,7 +199,11 @@ for (const sel of SELECTION) {
           vesselImo,
           voyageRef: c.claim.voyageRef,
           port: c.claim.port,
-          cargo: c.claim.cargo,
+          cargo: coherentCargo(
+            c.claim.cargo,
+            c.cpTerms,
+            c.events.some((e) => e.event_type === "COMMENCED_DISCHARGE")
+          ),
           counterpartyName,
           cpForm,
           cpTerms: c.cpTerms,
