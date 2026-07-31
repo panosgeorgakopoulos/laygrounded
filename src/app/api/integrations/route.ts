@@ -4,19 +4,38 @@ import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
+import { PROVIDER_IDS, PROVIDERS } from "@/lib/integrations/registry";
 
 const CreateIntegrationSchema = z.object({
-  provider: z.enum(["VESON_IMOS", "MOCK_ERP"]),
+  // Driven off the registry so the enum cannot drift from the adapters that
+  // exist. The database CHECK constraint is the third copy of this list and
+  // the one `tsc` cannot see — see the note in registry.ts.
+  provider: z.enum(PROVIDER_IDS),
   displayName: z.string().max(120).default(""),
   baseUrl: z.string().url().or(z.literal("")).default(""),
   apiToken: z.string().max(4096).optional(),
+  // Danaos-style SOAP tenants authenticate the envelope, not the transport.
+  username: z.string().max(200).optional(),
+  password: z.string().max(1024).optional(),
+  // "mock" serves deterministic fixtures instead of calling the ERP. Opt-in
+  // only, and refused in production without ALLOW_MOCK_ERP_IN_PRODUCTION=1.
+  mode: z.enum(["live", "mock"]).optional(),
 });
 
 // Auth material never leaves the server; expose only whether it's configured.
 function serialize(row: any) {
+  const descriptor = PROVIDERS.find((p) => p.provider === row.provider);
   return {
     id: row.id,
     provider: row.provider,
+    providerLabel: descriptor?.label ?? row.provider,
+    transport: descriptor?.transport ?? null,
+    // Surfaced so an operator can tell a documented mapping from one written
+    // against a product family's general shape. Veson is documented; Danaos,
+    // Fortune and Ulysses are not, and hiding that would be the dishonest part.
+    mappingVerifiedAgainstVendorDocs: descriptor?.mappingVerifiedAgainstVendorDocs ?? false,
+    // Provenance, carried to the UI exactly as the market adapters do.
+    mode: row.config?.mode === "mock" ? "mock" : "live",
     displayName: row.display_name,
     baseUrl: row.base_url,
     status: row.status,
@@ -24,6 +43,7 @@ function serialize(row: any) {
     lastSyncAt: row.last_sync_at,
     createdAt: row.created_at,
     hasApiToken: !!row.auth?.api_token,
+    hasUsername: !!row.auth?.username,
     // The one-time exception: the webhook secret is returned on creation so
     // the user can configure the ERP side; afterwards only its presence.
     hasWebhookSecret: !!row.auth?.webhook_secret,
@@ -69,8 +89,11 @@ export async function POST(req: NextRequest) {
         base_url: parsed.data.baseUrl,
         auth: {
           ...(parsed.data.apiToken ? { api_token: parsed.data.apiToken } : {}),
+          ...(parsed.data.username ? { username: parsed.data.username } : {}),
+          ...(parsed.data.password ? { password: parsed.data.password } : {}),
           webhook_secret: webhookSecret,
         },
+        config: parsed.data.mode ? { mode: parsed.data.mode } : {},
       })
       .select("*")
       .single();

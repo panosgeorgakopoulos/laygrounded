@@ -13,16 +13,34 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdapter } from "./registry";
 import { computeBackoffMs } from "./adapter";
 import {
+  AdapterCapabilities,
   IntegrationRow,
+  IntegrationUnsupportedError,
   NormalizedInvoice,
+  NormalizedSchedule,
   NormalizedVoyage,
+  NormalizedVoyagePnl,
 } from "./types";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
 import { logStructured, newTraceId } from "@/lib/observability/log";
 
 const MAX_JOB_ATTEMPTS = 6;
 
-export type SyncJobKind = "push_invoice" | "push_ledger" | "pull_voyages";
+export type SyncJobKind =
+  | "push_invoice"
+  | "push_ledger"
+  | "push_pnl"
+  | "pull_voyages"
+  | "pull_schedules";
+
+/** Which adapter capability each job kind requires. */
+const KIND_CAPABILITY: Record<SyncJobKind, keyof AdapterCapabilities> = {
+  push_invoice: "pushInvoice",
+  push_ledger: "pushLedger",
+  push_pnl: "pushVoyagePnl",
+  pull_voyages: "pullVoyages",
+  pull_schedules: "pullSchedules",
+};
 
 // --- Outbound: enqueue ---
 
@@ -155,10 +173,28 @@ async function executeJob(supabase: SupabaseClient, job: any): Promise<void> {
     for (const voyage of voyages) {
       await upsertVoyageClaim(supabase, integration as IntegrationRow, voyage);
     }
-    await supabase
-      .from("integrations")
-      .update({ last_sync_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("id", integration.id);
+    await touchLastSync(supabase, integration.id);
+    return;
+  }
+
+  if (job.kind === "pull_schedules") {
+    const schedules = await adapter.pullSchedules(integration.last_sync_at);
+    for (const schedule of schedules) {
+      await upsertVesselSchedule(supabase, integration as IntegrationRow, schedule);
+    }
+    await touchLastSync(supabase, integration.id);
+    return;
+  }
+
+  if (job.kind === "push_pnl") {
+    const pnlId = String(job.payload?.voyage_pnl_id ?? "");
+    if (!pnlId) throw new Error("MISSING_VOYAGE_PNL_ID");
+    const pnl = await buildVoyagePnlForPush(supabase, pnlId);
+    const result = await adapter.pushVoyagePnl(pnl);
+    await recordOutbound(supabase, integration.id, job, {
+      pnl,
+      result: { externalId: result.externalId },
+    });
     return;
   }
 
@@ -169,16 +205,53 @@ async function executeJob(supabase: SupabaseClient, job: any): Promise<void> {
       ? await adapter.pushInvoice(invoice)
       : await adapter.pushLedger(invoice);
 
-  // Outbound ledger entry — the audit trail mirror of inbound webhook_logs.
+  await recordOutbound(supabase, integration.id, job, {
+    invoice,
+    result: { externalId: result.externalId },
+  });
+}
+
+async function touchLastSync(supabase: SupabaseClient, integrationId: string): Promise<void> {
+  await supabase
+    .from("integrations")
+    .update({ last_sync_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", integrationId);
+}
+
+/** Outbound ledger entry — the audit trail mirror of inbound webhook_logs. */
+async function recordOutbound(
+  supabase: SupabaseClient,
+  integrationId: string,
+  job: { kind: string; idempotency_key: string },
+  payload: Record<string, unknown>
+): Promise<void> {
   await supabase.from("webhook_logs").insert({
-    integration_id: integration.id,
+    integration_id: integrationId,
     direction: "outbound",
     event_type: job.kind,
     idempotency_key: job.idempotency_key,
-    payload: { invoice, result: { externalId: result.externalId } },
+    payload,
     status: "processed",
     processed_at: new Date().toISOString(),
   });
+}
+
+/**
+ * Whether an integration can perform a job kind, without running it.
+ *
+ * Callers use this to reject an impossible request with a 400 at the point the
+ * user asks, instead of accepting it and dead-lettering six attempts later.
+ */
+export function supportsJobKind(integration: IntegrationRow, kind: SyncJobKind): boolean {
+  return getAdapter(integration).capabilities[KIND_CAPABILITY[kind]];
+}
+
+export function assertSupportsJobKind(integration: IntegrationRow, kind: SyncJobKind): void {
+  if (!supportsJobKind(integration, kind)) {
+    throw new IntegrationUnsupportedError(
+      `UNSUPPORTED_JOB_KIND: ${integration.provider} does not support '${kind}'`
+    );
+  }
 }
 
 // --- Invoice assembly (claim + latest calculation → normalized invoice) ---
@@ -226,6 +299,111 @@ export async function buildInvoiceForClaim(
       counts: row.counts,
     })),
   };
+}
+
+// --- Voyage P&L assembly (stored sheet → normalized ERP payload) ---
+
+/**
+ * Builds the ERP payload for a voyage P&L.
+ *
+ * Recomputes rather than reading the last `voyage_pnl_results` snapshot: the
+ * sheet's inputs (a linked claim's calculation) can move after a snapshot was
+ * taken, and pushing a stale net result into an accounting system is the exact
+ * failure this integration exists to prevent.
+ */
+export async function buildVoyagePnlForPush(
+  supabase: SupabaseClient,
+  pnlId: string
+): Promise<NormalizedVoyagePnl> {
+  // Imported lazily: `pnl-server.ts` pulls in the P&L calculator and its Zod
+  // schemas, which the pull-only sync paths have no reason to load.
+  const { computeStoredPnl } = await import("@/lib/pnl/pnl-server");
+  const { pnl, claimIds, result } = await computeStoredPnl(pnlId, supabase);
+
+  // `voyage_pnl` has no external ref of its own; the ERP matches on the voyage,
+  // so the ref comes from a linked claim that was imported from that ERP.
+  let externalRef: string | null = null;
+  if (claimIds.length > 0) {
+    const { data } = await supabase
+      .from("claims")
+      .select("external_ref")
+      .in("id", claimIds)
+      .not("external_ref", "is", null)
+      .limit(1);
+    externalRef = data?.[0]?.external_ref ?? null;
+  }
+
+  return {
+    externalRef,
+    voyagePnlId: pnlId,
+    vessel: pnl.vessel,
+    voyageRef: pnl.voyage_ref,
+    charterType: pnl.charter_type,
+    perspective: pnl.perspective,
+    currency: result.currency,
+    voyageStart: pnl.voyage_start,
+    voyageEnd: pnl.voyage_end,
+    grossRevenue: result.grossRevenue,
+    revenueDeductions: result.revenueDeductions,
+    voyageExpenses: result.voyageExpenses,
+    transfers: result.transfers,
+    netResult: result.netResult,
+    tcePerDay: result.tcePerDay,
+    voyageDays: result.voyageDays,
+    computedAt: new Date().toISOString(),
+    lines: result.lines.map((l) => ({
+      key: l.key,
+      label: l.label,
+      kind: l.kind,
+      // Signed exactly as the sheet computed it — see `NormalizedPnlLine`.
+      amount: l.amount,
+      currency: l.currency,
+      excluded: l.excluded,
+      note: l.note,
+    })),
+    // Never dropped: an incomplete sheet must arrive labelled incomplete.
+    warnings: result.warnings,
+  };
+}
+
+// --- Inbound: schedule → berth window (idempotent) ---
+
+/**
+ * Upserts a forward schedule row.
+ *
+ * Keyed on `(integration_id, external_ref)` so a re-pull updates in place
+ * rather than accumulating one row per sweep. Unlike a voyage, a schedule is
+ * NOT turned into a claim: an ETA is a plan, and manufacturing a claim from a
+ * plan would put speculative port calls into the customer's book.
+ */
+export async function upsertVesselSchedule(
+  supabase: SupabaseClient,
+  integration: IntegrationRow,
+  schedule: NormalizedSchedule
+): Promise<void> {
+  const { error } = await supabase.from("erp_vessel_schedules").upsert(
+    {
+      company_id: integration.company_id,
+      integration_id: integration.id,
+      external_ref: schedule.externalRef,
+      vessel: schedule.vessel,
+      vessel_imo: schedule.vesselImo ?? null,
+      voyage_ref: schedule.voyageRef,
+      port: schedule.port,
+      port_function: schedule.portFunction,
+      eta: schedule.etaISO,
+      etb: schedule.etbISO,
+      etd: schedule.etdISO,
+      laycan_from: schedule.laycanFromISO,
+      laycan_to: schedule.laycanToISO,
+      cargo: schedule.cargo,
+      cargo_quantity_mt: schedule.cargoQuantityMt,
+      source_updated_at: schedule.updatedAt ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "integration_id,external_ref" }
+  );
+  if (error) throw new Error(`SCHEDULE_UPSERT_FAILED: ${error.message}`);
 }
 
 // --- Inbound: voyage → claim (idempotent) ---
