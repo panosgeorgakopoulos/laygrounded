@@ -116,6 +116,12 @@ export interface OverlayMarker {
   label: string;
 }
 
+/**
+ * Vertical offset applied to a marker label that would collide with the one
+ * before it, in pixels below the first row.
+ */
+export const MARKER_LABEL_ROW_HEIGHT = 15;
+
 export interface OverlayModel {
   lo: number;
   hi: number;
@@ -127,7 +133,14 @@ export interface OverlayModel {
   paths: Record<string, string>;
   xTicks: number[];
   yTicks: number[];
-  markers: Array<OverlayMarker & { x: number }>;
+  /**
+   * Placed markers. `row` staggers labels that would otherwise overlap: two
+   * P90s a few thousand apart on a 300k axis sit ~20px apart, and their labels
+   * render straight through one another into unreadable mush. Observed in the
+   * browser — no geometry assertion catches it, because every coordinate is
+   * individually valid.
+   */
+  markers: Array<OverlayMarker & { x: number; row: number }>;
   /** x-span between the first two markers — the uplift, made visible. */
   upliftBand: { fromX: number; toX: number } | null;
 }
@@ -184,7 +197,27 @@ export function buildOverlayModel(input: OverlayModelInput): OverlayModel | null
     paths[s.key] = d;
   }
 
-  const placed = markers.map((m) => ({ ...m, x: x(m.value) }));
+  // Assign each label a row, left to right: a label whose text would overlap
+  // the previous one drops to the next row rather than overprinting it.
+  const byX = markers
+    .map((m) => ({ ...m, x: x(m.value) }))
+    .sort((a, b) => a.x - b.x);
+
+  const placed: Array<OverlayMarker & { x: number; row: number }> = [];
+  for (const m of byX) {
+    // Width is estimated from the label length rather than measured — there is
+    // no text metrics API here — and deliberately generous, since the cost of
+    // an unnecessary stagger is a slightly taller axis band and the cost of a
+    // missed one is illegible text.
+    const approxWidth = (m.label.length + 10) * 6;
+    const previous = placed[placed.length - 1];
+    const overlaps = previous !== undefined && m.x - previous.x < approxWidth;
+    placed.push({ ...m, row: overlaps ? previous.row + 1 : 0 });
+  }
+  // Restore the caller's order so `markers[0]` is still the first one supplied.
+  placed.sort(
+    (a, b) => markers.findIndex((m) => m.key === a.key) - markers.findIndex((m) => m.key === b.key)
+  );
   const upliftBand =
     placed.length >= 2
       ? {

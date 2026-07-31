@@ -95,11 +95,21 @@ export default function PortfolioRiskPage() {
       if (!res.ok) {
         // The API's remedies are actionable, so they are shown rather than
         // flattened into "something went wrong".
+        // The hint must match WHICH empty case this is. "Run some assessments
+        // first" is wrong when five exist and are merely filtered out — it
+        // sends the operator to do work they have already done, past a
+        // checkbox that would have shown them the answer.
+        const excludedNotAbsent =
+          body.error === "NO_ASSESSMENTS" &&
+          typeof body.message === "string" &&
+          body.message.includes("excluded by default");
+
         setError({
           message: body.message || body.error || "The portfolio assessment failed.",
-          hint:
-            body.error === "NO_ASSESSMENTS"
-              ? "Run some pre-arrival assessments first."
+          hint: excludedNotAbsent
+            ? "Tick 'Include synthetic-data assessments' above to see them."
+            : body.error === "NO_ASSESSMENTS"
+              ? "Run some pre-arrival assessments first, then come back."
               : undefined,
         });
         setReport(null);
@@ -278,7 +288,9 @@ export default function PortfolioRiskPage() {
             <p className={styles.sectionSub}>
               Share of the worst decile each fixture accounts for, measured over the same
               simulated quarters that formed the tail. The top of this list is where
-              re-nomination or cover buys the most.
+              re-nomination or cover buys the most. A negative share means that fixture tended
+              to earn despatch in those same quarters, offsetting the book rather than adding
+              to it.
             </p>
 
             <div className={styles.tableWrap}>
@@ -302,14 +314,25 @@ export default function PortfolioRiskPage() {
                         </th>
                         <td className={styles.numCol}>
                           <span className={styles.barCell}>
+                            {/* A NEGATIVE share is meaningful, not an error: in
+                                the quarters that formed the tail this fixture
+                                averaged a despatch, so it OFFSETS the book's
+                                bad case. A zero-width bar reads as broken, so
+                                negatives get a word instead of a stub. */}
+                            {p.tailContributionShare < 0 ? (
+                              <span className={styles.offsets}>offsets</span>
+                            ) : (
+                              <span
+                                className={styles.bar}
+                                style={{
+                                  width: `${Math.min(100, p.tailContributionShare * 100)}%`,
+                                }}
+                                aria-hidden="true"
+                              />
+                            )}
                             <span
-                              className={styles.bar}
-                              style={{
-                                width: `${Math.max(0, Math.min(100, p.tailContributionShare * 100))}%`,
-                              }}
-                              aria-hidden="true"
-                            />
-                            <span className="tnum">
+                              className={`tnum ${p.tailContributionShare < 0 ? styles.negShare : ""}`}
+                            >
                               {(p.tailContributionShare * 100).toFixed(1)}%
                             </span>
                           </span>
@@ -333,7 +356,13 @@ export default function PortfolioRiskPage() {
             <dl className={styles.auditGrid}>
               <div className={styles.auditItem}>
                 <dt>Seed</dt>
-                <dd className={`${styles.mono} tnum`}>{report.seed}</dd>
+                {/* The seed concatenates every voyage id, so it runs to
+                    hundreds of characters and swamped the panel. Truncated for
+                    reading, full value on hover and in the DOM so it can still
+                    be copied for an audit. */}
+                <dd className={`${styles.mono} tnum`} title={report.seed}>
+                  {report.seed.length > 96 ? `${report.seed.slice(0, 96)}…` : report.seed}
+                </dd>
               </div>
               <div className={styles.auditItem}>
                 <dt>Trials</dt>
@@ -346,7 +375,7 @@ export default function PortfolioRiskPage() {
             </dl>
 
             <ul className={styles.noteList}>
-              {[...report.notes, ...report.caveats].map((n, idx) => (
+              {[...new Set([...report.notes, ...report.caveats])].map((n, idx) => (
                 <li key={idx}>{n}</li>
               ))}
             </ul>

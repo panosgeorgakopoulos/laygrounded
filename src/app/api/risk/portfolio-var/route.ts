@@ -106,7 +106,11 @@ export async function POST(req: NextRequest) {
           error: "NO_ASSESSMENTS",
           message:
             excludedByGrade > 0
-              ? `All ${excludedByGrade} matching assessment${excludedByGrade === 1 ? " was" : "s were"} built on synthetic congestion and are excluded by default. Pass includeNonDecisionGrade to include them, clearly marked as not decision-grade.`
+              // No API parameter names in this string: it is rendered verbatim
+              // in the UI, where the equivalent control is a labelled checkbox.
+              // Telling an operator to "pass includeNonDecisionGrade" sends
+              // them looking for something that is not on their screen.
+              ? `All ${excludedByGrade} matching assessment${excludedByGrade === 1 ? " was" : "s were"} built on synthetic congestion, so they are excluded by default. Include them to see the figures, clearly marked as not decision-grade.`
               : "No pre-arrival assessments were found for this company. Run some from the pre-arrival page first.",
         },
         { status: 422 }
@@ -185,7 +189,6 @@ export async function POST(req: NextRequest) {
             ]
           : []),
         "Figures are replayed from each assessment's stored inputs, so they reconcile exactly with the individual assessments rather than being re-priced against a newer forecast.",
-        "Correlated is the figure to act on. The independent run is a counterfactual shown so the correlation effect can be seen; it is not a second opinion.",
       ],
     });
   } catch (e) {

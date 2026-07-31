@@ -275,3 +275,78 @@ describe("buildOverlayModel", () => {
     expect(flat.paths.a).not.toContain("NaN");
   });
 });
+
+describe("marker label collision — found by eye, not by geometry", () => {
+  const bins = (spec: Array<[number, number, number]>): HistogramBin[] =>
+    spec.map(([from, to, count]) => ({ from, to, count }));
+  const hist = bins([[0, 100_000, 500], [100_000, 300_000, 500]]);
+
+  // Every coordinate in the colliding case was individually valid, so the
+  // in-bounds assertions passed while the labels rendered straight through one
+  // another. Only the browser showed it.
+
+  test("markers far apart share row 0", () => {
+    const m = buildOverlayModel({
+      series: [{ key: "a", histogram: hist }],
+      trials: 1000,
+      markers: [
+        { key: "lo", value: 10_000, label: "Independent P90" },
+        { key: "hi", value: 280_000, label: "Correlated P90" },
+      ],
+    })!;
+    expect(m.markers.every((k) => k.row === 0)).toBe(true);
+  });
+
+  test("markers close together are staggered onto separate rows", () => {
+    // The real case: USD 161k vs 168k on a 285k axis — ~20px apart.
+    const m = buildOverlayModel({
+      series: [{ key: "a", histogram: hist }],
+      trials: 1000,
+      markers: [
+        { key: "indep", value: 161_100, label: "Independent P90" },
+        { key: "corr", value: 168_000, label: "Correlated P90" },
+      ],
+    })!;
+    const rows = m.markers.map((k) => k.row);
+    expect(new Set(rows).size).toBe(2);
+    expect(Math.max(...rows)).toBe(1);
+  });
+
+  test("the caller's marker order is preserved despite internal sorting", () => {
+    const m = buildOverlayModel({
+      series: [{ key: "a", histogram: hist }],
+      trials: 1000,
+      // Supplied high-then-low, so a naive sort would reorder them.
+      markers: [
+        { key: "corr", value: 168_000, label: "Correlated P90" },
+        { key: "indep", value: 161_100, label: "Independent P90" },
+      ],
+    })!;
+    expect(m.markers.map((k) => k.key)).toEqual(["corr", "indep"]);
+  });
+
+  test("three colliding markers cascade rather than stacking on one row", () => {
+    const m = buildOverlayModel({
+      series: [{ key: "a", histogram: hist }],
+      trials: 1000,
+      markers: [
+        { key: "a", value: 150_000, label: "A P90" },
+        { key: "b", value: 152_000, label: "B P90" },
+        { key: "c", value: 154_000, label: "C P90" },
+      ],
+    })!;
+    expect([...new Set(m.markers.map((k) => k.row))].sort()).toEqual([0, 1, 2]);
+  });
+
+  test("identical values still separate", () => {
+    const m = buildOverlayModel({
+      series: [{ key: "a", histogram: hist }],
+      trials: 1000,
+      markers: [
+        { key: "x", value: 150_000, label: "X P90" },
+        { key: "y", value: 150_000, label: "Y P90" },
+      ],
+    })!;
+    expect(new Set(m.markers.map((k) => k.row)).size).toBe(2);
+  });
+});

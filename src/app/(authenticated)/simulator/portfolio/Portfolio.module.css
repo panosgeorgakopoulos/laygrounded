@@ -464,3 +464,19 @@
   font-size: 0.75rem;
   color: var(--color-text-tertiary);
 }
+
+/* A fixture that earns despatch in the book's worst quarters offsets the tail.
+   Rendering that as a zero-width bar looks like a rendering failure, so it gets
+   a word and a muted value instead. */
+.offsets {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.negShare {
+  color: var(--color-text-tertiary);
+}
