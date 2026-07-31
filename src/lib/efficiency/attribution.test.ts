@@ -270,3 +270,30 @@ describe("the GENCON 94 + SHINC gap is surfaced, not silently swallowed", () => 
     ).toBe(false);
   });
 });
+
+describe("market scope is labelled, never implied", () => {
+  test("a terminal-level median says which terminal", () => {
+    const a = attribute({
+      marketTonnesPerDay: 20000,
+      marketSampleSize: 7,
+      marketScope: "terminal",
+      marketLabel: "ECT Delta",
+    });
+    expect(a.market!.label).toContain("ECT Delta");
+    expect(a.market!.source).toContain("scope=terminal");
+  });
+
+  test("a port-level fallback is disclosed as a caveat", () => {
+    // A specialised berth measured against a port-wide median is a different
+    // claim from a like-for-like comparison, so it is never silent.
+    const a = attribute({
+      marketTonnesPerDay: 20000,
+      marketScope: "port",
+      marketLabel: "Rotterdam",
+      marketFellBackToPortReason:
+        "Not enough data for ECT Delta specifically, so the median is for Rotterdam as a whole.",
+    });
+    expect(a.market!.label).toContain("Rotterdam");
+    expect(a.caveats.some((c) => c.includes("ECT Delta specifically"))).toBe(true);
+  });
+});
