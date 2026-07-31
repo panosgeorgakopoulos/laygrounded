@@ -22,12 +22,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  CONSUMERS,
   DomainEvent,
   EVENT_TYPES,
   MAX_ATTEMPTS,
-  markFailed,
-  markProcessed,
-  readUnprocessed,
+  markFailedBy,
+  markProcessedBy,
+  readUnprocessedFor,
 } from "./outbox";
 import { enqueueSyncJob, SyncJobKind } from "@/lib/integrations/sync";
 import { getAdapter } from "@/lib/integrations/registry";
@@ -86,7 +87,7 @@ export async function dispatchErpEvents(
   };
   const traceId = newTraceId();
 
-  const events = await readUnprocessed(db, { limit });
+  const events = await readUnprocessedFor(db, CONSUMERS.ERP, { limit });
   report.read = events.length;
 
   for (const event of events) {
@@ -101,7 +102,7 @@ export async function dispatchErpEvents(
     try {
       const planned = await planJobs(db, event);
       if (planned.length === 0) {
-        await markProcessed(db, event.id);
+        await markProcessedBy(db, event.id, CONSUMERS.ERP);
         report.skipped++;
         continue;
       }
@@ -109,7 +110,7 @@ export async function dispatchErpEvents(
       const integrations = await loadActiveIntegrations(db, event.companyId);
       if (integrations.length === 0) {
         // No ERP configured is a legitimate steady state, not a failure.
-        await markProcessed(db, event.id);
+        await markProcessedBy(db, event.id, CONSUMERS.ERP);
         report.skipped++;
         continue;
       }
@@ -138,12 +139,12 @@ export async function dispatchErpEvents(
         }
       }
 
-      await markProcessed(db, event.id);
+      await markProcessedBy(db, event.id, CONSUMERS.ERP);
       if (enqueuedForEvent > 0) report.dispatched++;
       else report.skipped++;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      await markFailed(db, event.id, e, event.attempts);
+      await markFailedBy(db, event.id, CONSUMERS.ERP, e, event.attempts);
       report.failed++;
       logStructured("warn", "erp-dispatch", `event dispatch failed: ${message}`, {
         trace_id: traceId,
