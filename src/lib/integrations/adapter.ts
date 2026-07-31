@@ -25,6 +25,7 @@ import {
   NormalizedVoyagePnl,
   PushResult,
 } from "./types";
+import { evaluateMockPolicy, parseMockAllowlist } from "./mock-policy";
 import { parseXml, XmlNode } from "./xml";
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -102,22 +103,26 @@ export abstract class ErpAdapter {
   }
 
   /**
-   * Refuses mock data in production unless explicitly permitted.
+   * Refuses mock data in production unless THIS integration is allowlisted.
    *
-   * Called by every adapter before it serves a fixture. `ALLOW_MOCK_ERP_IN_PRODUCTION`
-   * is the same escape hatch `ALLOW_MOCK_AIS_IN_PRODUCTION` and
-   * `ALLOW_MOCK_CARBON_PRICE_IN_PRODUCTION` provide, and it exists for demo
-   * tenants on production infrastructure — not for real ones.
+   * Called by every adapter before it serves a fixture. Scoped per integration
+   * rather than per deployment: a global switch permitted every mock-mode
+   * integration at once, so a live partner's integration accidentally set to
+   * `mode: "mock"` would have been served synthetic voyages. See
+   * `mock-policy.ts` for why a per-PROVIDER allowlist would not fix that.
    */
   protected assertModeAllowed(): void {
     if (this.mode !== "mock") return;
-    if (process.env.NODE_ENV !== "production") return;
-    if (process.env.ALLOW_MOCK_ERP_IN_PRODUCTION === "1") return;
-    throw new IntegrationRequestError(
-      `MOCK_ERP_REFUSED_IN_PRODUCTION: integration ${this.integration.id} ` +
-        `(${this.integration.provider}) is in mock mode. Set ALLOW_MOCK_ERP_IN_PRODUCTION=1 ` +
-        `to permit fixture data in production, or configure real ERP credentials.`
-    );
+
+    const verdict = evaluateMockPolicy({
+      integrationId: this.integration.id,
+      companyId: this.integration.company_id,
+      nodeEnv: process.env.NODE_ENV,
+      allowlist: parseMockAllowlist(process.env.ALLOWED_MOCK_INTEGRATIONS),
+    });
+    if (verdict.allowed) return;
+
+    throw new IntegrationRequestError(verdict.message);
   }
 
   // --- Webhook signature verification (HMAC-SHA256 over the raw body) ---
