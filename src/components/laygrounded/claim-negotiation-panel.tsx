@@ -30,6 +30,7 @@ import {
   MessageSquare,
   X,
 } from "lucide-react";
+import { ConcessionStrategy } from "./concession-strategy";
 import styles from "./ClaimNegotiationPanel.module.css";
 
 type Phase = "open" | "negotiating" | "agreed";
@@ -108,10 +109,17 @@ function toLocalInput(iso: string): string {
 export function ClaimNegotiationPanel({
   claimId,
   events,
+  baselineNet,
+  currency,
+  demurrageRatePerDay,
   onClaimChanged,
 }: {
   claimId: string;
   events: EventRow[];
+  /** Owner's perspective: demurrage − despatch. Drives the percentage bounds. */
+  baselineNet: number;
+  currency: string;
+  demurrageRatePerDay: number;
   onClaimChanged: () => void;
 }) {
   const [state, setState] = useState<NegotiationState | null>(null);
@@ -391,6 +399,16 @@ export function ClaimNegotiationPanel({
             </button>
           </section>
         </>
+      )}
+
+      {/* ── Autonomous agents ────────────────────────────────────────── */}
+      {state.phase !== "agreed" && (
+        <ConcessionStrategy
+          claimId={claimId}
+          baselineNet={baselineNet}
+          currency={currency}
+          demurrageRatePerDay={demurrageRatePerDay}
+        />
       )}
 
       {/* ── Redline ──────────────────────────────────────────────────── */}

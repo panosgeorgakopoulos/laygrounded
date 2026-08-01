@@ -18,7 +18,13 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 import { fetchAisTrack } from "@/lib/evidence/ais";
-import { deriveMotionSegments, type AisFix } from "@/lib/evidence/micro-movement";
+import {
+  deriveMotionSegments,
+  verifyTimelineMotion,
+  type AisFix,
+} from "@/lib/evidence/micro-movement";
+import { generateMockAisTrack, isMockAisEnabled } from "@/lib/dev/mock-ais-track";
+import type { SofEventInput } from "@/lib/laytime/types";
 
 /** Verdicts the micro-movement checks write. */
 const MOTION_CHECK_TYPES = [
@@ -96,12 +102,21 @@ export async function GET(
     const from = timeline[0].occurred_at as string;
     const to = timeline[timeline.length - 1].occurred_at as string;
 
+    // A synthetic track for looking at the map, when no provider exists and we
+    // are not in production. Everything downstream is labelled `synthetic` and
+    // NOTHING derived from it is persisted — see the verdict handling below.
+    const synthetic = isMockAisEnabled();
+
     // IMO first: a vessel NAME is not unique and providers key on the number.
-    const track: AisFix[] | null = await fetchAisTrack(
-      claim.vessel_imo || claim.vessel,
-      from,
-      to
-    );
+    const track: AisFix[] | null = synthetic
+      ? generateMockAisTrack(from, to, {
+          lat: claim.port_lat ?? undefined,
+          lon: claim.port_lon ?? undefined,
+          // Seeded on the claim, so the same claim always draws the same track
+          // and a screenshot stays comparable across runs.
+          seed: claim.id,
+        })
+      : await fetchAisTrack(claim.vessel_imo || claim.vessel, from, to);
 
     if (!track) {
       return NextResponse.json({
@@ -109,6 +124,7 @@ export async function GET(
         reason: process.env.AIS_PROVIDER_URL
           ? "The AIS provider returned no usable track for this vessel and period."
           : "No AIS provider is configured (AIS_PROVIDER_URL / AIS_PROVIDER_KEY are unset), so the vessel's track could not be retrieved.",
+        synthetic: false,
         // Whether the gap is configuration or coverage decides who fixes it.
         providerConfigured: Boolean(process.env.AIS_PROVIDER_URL),
         vessel: claim.vessel,
@@ -122,9 +138,37 @@ export async function GET(
 
     const segments = deriveMotionSegments(track);
 
+    // With a synthetic track there are no persisted verdicts to show — evidence
+    // verification never ran against it, and must not. So the verdicts are
+    // derived IN MEMORY from the same pure function the real pipeline uses, and
+    // returned marked `synthetic`. They are display-only: nothing here writes to
+    // `evidence_checks`, because a fabricated track that reached a persisted
+    // verdict would put invented evidence into a claim.
+    if (synthetic) {
+      // `SofEventInput` is exactly {id, occurred_at, event_type}; the query
+      // selects those plus `status`, so the shape is narrowed rather than cast
+      // away — a blanket cast here would hide a future column rename.
+      const motionInputs: SofEventInput[] = timeline.map((e) => ({
+        id: e.id,
+        occurred_at: e.occurred_at,
+        event_type: e.event_type as SofEventInput["event_type"],
+      }));
+      for (const m of verifyTimelineMotion(track, motionInputs)) {
+        if (!m.eventId) continue;
+        verdictByEvent.set(m.eventId, {
+          checkType: m.checkType,
+          verdict: m.verdict,
+          summary: m.summary,
+          window: m.window ?? null,
+        });
+      }
+    }
+
     return NextResponse.json({
       available: true,
       providerConfigured: true,
+      /** True when the track is a dev fixture, not a provider's record. */
+      synthetic,
       vessel: claim.vessel,
       window: { from, to },
       port: { name: claim.port, lat: claim.port_lat, lon: claim.port_lon },

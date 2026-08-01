@@ -447,6 +447,12 @@ export default function WorkspacePage({
           occurred_at: e.occurredAt,
           status: e.status,
         }))}
+        baselineNet={
+          (data.claim.calculations[0]?.demurrageAmount ?? 0) -
+          (data.claim.calculations[0]?.despatchAmount ?? 0)
+        }
+        currency={cpTerms.currency}
+        demurrageRatePerDay={cpTerms.demurrage_rate}
         onClaimChanged={fetchClaim}
       />
 
