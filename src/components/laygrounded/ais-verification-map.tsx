@@ -52,6 +52,8 @@ interface TrackView {
   available: boolean;
   reason?: string;
   providerConfigured?: boolean;
+  /** True when the track is a dev fixture rather than a provider's record. */
+  synthetic?: boolean;
   vessel: string;
   window?: { from: string; to: string };
   port: { name: string; lat: number | null; lon: number | null };
@@ -197,6 +199,7 @@ export function AisVerificationMap({ claimId }: { claimId: string }) {
         </h3>
         {view.counts && (
           <div className={styles.counts}>
+            {view.synthetic && <span className={styles.syntheticChip}>synthetic</span>}
             <span className={styles.okChip}>
               <ShieldCheck size={12} /> {view.counts.corroborated} corroborated
             </span>
@@ -213,6 +216,18 @@ export function AisVerificationMap({ claimId }: { claimId: string }) {
         doing. A <strong>contradiction</strong> is where the track says she moved while the SoF
         claims cargo work, or sat still while it claims shifting.
       </p>
+
+      {view.synthetic && (
+        <p className={styles.syntheticWarn}>
+          <AlertCircle size={14} />
+          <span>
+            <strong>Synthetic track — not evidence.</strong> No AIS provider is configured, so this
+            is a generated fixture for checking that the map draws correctly. The verdicts below are
+            computed from it in memory and are <strong>never stored</strong> against this claim.
+            Nothing here may be relied on, quoted, or served to a counterparty.
+          </span>
+        </p>
+      )}
 
       {!view.available ? (
         <div className={styles.unavailable}>
@@ -235,6 +250,10 @@ export function AisVerificationMap({ claimId }: { claimId: string }) {
           <svg
             className={styles.map}
             viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+            // Letterbox rather than stretch: this is a verification tool, and a
+            // distorted projection would make a berth shift look like a run to
+            // sea. True geometry, fitted to whatever box it is given.
+            preserveAspectRatio="xMidYMid meet"
             role="img"
             aria-label={`AIS track for ${view.vessel} with ${view.events.length} statement-of-facts events overlaid`}
           >
@@ -327,10 +346,17 @@ export function AisVerificationMap({ claimId }: { claimId: string }) {
             </span>
           </div>
 
+          <p className={styles.scaleNote}>
+            Drawn to true scale. A run from the anchorage dwarfs the metres a moored vessel drifts,
+            so the anchor and berth phases compress to points — that is the geometry, not a
+            rendering fault. Per-event detail is in the list below; the segment colours carry the
+            finding at any zoom.
+          </p>
+
           {view.counts && view.counts.gaps > 0 && (
             <p className={styles.gapNote}>
-              {view.counts.gaps} segment{view.counts.gaps === 1 ? "" : "s"} span fixes too far apart
-              to observe. Those are drawn dashed and classified <em>unknown</em> — a gap in the feed
+              {view.counts.gaps} segment{view.counts.gaps === 1 ? " spans" : "s span"} fixes too far
+              apart to observe. Those are drawn dashed and classified <em>unknown</em> — a gap in the feed
               is not evidence the vessel sat still.
             </p>
           )}

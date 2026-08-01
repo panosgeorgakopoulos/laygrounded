@@ -314,12 +314,12 @@ field values on screen):
    is labelled `mock` in the UI with a banner saying an assessment run from it is
    a rehearsal. Remove with:
    `delete from integrations where display_name = 'Fortune ERP (demo mock)';`
-5. **The AIS map has never rendered a real track.** `AIS_PROVIDER_URL` /
-   `AIS_PROVIDER_KEY` are unset, so every run exercises the unavailable path.
-   The projection, segment colouring, gap dashing and event-to-fix matching are
-   therefore **unverified against real data** — they are straightforward, but
-   nobody has seen them draw. First contact with a live provider should be
-   treated as a review, not a deploy.
+5. **The AIS map has been verified against a SYNTHETIC track only**
+   (`AIS_PROVIDER_URL=mock`). The projection, segment colouring, gap dashing,
+   event-to-fix matching and both highlight branches now all draw correctly —
+   but no real provider has ever been connected, so field quirks (ordering,
+   duplicate fixes at scale, coverage holes) remain unmet. First contact with a
+   live provider is still a review, not a deploy.
 6. **`AIS_CONGESTION_PROVIDER` is unset**, so a pre-arrival assessment refuses
    with an actionable message rather than guessing port queueing — correct, and
    unchanged. The end-to-end verification used an ephemeral `mock` value passed
@@ -455,3 +455,60 @@ the settlement payload derives from it. Probed live.
 - The AIS map renders its unavailable state honestly (no provider configured)
   while still listing every event's motion verdict. **It has never been seen with
   a real track** — see gaps below.
+
+
+---
+
+## 11. Phase 11 — the strategy room, and looking at the map
+
+### Visual QA found three defects the tests could not
+
+The AIS map had never rendered a track. `src/lib/dev/mock-ais-track.ts` fixed
+that, and looking at the result found three things in sequence:
+
+1. **The map rendered over 700px tall.** `height: auto` with a 640x340 viewBox
+   scales with the container, so on a wide workspace it became a wall of empty
+   sea with a line down it. Now a fixed 20rem with `preserveAspectRatio` —
+   letterboxed rather than stretched, because a distorted projection would make
+   a berth shift look like a run to sea.
+2. **Nine dashed gaps where one was intended.** The mock spread the shift across
+   a proportional slice of the window, which on a five-day claim put 78 minutes
+   between fixes — past `maxGapMinutes` (60). **The test asserted `gaps > 0` and
+   passed the whole time.** It now asserts exactly one, plus that no ordinary
+   sampling interval exceeds the threshold.
+3. **The one real gap drew as an invisible dot.** It sat between the anchorage
+   and the start of the transit, so it spanned no distance. Moved to 30–70% of
+   the transit, where a feed drop actually matters, and the dashed branch is
+   now visible.
+
+Both highlight branches were then verified by temporarily adding a SHIFTING
+event during the moored berth phase: the chip went to **1 CONTRADICTED** and the
+marker turned red. Probe rows deleted.
+
+### The mock is a fixture, not a data source
+
+`isMockAisEnabled` requires `AIS_PROVIDER_URL === "mock"` **and**
+`NODE_ENV !== "production"`. Verdicts derived from it are computed in memory via
+the same pure `verifyTimelineMotion` the real pipeline uses and are **never
+written to `evidence_checks`**; the UI carries a loud synthetic banner. A
+fabricated position track that reached a persisted verdict would put invented
+evidence into a claim, which is the one thing this product exists to be trusted
+about.
+
+### The strategy room converts in front of the user
+
+`executeAgenticArbitration` takes exactly three knobs per side —
+`maxConcessionUsd`, `hardStopClauses`, `maxRounds`. The UI does not invent a
+richer contract. Operators think in percentages ("hold 85%") and hours ("give up
+three hours of weather"); both are shown, both are converted **visibly** into the
+money figure the engine receives, and the converted figure is the one displayed.
+Hiding the conversion would make the mandate feel more precise than it is.
+
+Verified live: an 85% floor on a USD 58,333 claim produced a USD 8,750 budget
+(≈7.5h at 28,000/day), and the run returned USD 46,667 recommended — the
+midpoint of final positions 53,667 and 39,667, gap 14,000, 4 rounds, queued
+behind a human review. Room and review rows deleted afterwards.
+
+Nothing here touches engine determinism: the agents price every position with a
+real laytime run through `sensitivity.ts`; the limits only decide how far each
+side may move.

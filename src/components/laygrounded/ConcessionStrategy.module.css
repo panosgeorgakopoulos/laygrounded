@@ -1,0 +1,280 @@
+.wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle, #f8fafc);
+  padding: 0.875rem 1rem;
+  margin-top: 0.875rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.intro {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin: 0 0 0.875rem;
+  max-width: 50rem;
+}
+
+.warn,
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+  padding: 0.4375rem 0.625rem;
+  margin: 0 0 0.75rem;
+}
+
+.warn { color: #92400e; background: #fef3c7; }
+.error { color: #b91c1c; background: #fee2e2; margin: 0.75rem 0 0; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0.875rem 1.25rem;
+}
+
+.field { display: flex; flex-direction: column; gap: 0.3125rem; min-width: 0; }
+
+.label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+
+.hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-tertiary);
+}
+
+.sliderRow { display: flex; align-items: center; gap: 0.625rem; }
+.sliderRow input[type="range"] { flex: 1; min-width: 0; accent-color: var(--color-accent, #2563eb); }
+
+.pct {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 2.75rem;
+  text-align: right;
+}
+
+.derived {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
+
+.derived strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+
+.stops { border: none; padding: 0; margin: 0.875rem 0 0; }
+
+.stopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.375rem 0.875rem;
+  margin-top: 0.4375rem;
+}
+
+.stop {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.stop input { margin-top: 0.1875rem; accent-color: var(--color-accent, #2563eb); }
+.stop strong { display: block; font-weight: 500; }
+
+.stopHint {
+  display: block;
+  font-size: 0.625rem;
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
+}
+
+.stopNote {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  line-height: 1.55;
+  margin: 0.5rem 0 0;
+  max-width: 50rem;
+}
+
+.runRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.875rem;
+  margin-top: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.rounds { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.rounds input {
+  width: 5rem;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.4375rem 0.875rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent, #2563eb);
+  color: #fff;
+  cursor: pointer;
+}
+
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Result ──────────────────────────────────────────────────────── */
+.result {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.resultHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  color: var(--color-text-secondary);
+}
+
+.resultLabel {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+
+.resultValue { font-size: 1.125rem; color: var(--color-text-primary); }
+
+.converged,
+.gapRemains {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-sm);
+}
+
+.converged { background: #dcfce7; color: #166534; }
+.gapRemains { background: #fef3c7; color: #92400e; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.stats dt {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+
+.stats dd {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+}
+
+.probabilityNote,
+.hitl {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  line-height: 1.55;
+  margin: 0.625rem 0 0;
+}
+
+.hitl { display: flex; align-items: flex-start; gap: 0.3125rem; color: #166534; }
+
+.detail { margin-top: 0.625rem; }
+
+.detail summary {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.log { list-style: none; margin: 0.4375rem 0 0; padding: 0; }
+
+.log li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4375rem;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log li:last-child { border-bottom: none; }
+
+.ownerTag,
+.cpTag,
+.forced {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: var(--radius-sm);
+}
+
+.ownerTag { background: #e0e7ff; color: #3730a3; }
+.cpTag { background: #fef3c7; color: #92400e; }
+.forced { background: #fee2e2; color: #b91c1c; }
+
+.logLabel { font-weight: 600; color: var(--color-text-primary); }
+
+.rationale {
+  flex-basis: 100%;
+  color: var(--color-text-tertiary);
+  line-height: 1.45;
+}
+
+.spin { animation: spin 900ms linear infinite; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
