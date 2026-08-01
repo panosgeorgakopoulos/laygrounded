@@ -229,23 +229,89 @@ valid-looking Belgian IBAN passes here on ISO grounds alone.
 
 ---
 
+## 6b. Phase 8b — the pre-release correction
+
+Phase 8 shipped the versioning mechanism and then left every existing claim on
+rule set 1, reasoning from a constraint that does not yet bind. **The product is
+pre-release: no claim has been served, agreed or notarised**, so there was no
+legacy figure to protect and no reason to leave claims on an engine with a known
+defect. `20260801000004` moved all of them to rule set 2.
+
+**The mechanism is untouched.** `claims.engine_version` keeps its CHECK (1, 2),
+`resolveEngineVersion` still reads absence as 1, and the v1 corpus and root are
+still frozen. What changed is which rule set today's rows point at. Post-launch
+the same migration would be unacceptable, and §3's reasoning applies again in
+full.
+
+Verified rather than assumed: all three claims recompute **identically** under
+both rule sets (none carries an `EXCEPTED_PERIOD` event, which is the only
+branch that differs), and the figures still match the persisted calculations —
+58,333.33 / 22,000 / 4,500. Both conformance roots re-verified unchanged.
+
+### The UI gap, closed
+
+The standing product rule is that a backend feature without a UI is not shipped.
+An audit found four features with no frontend at all; three are now built:
+
+| Was missing | Now |
+|---|---|
+| `counterparty_finance` (entire feature) | Settings → **Settlement & Banking** |
+| Escrow contract configuration (an unset env var) | `settlement_chain_configs`, same page |
+| `engine_version` — invisible to users | Rule-set chip on the claim workspace |
+| `agreed_at` + `settlement_payloads` — API-only | **Agreement & settlement** panel on the workspace |
+
+Two decisions worth keeping:
+
+- **The settings form imports the server's validators rather than
+  reimplementing them.** `counterparty-finance.ts` is pure precisely so it can
+  run in both places. A second client-side IBAN check would drift within a
+  release, and the failure mode is a form that accepts an IBAN the API rejects —
+  or worse, one it accepts.
+- **Escrow contracts are per (company, chain), not an env var.** An escrow
+  contract IS a deployment on one chain; a platform-wide address is wrong
+  everywhere except where it was deployed, and would route one tenant's money
+  through another's contract. The env var survives as a fallback for
+  single-deployment installs.
+- A missing escrow is a **memo, not a blocker** — the bank leg settles on its
+  own, and refusing a working instruction because an optional route is
+  unconfigured helps nobody.
+
+Verified in the browser against the running app, then confirmed against the
+database rather than the screenshot (the standing rule about automation drift
+earned its keep again — a save that had already persisted still showed stale
+field values on screen):
+
+- invalid IBAN → *"fails the ISO 13616 checksum"*; valid, space-formatted IBAN →
+  *"✓ checksum valid"*, stored normalised as `GB33BUKB20201555555555`;
+- the party list, the "your company" badge and the missing-details warning all
+  reacted correctly to the record appearing;
+- the workspace panel rendered the **ENGINE V2** chip and the seven-row
+  eligibility checklist, with *Anchored to ERP voyage data* and *Evidence fully
+  corroborated* correctly failing and the agree button correctly disabled;
+- the example record was deleted afterwards. **A documentation IBAN must not sit
+  in a tenant that generates payment instructions.**
+
+---
+
 ## 7. Known gaps and open decisions
 
-1. **No UI for counterparty finance.** The API exists and is RLS-scoped; there is
-   no settings page. Deliberate — the directive was schema and hydration — but a
-   tenant currently needs an API client to enter an IBAN.
-2. **No claim is on engine v2 yet.** All three existing claims were backfilled to
-   1, correctly. New claims default to 2. Moving an existing claim needs a
-   deliberate `PATCH { engineVersion: 2 }`, which is refused once agreed.
-3. **v2's root is not yet attested by the wasm.** Only CI can build it. The
-   `.mjs` reproduces both roots locally; the sealed artifact's agreement is
-   asserted by the workflow on the next push.
+1. **`erp_vessel_schedules` still has no UI.** Pulled schedules land in the table
+   and nothing displays them. The remaining item from the UI audit, and the least
+   coupled to settlement — a read-only list on the voyages page.
+2. **v2's root is not yet attested by the wasm.** Only CI can build it (`javy` is
+   absent locally by design). The `.mjs` reproduces both roots; the sealed
+   artifact's agreement is asserted by the workflow on push.
+3. **The delete paths were exercised at the API and database layers, not through
+   the browser.** Both are behind `confirm()` dialogs, which block the automation
+   tools outright.
 4. **The v2 corpus ships no PDFs.** They are extraction fixtures, irrelevant to
    engine conformance, and would duplicate 2 MB.
 5. **EIP-55 and the EIP-712 digest remain uncomputed.** Both need keccak-256.
    Unchanged from Phase 7 and still the right trade.
-6. **`SETTLEMENT_VERIFYING_CONTRACT` is unset**, so no chain leg is generated in
-   any environment yet. That is correct: no escrow contract has been deployed.
+6. **No escrow contract is registered anywhere yet**, so no chain leg is
+   generated. That is correct — none has been deployed. The tenant path
+   (Settings → Settlement & Banking) and the env fallback both exist and are
+   verified; neither invents an address.
 7. Phase 7 gaps 1, 3, 4, 5, 7 and 9 are **unchanged** — no adapter has met a live
    ERP, `p90_waiting_hours` is still not backfilled, Ulysses' revision cursor is
    still not honoured, webhook v1 signatures still ship, cross-tenant matviews
