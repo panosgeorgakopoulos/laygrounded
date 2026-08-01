@@ -62,6 +62,14 @@ export interface ClaimWithRelations {
   cargo: string;
   cp_form: string;
   cp_terms: CpTerms;
+  /**
+   * Laytime rule set. NOT NULL in the database with a CHECK, so it is always
+   * present on a real row — optional here only because several `.select()`
+   * projections do not fetch it. It is the AUTHORITY on which engine computes
+   * this claim; `cp_terms.engine_version` is the transport. See
+   * `src/lib/laytime/engine-version.ts`.
+   */
+  engine_version?: 1 | 2;
   status: string;
   time_bar_days?: number;
   settled_amount?: number | null;

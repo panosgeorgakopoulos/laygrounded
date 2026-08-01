@@ -19,9 +19,10 @@
 
 import { recomputeLaytime } from "./gencon94";
 import { TZDATA_DIGEST } from "./tzdata";
-import type { CpTerms, SofEventInput } from "./types";
+import type { CpTerms, EngineVersion, SofEventInput } from "./types";
 
 export const ENGINE_NAME = "@laygrounded/laytime-core";
+/** The PACKAGE release. Not the rule set — that is `EngineVersion` in types.ts. */
 export const ENGINE_VERSION = "0.1.0";
 
 /**
@@ -30,7 +31,9 @@ export const ENGINE_VERSION = "0.1.0";
  * ASBATANKVOY's separate regime, despatch, and the NOR error path.
  *
  * These are FROZEN. Adding one changes every fingerprint, so the set is part of
- * the format rather than a convenience.
+ * the format rather than a convenience. A new rule set may APPEND its own
+ * canaries (see `V2_CANARY_TERMS`) precisely because appending leaves the older
+ * version's material untouched.
  */
 const CANARY_EVENTS: SofEventInput[] = [
   { id: "a", occurred_at: "2026-03-05T06:00:00Z", event_type: "NOR_TENDERED" },
@@ -68,6 +71,39 @@ const CANARY_TERMS: CpTerms[] = [
   },
 ];
 
+/**
+ * The v2-only canaries.
+ *
+ * v2's single behavioural change is invisible to the frozen set above — none of
+ * those voyages logs an agreed excepted period — so fingerprinting v2 on them
+ * alone would produce material identical to v1's and assert that two engines
+ * computing different money are the same engine. These exercise the branch that
+ * actually moved.
+ *
+ * They are appended, never interleaved, so the v1 lines stay byte-identical.
+ * 2026-03-08 is a Sunday in Europe/Amsterdam, which is the point: under SHINC
+ * the Sunday counts, and the agreed exception laid over it must not.
+ */
+const V2_CANARY_EVENTS: SofEventInput[] = [
+  ...CANARY_EVENTS,
+  { id: "g", occurred_at: "2026-03-08T04:00:00Z", event_type: "EXCEPTED_PERIOD_START" },
+  { id: "h", occurred_at: "2026-03-08T22:00:00Z", event_type: "EXCEPTED_PERIOD_END" },
+];
+
+// The generous allowance is the whole trick. CANARY_BASE allows 48 hours, which
+// this voyage exhausts BEFORE the excepted period begins — and once on
+// demurrage, Cl. 8 counts every hour regardless, so the branch v2 changes is
+// never reached. Canaries built that way would produce material identical to
+// v1's and assert that two engines computing different money are the same
+// engine. Caught by `engine-version.test.ts`, which is why that test asserts on
+// the canary CONTENT and not merely that the two strings differ.
+const V2_CANARY_TERMS: CpTerms[] = [
+  { ...CANARY_BASE, days_basis: "SHINC", laytime_allowed_hours: 240 },
+  // The same voyage under SHEX: proves v2 left the branch that already worked
+  // alone, rather than merely proving something changed somewhere.
+  { ...CANARY_BASE, days_basis: "SHEX", laytime_allowed_hours: 240 },
+];
+
 function stableJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -87,15 +123,25 @@ function stableJson(value: unknown): string {
  * NOR-less timeline is a different engine, and a fingerprint that ignored that
  * would say otherwise.
  */
-export function engineFingerprintMaterial(): string {
+export function engineFingerprintMaterial(engineVersion: EngineVersion = 1): string {
+  // Rule set 1 must produce EXACTLY the bytes it always has: notarised
+  // derivation records already commit to the hash of this string, and a claim
+  // whose engine leaf stopped matching would read as tampered-with. So v1 emits
+  // no version line at all — its absence is its identity, the same convention
+  // `engine_version` itself uses.
+  const versioned = engineVersion >= 2;
   const lines: string[] = [
     `engine|${ENGINE_NAME}@${ENGINE_VERSION}`,
+    ...(versioned ? [`rules|${engineVersion}`] : []),
     `tzdata|${TZDATA_DIGEST}`,
   ];
 
+  const stamp = (terms: CpTerms): CpTerms =>
+    versioned ? { ...terms, engine_version: engineVersion } : terms;
+
   CANARY_TERMS.forEach((terms, i) => {
     try {
-      lines.push(`canary-${i}|${stableJson(recomputeLaytime(CANARY_EVENTS, terms))}`);
+      lines.push(`canary-${i}|${stableJson(recomputeLaytime(CANARY_EVENTS, stamp(terms)))}`);
     } catch (e) {
       lines.push(`canary-${i}|error:${e instanceof Error ? e.message : String(e)}`);
     }
@@ -105,11 +151,21 @@ export function engineFingerprintMaterial(): string {
   try {
     recomputeLaytime(
       CANARY_EVENTS.filter((e) => e.event_type !== "NOR_TENDERED"),
-      CANARY_BASE,
+      stamp(CANARY_BASE),
     );
     lines.push("canary-nonor|UNEXPECTED_SUCCESS");
   } catch (e) {
     lines.push(`canary-nonor|${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  if (versioned) {
+    V2_CANARY_TERMS.forEach((terms, i) => {
+      try {
+        lines.push(`v2-canary-${i}|${stableJson(recomputeLaytime(V2_CANARY_EVENTS, stamp(terms)))}`);
+      } catch (e) {
+        lines.push(`v2-canary-${i}|error:${e instanceof Error ? e.message : String(e)}`);
+      }
+    });
   }
 
   return lines.join("\n");

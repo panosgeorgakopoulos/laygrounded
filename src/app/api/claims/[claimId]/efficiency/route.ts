@@ -7,6 +7,7 @@ import { computeAchievedRate } from "@/lib/efficiency/cargo-rate";
 import { attributeInefficiency, deductionEvents } from "@/lib/efficiency/attribution";
 import { marketRateForLane } from "@/lib/efficiency/market-server";
 import { CpTermsSchema } from "@/lib/laytime/recompute-server";
+import { resolveClaimEngineVersion } from "@/lib/laytime/engine-version";
 import type { SofEventInput } from "@/lib/laytime/types";
 
 // Terminal efficiency for one claim: what rate the berth achieved, against the
@@ -55,7 +56,7 @@ export async function POST(
 
     const { data: claim } = await supabase
       .from("claims")
-      .select("id, company_id, vessel, port, terminal_name, cargo, cp_terms")
+      .select("id, company_id, vessel, port, terminal_name, cargo, cp_terms, engine_version")
       .eq("id", claimId)
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
@@ -141,6 +142,9 @@ export async function POST(
       currency: cp.data.currency,
       cpForm: cp.data.cp_form ?? "GENCON94",
       daysBasis: cp.data.days_basis,
+      // From the column, not the terms: it decides whether the SHINC caveat
+      // still applies to this claim.
+      engineVersion: resolveClaimEngineVersion(claim),
       deductionBasis: body.deductionBasis ?? null,
     });
 

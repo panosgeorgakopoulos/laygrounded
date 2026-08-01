@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { recomputeLaytime } from "@/lib/laytime/gencon94";
 import { CpTerms, LaytimeResult, SofEventInput } from "@/lib/laytime/types";
+import { resolveClaimEngineVersion, withEngineVersion } from "@/lib/laytime/engine-version";
 import { withPortCalendar } from "@/lib/laytime/port-calendar-server";
 import { z } from "zod";
 
@@ -11,6 +12,10 @@ import { z } from "zod";
 // amendment can never leave a claim with terms this schema would reject.
 export const CpTermsSchema = z.object({
   cp_form: z.enum(["GENCON94", "ASBATANKVOY"]).optional(),
+  // Accepted so a stored value survives a round trip, but NOT the authority:
+  // `loadClaimComputationInputs` overwrites it from `claims.engine_version`.
+  // Absent means 1 — see EngineVersion in the core package.
+  engine_version: z.union([z.literal(1), z.literal(2)]).optional(),
   laytime_allowed_hours: z.number().min(0),
   load_rate: z.number().min(0).optional(),
   discharge_rate: z.number().min(0).optional(),
@@ -59,12 +64,17 @@ export async function loadClaimComputationInputs(
   // diff, clause P&L and the sensitivity analysis all cost the same holidays —
   // two paths disagreeing about which days count would be worse than neither
   // having a calendar at all. A claim with no calendar is returned unchanged.
-  const cpTerms: CpTerms = await withPortCalendar(
+  const withCalendar: CpTerms = await withPortCalendar(
     supabase,
     parsedCpTerms.data,
     claim.company_id,
     claim.port,
   );
+
+  // THE COLUMN IS THE AUTHORITY on which rule set computes this claim, not the
+  // jsonb blob — see `engine-version.ts` for why, and for why v1 is expressed by
+  // the key's absence rather than by writing `1`.
+  const cpTerms: CpTerms = withEngineVersion(withCalendar, resolveClaimEngineVersion(claim));
 
   const { data: events } = await supabase
     .from("sof_events")

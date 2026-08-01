@@ -25,6 +25,39 @@ export type DaysBasis = "SHINC" | "SHEX" | "SHEX-UU" | "WWDSHEX-EIU" | "SSHEX" |
 export type CpForm = "GENCON94" | "ASBATANKVOY";
 
 /**
+ * Which RULE SET the engine applies. Not a package version — see
+ * `ENGINE_VERSION` in `fingerprint.ts`, which is the release of the code.
+ *
+ * `1` — the rules as shipped through Phase 7. Carries one known defect: under
+ *       GENCON 94 with a SHINC days basis an explicitly agreed
+ *       `EXCEPTED_PERIOD` is absorbed by the "Sundays and holidays included"
+ *       branch and never deducted.
+ * `2` — that defect corrected. Nothing else changes.
+ *
+ * **Version 1 is not deprecated, it is frozen.** A published calculation is a
+ * legal artifact: a claim already served, notarised or agreed must keep
+ * reproducing the figures on the document, and an offline verifier handed a
+ * 2025 bundle in 2035 has to arrive at the same number an arbitrator read at
+ * the time. Silently "fixing" a settled claim would change money nobody
+ * re-agreed and break every RFC-3161 anchor over it.
+ *
+ * Absent means 1. That default is what keeps every legacy row, corpus case and
+ * notarised bundle valid without a backfill — a v1 claim is not marked as one,
+ * it simply never says otherwise.
+ */
+export type EngineVersion = 1 | 2;
+
+export const ENGINE_VERSIONS: EngineVersion[] = [1, 2];
+
+/** What a NEW claim gets. Existing claims keep whatever they were computed under. */
+export const CURRENT_ENGINE_VERSION: EngineVersion = 2;
+
+/** The single place the "absent means 1" rule is applied. */
+export function resolveEngineVersion(terms: { engine_version?: EngineVersion }): EngineVersion {
+  return terms.engine_version ?? 1;
+}
+
+/**
  * A port's non-working days, supplied by the caller.
  *
  * Until this existed the engine approximated a holiday as a Sunday, because it
@@ -48,6 +81,14 @@ export interface PortCalendar {
 
 export interface CpTerms {
   cp_form?: CpForm; // absent = GENCON94 (legacy rows predate the field)
+  /**
+   * Rule set to apply. Absent = 1, and absence is how every pre-existing claim
+   * stays reproducible — see `EngineVersion`. Carried on the terms rather than
+   * passed as an argument so it travels with the claim into the offline
+   * verifier bundle: a bundle that did not say which rules produced it would
+   * not be independently checkable at all.
+   */
+  engine_version?: EngineVersion;
   laytime_allowed_hours: number;
   load_rate?: number;
   discharge_rate?: number;
@@ -131,7 +172,14 @@ export const DAYS_BASES: DaysBasis[] = ["SHINC", "SHEX", "SHEX-UU", "WWDSHEX-EIU
 export const CP_FORMS: CpForm[] = ["GENCON94", "ASBATANKVOY"];
 
 // === Default CP terms for new claims ===
+//
+// New claims are stamped with the CURRENT rule set explicitly. A claim created
+// today should get the corrected engine, and saying so on the terms is what
+// makes that survivable: the value travels into the calculation, the notarised
+// derivation record and the verifier bundle, so nobody later has to infer which
+// rules applied from a creation date.
 export const DEFAULT_CP_TERMS: CpTerms = {
+  engine_version: CURRENT_ENGINE_VERSION,
   laytime_allowed_hours: 72,
   load_rate: 5000,
   discharge_rate: 4000,

@@ -1,0 +1,106 @@
+{
+  "id": "shinc-excepted-period-0003",
+  "archetype": "shinc-excepted-period",
+  "seed": 3782704282,
+  "description": "GENCON 94 + SHINC with a stevedores' strike logged as an agreed excepted period — excluded under Cl. 7(c) even though the basis includes Sundays and holidays.",
+  "claim": {
+    "vessel": "BALTIC TRADER",
+    "voyageRef": "V25-384",
+    "port": "Singapore",
+    "cargo": "Steam coal",
+    "portTimezone": "Asia/Singapore"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 99,
+    "load_rate": 11000,
+    "discharge_rate": 8000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 30500,
+    "despatch_rate": 15250,
+    "currency": "EUR",
+    "port_timezone": "Asia/Singapore",
+    "engine_version": 2
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2026-03-30T00:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2026-03-30T06:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "Vessel all fast, gangway secured"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2026-03-30T09:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2026-03-31T01:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Port workers industrial action — operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2026-03-31T16:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Industrial action lifted, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2026-04-02T03:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2026-03-30T06:00:00.000Z",
+          "end_time": "2026-03-31T01:00:00.000Z",
+          "duration_hours": 19,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2026-03-31T01:00:00.000Z",
+          "end_time": "2026-03-31T16:00:00.000Z",
+          "duration_hours": 15,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Agreed excepted period excluded from laytime — SHINC includes Sundays and holidays, not exceptions the parties agreed."
+        },
+        {
+          "start_time": "2026-03-31T16:00:00.000Z",
+          "end_time": "2026-04-02T03:00:00.000Z",
+          "duration_hours": 35,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 99,
+        "used_hours": 54,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 45,
+        "demurrage_amount": 0,
+        "despatch_amount": 28593.75,
+        "currency": "EUR"
+      }
+    }
+  }
+}

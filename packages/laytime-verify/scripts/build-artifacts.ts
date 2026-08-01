@@ -27,7 +27,28 @@ import { join } from "node:path";
 const PKG_ROOT = join(import.meta.dir, "..");
 const REPO_ROOT = join(PKG_ROOT, "../..");
 const DIST = join(PKG_ROOT, "dist");
-const CORPUS_CASES = join(REPO_ROOT, "synthetic-corpus/cases");
+
+// TWO SUITES, one per engine rule set — see EngineVersion in laytime-core.
+//
+// v1's root is PUBLISHED. It appears in README.md and in documents that cite it,
+// and a third party re-running the bundle they downloaded last year must still
+// get the same number. It is pinned here rather than merely reported: a build
+// that changed it would be a build that silently re-versioned every claim
+// already served under those rules, and it must fail rather than publish.
+const SUITES = [
+  {
+    label: "v1",
+    cases: join(REPO_ROOT, "synthetic-corpus/cases"),
+    file: "conformance.json",
+    expectedRoot: "bc9f24fdab910a1b",
+  },
+  {
+    label: "v2",
+    cases: join(REPO_ROOT, "synthetic-corpus-v2/cases"),
+    file: "conformance-v2.json",
+    expectedRoot: "261e3468d2246f30",
+  },
+] as const;
 
 const args = process.argv.slice(2);
 function flag(name: string): string | null {
@@ -46,17 +67,35 @@ function sha256(buf: Buffer | string): string {
 
 mkdirSync(DIST, { recursive: true });
 
-// ── 1. The conformance bundle ────────────────────────────────────────────────
-// Published alongside the artifacts so a third party can re-run the same 500
-// cases the vendor claims to pass.
-const caseFiles = readdirSync(CORPUS_CASES).filter((f) => f.endsWith(".json")).sort();
-const cases = caseFiles.map((f) => {
-  const c = JSON.parse(readFileSync(join(CORPUS_CASES, f), "utf8"));
-  return { id: c.id, cpTerms: c.cpTerms, events: c.events, expected: c.expected };
+// ── 1. The conformance bundles ───────────────────────────────────────────────
+// Published alongside the artifacts so a third party can re-run the same cases
+// the vendor claims to pass — one bundle per rule set.
+const suites = SUITES.map((suite) => {
+  if (!existsSync(suite.cases)) {
+    throw new Error(
+      `corpus missing for ${suite.label} at ${suite.cases}. Generate it with: ` +
+        `bun scripts/synthetic-claims/generate.ts` +
+        (suite.label === "v2" ? " --engine-version 2 --no-pdf" : ""),
+    );
+  }
+  const cases = readdirSync(suite.cases)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => {
+      const c = JSON.parse(readFileSync(join(suite.cases, f), "utf8"));
+      return { id: c.id, cpTerms: c.cpTerms, events: c.events, expected: c.expected };
+    });
+  const path = join(DIST, suite.file);
+  writeFileSync(path, JSON.stringify({ cases }));
+  console.log(`conformance ${suite.label}: ${cases.length} cases, ${statSync(path).size} bytes`);
+  return { ...suite, cases, path };
 });
-const conformancePath = join(DIST, "conformance.json");
-writeFileSync(conformancePath, JSON.stringify({ cases }));
-console.log(`conformance: ${cases.length} cases, ${statSync(conformancePath).size} bytes`);
+
+// The v1 bundle is what `verify.test.ts` and the README refer to as "the"
+// conformance suite; keep the familiar handle for the steps below.
+const primary = suites[0];
+const cases = primary.cases;
+const conformancePath = primary.path;
 
 // ── 2. The readable JS artifact ──────────────────────────────────────────────
 const mjsPath = join(DIST, "laygrounded-verify.mjs");
@@ -93,12 +132,26 @@ function runMjs(inputPath: string): string {
   });
 }
 
-const mjsReport = JSON.parse(runMjs(conformancePath));
-console.log(`mjs conformance: ${mjsReport.passed}/${mjsReport.cases} root=${mjsReport.root}`);
-if (mjsReport.failed > 0) {
-  console.error("FAILURES:", JSON.stringify(mjsReport.failures.slice(0, 5), null, 2));
-  throw new Error(`JS artifact failed ${mjsReport.failed} conformance cases`);
-}
+const mjsReports = suites.map((suite) => {
+  const report = JSON.parse(runMjs(suite.path));
+  console.log(`mjs conformance ${suite.label}: ${report.passed}/${report.cases} root=${report.root}`);
+  if (report.failed > 0) {
+    console.error("FAILURES:", JSON.stringify(report.failures.slice(0, 5), null, 2));
+    throw new Error(`JS artifact failed ${report.failed} ${suite.label} conformance cases`);
+  }
+  // The published root is a promise, not an observation. A build that moved it
+  // would invalidate every citation of it, so it fails here rather than at a
+  // tribunal.
+  if (report.root !== suite.expectedRoot) {
+    throw new Error(
+      `CONFORMANCE ROOT CHANGED (${suite.label}): expected ${suite.expectedRoot}, got ${report.root}. ` +
+        `Rule set ${suite.label} is frozen — this means engine behaviour moved under it. ` +
+        `Refusing to publish.`,
+    );
+  }
+  return { suite, report };
+});
+const mjsReport = mjsReports[0].report;
 
 // ── 4. The wasm artifact ─────────────────────────────────────────────────────
 // Javy has no Intl at all, which is precisely why the engine had to stop using
@@ -207,6 +260,30 @@ closeSync(inFd); closeSync(outFd);
       break;
     } catch (e) {
       console.warn(`  ${runner.name} unavailable: ${(e as Error).message.split("\n")[0]}`);
+    }
+  }
+
+  // The wasm must reproduce EVERY rule set, not just the first. An artifact that
+  // agreed on v1 and diverged on v2 would verify a legacy claim and quietly
+  // misjudge a current one — the worse of the two failures, because the number
+  // it produced would look authoritative.
+  if (wasmReport && wasmRunner) {
+    for (const { suite, report: mjsSuiteReport } of mjsReports.slice(1)) {
+      const r = JSON.parse(wasmRunner.run(suite.path));
+      console.log(
+        `wasm conformance ${suite.label} via ${wasmRunner.name}: ${r.passed}/${r.cases} root=${r.root}`,
+      );
+      if (r.failed > 0) throw new Error(`wasm artifact failed ${r.failed} ${suite.label} cases`);
+      if (r.root !== suite.expectedRoot) {
+        throw new Error(
+          `CONFORMANCE ROOT CHANGED (${suite.label}, wasm): expected ${suite.expectedRoot}, got ${r.root}.`,
+        );
+      }
+      if (r.root !== mjsSuiteReport.root) {
+        throw new Error(
+          `ARTIFACT DIVERGENCE (${suite.label}): mjs root ${mjsSuiteReport.root} != wasm root ${r.root}.`,
+        );
+      }
     }
   }
   if (!wasmReport) {
@@ -328,11 +405,24 @@ writeFileSync(
     {
       verifierVersion: mjsReport.verifierVersion,
       tzdataDigest: mjsReport.tzdataDigest,
+      // The v1 suite keeps the unqualified key it has always had: consumers
+      // parse `conformance.root` and compare it to the README, and renaming it
+      // would break them for no gain.
       conformance: {
         cases: mjsReport.cases,
         root: mjsReport.root,
         sha256: sha256(readFileSync(conformancePath)),
       },
+      // One entry per rule set, including v1 again — a consumer that wants to
+      // check "which engines does this artifact attest?" should not have to
+      // treat one of them as a special case.
+      conformanceSuites: mjsReports.map(({ suite, report }) => ({
+        engineVersion: suite.label === "v2" ? 2 : 1,
+        file: suite.file,
+        cases: report.cases,
+        root: report.root,
+        sha256: sha256(readFileSync(suite.path)),
+      })),
       artifacts: {
         // The JS artifact IS reproducible: same source, same bytes, every time.
         mjs: { bytes: mjs.length, sha256: sha256(mjs), reproducible: true },

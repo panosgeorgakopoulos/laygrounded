@@ -1,0 +1,4862 @@
+{
+"source": "python-stdnum IBAN registry + ISO 13616 MOD-97-10",
+"lengths": {
+"AD": 24,
+"AE": 23,
+"AL": 28,
+"AT": 20,
+"AZ": 28,
+"BA": 20,
+"BE": 16,
+"BG": 22,
+"BH": 22,
+"BI": 27,
+"BR": 29,
+"BY": 28,
+"CH": 21,
+"CR": 22,
+"CY": 28,
+"CZ": 24,
+"DE": 22,
+"DJ": 27,
+"DK": 18,
+"DO": 28,
+"EE": 20,
+"EG": 29,
+"ES": 24,
+"FI": 18,
+"FK": 18,
+"FO": 18,
+"FR": 27,
+"GB": 22,
+"GE": 22,
+"GI": 23,
+"GL": 18,
+"GR": 27,
+"GT": 28,
+"HN": 28,
+"HR": 21,
+"HU": 28,
+"IE": 22,
+"IL": 23,
+"IQ": 23,
+"IS": 26,
+"IT": 27,
+"JO": 30,
+"KW": 30,
+"KZ": 20,
+"LB": 28,
+"LC": 32,
+"LI": 21,
+"LT": 20,
+"LU": 20,
+"LV": 21,
+"LY": 25,
+"MC": 27,
+"MD": 24,
+"ME": 22,
+"MK": 19,
+"MN": 20,
+"MR": 27,
+"MT": 31,
+"MU": 30,
+"NI": 28,
+"NL": 18,
+"NO": 15,
+"OM": 23,
+"PK": 24,
+"PL": 28,
+"PS": 29,
+"PT": 25,
+"QA": 29,
+"RO": 24,
+"RS": 22,
+"RU": 33,
+"SA": 24,
+"SC": 31,
+"SD": 18,
+"SE": 24,
+"SI": 19,
+"SK": 24,
+"SM": 27,
+"SO": 23,
+"ST": 25,
+"SV": 28,
+"TL": 23,
+"TN": 24,
+"TR": 26,
+"UA": 29,
+"VA": 22,
+"VG": 24,
+"XK": 20,
+"YE": 30
+},
+"nationalCheckCountries": [
+"BE",
+"ES",
+"ME",
+"NO"
+],
+"cases": [
+{
+"iban": "AD6184821343N14AZSBYIYMF",
+"expect": true
+},
+{
+"iban": "AD6184821349N14AZSBYIYMF",
+"expect": false
+},
+{
+"iban": "AD6184821343N14AZSBYIYMF1",
+"expect": false
+},
+{
+"iban": "AD6184821343N14AZSBYIYM",
+"expect": false
+},
+{
+"iban": "AD0084821343N14AZSBYIYMF",
+"expect": false
+},
+{
+"iban": "ad6184821343n14azsbyiymf",
+"expect": true
+},
+{
+"iban": "AD61 8482 1343 N14A ZSBY IYMF",
+"expect": true
+},
+{
+"iban": "AD3415383068P2A4VH0MUORJ",
+"expect": true
+},
+{
+"iban": "AD34153P3068P2A4VH0MUORJ",
+"expect": false
+},
+{
+"iban": "AD3415383068P2A4VH0MUORJ1",
+"expect": false
+},
+{
+"iban": "AD3415383068P2A4VH0MUOR",
+"expect": false
+},
+{
+"iban": "AD0015383068P2A4VH0MUORJ",
+"expect": false
+},
+{
+"iban": "ad3415383068p2a4vh0muorj",
+"expect": true
+},
+{
+"iban": "AD34 1538 3068 P2A4 VH0M UORJ",
+"expect": true
+},
+{
+"iban": "AE659702573891902143265",
+"expect": true
+},
+{
+"iban": "AE65M702573891902143265",
+"expect": false
+},
+{
+"iban": "AE6597025738919021432651",
+"expect": false
+},
+{
+"iban": "AE65970257389190214326",
+"expect": false
+},
+{
+"iban": "AE009702573891902143265",
+"expect": false
+},
+{
+"iban": "ae659702573891902143265",
+"expect": true
+},
+{
+"iban": "AE65 9702 5738 9190 2143 265",
+"expect": true
+},
+{
+"iban": "AE482488486737528276522",
+"expect": true
+},
+{
+"iban": "AE48248848S737528276522",
+"expect": false
+},
+{
+"iban": "AE4824884867375282765221",
+"expect": false
+},
+{
+"iban": "AE48248848673752827652",
+"expect": false
+},
+{
+"iban": "AE002488486737528276522",
+"expect": false
+},
+{
+"iban": "ae482488486737528276522",
+"expect": true
+},
+{
+"iban": "AE48 2488 4867 3752 8276 522",
+"expect": true
+},
+{
+"iban": "AL1123116048PO0YC9NIDHATSKXQ",
+"expect": true
+},
+{
+"iban": "AL1123176048PO0YC9NIDHATSKXQ",
+"expect": false
+},
+{
+"iban": "AL1123116048PO0YC9NIDHATSKXQ1",
+"expect": false
+},
+{
+"iban": "AL1123116048PO0YC9NIDHATSKX",
+"expect": false
+},
+{
+"iban": "AL0023116048PO0YC9NIDHATSKXQ",
+"expect": false
+},
+{
+"iban": "al1123116048po0yc9nidhatskxq",
+"expect": true
+},
+{
+"iban": "AL11 2311 6048 PO0Y C9NI DHAT SKXQ",
+"expect": true
+},
+{
+"iban": "AL5276965677WB3EE5JGNYNQUXOZ",
+"expect": true
+},
+{
+"iban": "AL5276965677WB3EE5JGNYNQFXOZ",
+"expect": false
+},
+{
+"iban": "AL5276965677WB3EE5JGNYNQUXOZ1",
+"expect": false
+},
+{
+"iban": "AL5276965677WB3EE5JGNYNQUXO",
+"expect": false
+},
+{
+"iban": "AL0076965677WB3EE5JGNYNQUXOZ",
+"expect": false
+},
+{
+"iban": "al5276965677wb3ee5jgnynquxoz",
+"expect": true
+},
+{
+"iban": "AL52 7696 5677 WB3E E5JG NYNQ UXOZ",
+"expect": true
+},
+{
+"iban": "AT342057639738499484",
+"expect": true
+},
+{
+"iban": "AT342057N39738499484",
+"expect": false
+},
+{
+"iban": "AT3420576397384994841",
+"expect": false
+},
+{
+"iban": "AT34205763973849948",
+"expect": false
+},
+{
+"iban": "AT002057639738499484",
+"expect": false
+},
+{
+"iban": "at342057639738499484",
+"expect": true
+},
+{
+"iban": "AT34 2057 6397 3849 9484",
+"expect": true
+},
+{
+"iban": "AT866252719727040965",
+"expect": true
+},
+{
+"iban": "AT86625271972704096M",
+"expect": false
+},
+{
+"iban": "AT8662527197270409651",
+"expect": false
+},
+{
+"iban": "AT86625271972704096",
+"expect": false
+},
+{
+"iban": "AT006252719727040965",
+"expect": false
+},
+{
+"iban": "at866252719727040965",
+"expect": true
+},
+{
+"iban": "AT86 6252 7197 2704 0965",
+"expect": true
+},
+{
+"iban": "AZ16QOSFADT2KRIG1J2OJD6MSY94",
+"expect": true
+},
+{
+"iban": "AZ16QOSFADT2KRII1J2OJD6MSY94",
+"expect": false
+},
+{
+"iban": "AZ16QOSFADT2KRIG1J2OJD6MSY941",
+"expect": false
+},
+{
+"iban": "AZ16QOSFADT2KRIG1J2OJD6MSY9",
+"expect": false
+},
+{
+"iban": "AZ00QOSFADT2KRIG1J2OJD6MSY94",
+"expect": false
+},
+{
+"iban": "az16qosfadt2krig1j2ojd6msy94",
+"expect": true
+},
+{
+"iban": "AZ16 QOSF ADT2 KRIG 1J2O JD6M SY94",
+"expect": true
+},
+{
+"iban": "AZ08ITBB2FXP4X7NMJOPNQZHDWO9",
+"expect": true
+},
+{
+"iban": "AZ08ITBB2FXP4X7NMJOPNQ1HDWO9",
+"expect": false
+},
+{
+"iban": "AZ08ITBB2FXP4X7NMJOPNQZHDWO91",
+"expect": false
+},
+{
+"iban": "AZ08ITBB2FXP4X7NMJOPNQZHDWO",
+"expect": false
+},
+{
+"iban": "AZ00ITBB2FXP4X7NMJOPNQZHDWO9",
+"expect": false
+},
+{
+"iban": "az08itbb2fxp4x7nmjopnqzhdwo9",
+"expect": true
+},
+{
+"iban": "AZ08 ITBB 2FXP 4X7N MJOP NQZH DWO9",
+"expect": true
+},
+{
+"iban": "BA389105584171611449",
+"expect": true
+},
+{
+"iban": "BA389105584151611449",
+"expect": false
+},
+{
+"iban": "BA3891055841716114491",
+"expect": false
+},
+{
+"iban": "BA38910558417161144",
+"expect": false
+},
+{
+"iban": "BA009105584171611449",
+"expect": false
+},
+{
+"iban": "ba389105584171611449",
+"expect": true
+},
+{
+"iban": "BA38 9105 5841 7161 1449",
+"expect": true
+},
+{
+"iban": "BA298659039976531475",
+"expect": true
+},
+{
+"iban": "BA298659039976C31475",
+"expect": false
+},
+{
+"iban": "BA2986590399765314751",
+"expect": false
+},
+{
+"iban": "BA29865903997653147",
+"expect": false
+},
+{
+"iban": "BA008659039976531475",
+"expect": false
+},
+{
+"iban": "ba298659039976531475",
+"expect": true
+},
+{
+"iban": "BA29 8659 0399 7653 1475",
+"expect": true
+},
+{
+"iban": "BG40VALO3538796S0LIQBD",
+"expect": true
+},
+{
+"iban": "BG40VALO3533796S0LIQBD",
+"expect": false
+},
+{
+"iban": "BG40VALO3538796S0LIQBD1",
+"expect": false
+},
+{
+"iban": "BG40VALO3538796S0LIQB",
+"expect": false
+},
+{
+"iban": "BG00VALO3538796S0LIQBD",
+"expect": false
+},
+{
+"iban": "bg40valo3538796s0liqbd",
+"expect": true
+},
+{
+"iban": "BG40 VALO 3538 796S 0LIQ BD",
+"expect": true
+},
+{
+"iban": "BG84ZVSV375084K4U013WR",
+"expect": true
+},
+{
+"iban": "BG84ZVSV375084K4U013CR",
+"expect": false
+},
+{
+"iban": "BG84ZVSV375084K4U013WR1",
+"expect": false
+},
+{
+"iban": "BG84ZVSV375084K4U013W",
+"expect": false
+},
+{
+"iban": "BG00ZVSV375084K4U013WR",
+"expect": false
+},
+{
+"iban": "bg84zvsv375084k4u013wr",
+"expect": true
+},
+{
+"iban": "BG84 ZVSV 3750 84K4 U013 WR",
+"expect": true
+},
+{
+"iban": "BH55WYZW6Q6NTNNGKR16UF",
+"expect": true
+},
+{
+"iban": "BH55WYZW6Q6NTCNGKR16UF",
+"expect": false
+},
+{
+"iban": "BH55WYZW6Q6NTNNGKR16UF1",
+"expect": false
+},
+{
+"iban": "BH55WYZW6Q6NTNNGKR16U",
+"expect": false
+},
+{
+"iban": "BH00WYZW6Q6NTNNGKR16UF",
+"expect": false
+},
+{
+"iban": "bh55wyzw6q6ntnngkr16uf",
+"expect": true
+},
+{
+"iban": "BH55 WYZW 6Q6N TNNG KR16 UF",
+"expect": true
+},
+{
+"iban": "BH43SNMFHD2QA0BTQI2URL",
+"expect": true
+},
+{
+"iban": "BH43SNMFHD2QA0BIQI2URL",
+"expect": false
+},
+{
+"iban": "BH43SNMFHD2QA0BTQI2URL1",
+"expect": false
+},
+{
+"iban": "BH43SNMFHD2QA0BTQI2UR",
+"expect": false
+},
+{
+"iban": "BH00SNMFHD2QA0BTQI2URL",
+"expect": false
+},
+{
+"iban": "bh43snmfhd2qa0btqi2url",
+"expect": true
+},
+{
+"iban": "BH43 SNMF HD2Q A0BT QI2U RL",
+"expect": true
+},
+{
+"iban": "BI3900386987813352279383479",
+"expect": true
+},
+{
+"iban": "BI39003869878133522793834D9",
+"expect": false
+},
+{
+"iban": "BI39003869878133522793834791",
+"expect": false
+},
+{
+"iban": "BI390038698781335227938347",
+"expect": false
+},
+{
+"iban": "BI0000386987813352279383479",
+"expect": false
+},
+{
+"iban": "bi3900386987813352279383479",
+"expect": true
+},
+{
+"iban": "BI39 0038 6987 8133 5227 9383 479",
+"expect": true
+},
+{
+"iban": "BI1205099287871506320054083",
+"expect": true
+},
+{
+"iban": "BI12050Y9287871506320054083",
+"expect": false
+},
+{
+"iban": "BI12050992878715063200540831",
+"expect": false
+},
+{
+"iban": "BI120509928787150632005408",
+"expect": false
+},
+{
+"iban": "BI0005099287871506320054083",
+"expect": false
+},
+{
+"iban": "bi1205099287871506320054083",
+"expect": true
+},
+{
+"iban": "BI12 0509 9287 8715 0632 0054 083",
+"expect": true
+},
+{
+"iban": "BR8765634252614192952821819O2",
+"expect": true
+},
+{
+"iban": "BR87656342526141929528N1819O2",
+"expect": false
+},
+{
+"iban": "BR8765634252614192952821819O21",
+"expect": false
+},
+{
+"iban": "BR8765634252614192952821819O",
+"expect": false
+},
+{
+"iban": "BR0065634252614192952821819O2",
+"expect": false
+},
+{
+"iban": "br8765634252614192952821819o2",
+"expect": true
+},
+{
+"iban": "BR87 6563 4252 6141 9295 2821 819O 2",
+"expect": true
+},
+{
+"iban": "BR4009105437543670619692179LU",
+"expect": true
+},
+{
+"iban": "BR40091054375436706L9692179LU",
+"expect": false
+},
+{
+"iban": "BR4009105437543670619692179LU1",
+"expect": false
+},
+{
+"iban": "BR4009105437543670619692179L",
+"expect": false
+},
+{
+"iban": "BR0009105437543670619692179LU",
+"expect": false
+},
+{
+"iban": "br4009105437543670619692179lu",
+"expect": true
+},
+{
+"iban": "BR40 0910 5437 5436 7061 9692 179L U",
+"expect": true
+},
+{
+"iban": "BY52P9PT7817ZF9PG3JQHK1Y2PCG",
+"expect": true
+},
+{
+"iban": "BY52P9PT7817ZY9PG3JQHK1Y2PCG",
+"expect": false
+},
+{
+"iban": "BY52P9PT7817ZF9PG3JQHK1Y2PCG1",
+"expect": false
+},
+{
+"iban": "BY52P9PT7817ZF9PG3JQHK1Y2PC",
+"expect": false
+},
+{
+"iban": "BY00P9PT7817ZF9PG3JQHK1Y2PCG",
+"expect": false
+},
+{
+"iban": "by52p9pt7817zf9pg3jqhk1y2pcg",
+"expect": true
+},
+{
+"iban": "BY52 P9PT 7817 ZF9P G3JQ HK1Y 2PCG",
+"expect": true
+},
+{
+"iban": "BY44U7656676QRFMW0UZN0ZQBQTL",
+"expect": true
+},
+{
+"iban": "BY44U7656676QRFM30UZN0ZQBQTL",
+"expect": false
+},
+{
+"iban": "BY44U7656676QRFMW0UZN0ZQBQTL1",
+"expect": false
+},
+{
+"iban": "BY44U7656676QRFMW0UZN0ZQBQT",
+"expect": false
+},
+{
+"iban": "BY00U7656676QRFMW0UZN0ZQBQTL",
+"expect": false
+},
+{
+"iban": "by44u7656676qrfmw0uzn0zqbqtl",
+"expect": true
+},
+{
+"iban": "BY44 U765 6676 QRFM W0UZ N0ZQ BQTL",
+"expect": true
+},
+{
+"iban": "CH8254657HYDUXG8Y0IFO",
+"expect": true
+},
+{
+"iban": "CH8254657HYDKXG8Y0IFO",
+"expect": false
+},
+{
+"iban": "CH8254657HYDUXG8Y0IFO1",
+"expect": false
+},
+{
+"iban": "CH8254657HYDUXG8Y0IF",
+"expect": false
+},
+{
+"iban": "CH0054657HYDUXG8Y0IFO",
+"expect": false
+},
+{
+"iban": "ch8254657hyduxg8y0ifo",
+"expect": true
+},
+{
+"iban": "CH82 5465 7HYD UXG8 Y0IF O",
+"expect": true
+},
+{
+"iban": "CH5573826CX0QFB8FEOXI",
+"expect": true
+},
+{
+"iban": "CH5533826CX0QFB8FEOXI",
+"expect": false
+},
+{
+"iban": "CH5573826CX0QFB8FEOXI1",
+"expect": false
+},
+{
+"iban": "CH5573826CX0QFB8FEOX",
+"expect": false
+},
+{
+"iban": "CH0073826CX0QFB8FEOXI",
+"expect": false
+},
+{
+"iban": "ch5573826cx0qfb8feoxi",
+"expect": true
+},
+{
+"iban": "CH55 7382 6CX0 QFB8 FEOX I",
+"expect": true
+},
+{
+"iban": "CR91210545301329898879",
+"expect": true
+},
+{
+"iban": "CR912105453013298988K9",
+"expect": false
+},
+{
+"iban": "CR912105453013298988791",
+"expect": false
+},
+{
+"iban": "CR9121054530132989887",
+"expect": false
+},
+{
+"iban": "CR00210545301329898879",
+"expect": false
+},
+{
+"iban": "cr91210545301329898879",
+"expect": true
+},
+{
+"iban": "CR91 2105 4530 1329 8988 79",
+"expect": true
+},
+{
+"iban": "CR88431115973292284232",
+"expect": true
+},
+{
+"iban": "CR88431F15973292284232",
+"expect": false
+},
+{
+"iban": "CR884311159732922842321",
+"expect": false
+},
+{
+"iban": "CR8843111597329228423",
+"expect": false
+},
+{
+"iban": "CR00431115973292284232",
+"expect": false
+},
+{
+"iban": "cr88431115973292284232",
+"expect": true
+},
+{
+"iban": "CR88 4311 1597 3292 2842 32",
+"expect": true
+},
+{
+"iban": "CY9654080314X213IY44RG58S3BC",
+"expect": true
+},
+{
+"iban": "CY965408031NX213IY44RG58S3BC",
+"expect": false
+},
+{
+"iban": "CY9654080314X213IY44RG58S3BC1",
+"expect": false
+},
+{
+"iban": "CY9654080314X213IY44RG58S3B",
+"expect": false
+},
+{
+"iban": "CY0054080314X213IY44RG58S3BC",
+"expect": false
+},
+{
+"iban": "cy9654080314x213iy44rg58s3bc",
+"expect": true
+},
+{
+"iban": "CY96 5408 0314 X213 IY44 RG58 S3BC",
+"expect": true
+},
+{
+"iban": "CY7930226625EONI3JQBQ6QKGALF",
+"expect": true
+},
+{
+"iban": "CY7930F26625EONI3JQBQ6QKGALF",
+"expect": false
+},
+{
+"iban": "CY7930226625EONI3JQBQ6QKGALF1",
+"expect": false
+},
+{
+"iban": "CY7930226625EONI3JQBQ6QKGAL",
+"expect": false
+},
+{
+"iban": "CY0030226625EONI3JQBQ6QKGALF",
+"expect": false
+},
+{
+"iban": "cy7930226625eoni3jqbq6qkgalf",
+"expect": true
+},
+{
+"iban": "CY79 3022 6625 EONI 3JQB Q6QK GALF",
+"expect": true
+},
+{
+"iban": "CZ4070123753962976628651",
+"expect": true
+},
+{
+"iban": "CZ407012D753962976628651",
+"expect": false
+},
+{
+"iban": "CZ40701237539629766286511",
+"expect": false
+},
+{
+"iban": "CZ407012375396297662865",
+"expect": false
+},
+{
+"iban": "CZ0070123753962976628651",
+"expect": false
+},
+{
+"iban": "cz4070123753962976628651",
+"expect": true
+},
+{
+"iban": "CZ40 7012 3753 9629 7662 8651",
+"expect": true
+},
+{
+"iban": "CZ0385429036153446019183",
+"expect": true
+},
+{
+"iban": "CZ0385429036153446S19183",
+"expect": false
+},
+{
+"iban": "CZ03854290361534460191831",
+"expect": false
+},
+{
+"iban": "CZ038542903615344601918",
+"expect": false
+},
+{
+"iban": "CZ0085429036153446019183",
+"expect": false
+},
+{
+"iban": "cz0385429036153446019183",
+"expect": true
+},
+{
+"iban": "CZ03 8542 9036 1534 4601 9183",
+"expect": true
+},
+{
+"iban": "DE82722534329155346173",
+"expect": true
+},
+{
+"iban": "DE827225343G9155346173",
+"expect": false
+},
+{
+"iban": "DE827225343291553461731",
+"expect": false
+},
+{
+"iban": "DE8272253432915534617",
+"expect": false
+},
+{
+"iban": "DE00722534329155346173",
+"expect": false
+},
+{
+"iban": "de82722534329155346173",
+"expect": true
+},
+{
+"iban": "DE82 7225 3432 9155 3461 73",
+"expect": true
+},
+{
+"iban": "DE69752944499180766048",
+"expect": true
+},
+{
+"iban": "DE697529444G9180766048",
+"expect": false
+},
+{
+"iban": "DE697529444991807660481",
+"expect": false
+},
+{
+"iban": "DE6975294449918076604",
+"expect": false
+},
+{
+"iban": "DE00752944499180766048",
+"expect": false
+},
+{
+"iban": "de69752944499180766048",
+"expect": true
+},
+{
+"iban": "DE69 7529 4449 9180 7660 48",
+"expect": true
+},
+{
+"iban": "DJ5021040810113405050166062",
+"expect": true
+},
+{
+"iban": "DJ50210408101V3405050166062",
+"expect": false
+},
+{
+"iban": "DJ50210408101134050501660621",
+"expect": false
+},
+{
+"iban": "DJ502104081011340505016606",
+"expect": false
+},
+{
+"iban": "DJ0021040810113405050166062",
+"expect": false
+},
+{
+"iban": "dj5021040810113405050166062",
+"expect": true
+},
+{
+"iban": "DJ50 2104 0810 1134 0505 0166 062",
+"expect": true
+},
+{
+"iban": "DJ0848016761562875589150070",
+"expect": true
+},
+{
+"iban": "DJ0848016761572875589150070",
+"expect": false
+},
+{
+"iban": "DJ08480167615628755891500701",
+"expect": false
+},
+{
+"iban": "DJ084801676156287558915007",
+"expect": false
+},
+{
+"iban": "DJ0048016761562875589150070",
+"expect": false
+},
+{
+"iban": "dj0848016761562875589150070",
+"expect": true
+},
+{
+"iban": "DJ08 4801 6761 5628 7558 9150 070",
+"expect": true
+},
+{
+"iban": "DK8759101670704403",
+"expect": true
+},
+{
+"iban": "DK8759109670704403",
+"expect": false
+},
+{
+"iban": "DK87591016707044031",
+"expect": false
+},
+{
+"iban": "DK875910167070440",
+"expect": false
+},
+{
+"iban": "DK0059101670704403",
+"expect": false
+},
+{
+"iban": "dk8759101670704403",
+"expect": true
+},
+{
+"iban": "DK87 5910 1670 7044 03",
+"expect": true
+},
+{
+"iban": "DK1404004239825834",
+"expect": true
+},
+{
+"iban": "DK1404000239825834",
+"expect": false
+},
+{
+"iban": "DK14040042398258341",
+"expect": false
+},
+{
+"iban": "DK140400423982583",
+"expect": false
+},
+{
+"iban": "DK0004004239825834",
+"expect": false
+},
+{
+"iban": "dk1404004239825834",
+"expect": true
+},
+{
+"iban": "DK14 0400 4239 8258 34",
+"expect": true
+},
+{
+"iban": "DO51O75Y77294524625792934838",
+"expect": true
+},
+{
+"iban": "DO51O75Y77V94524625792934838",
+"expect": false
+},
+{
+"iban": "DO51O75Y772945246257929348381",
+"expect": false
+},
+{
+"iban": "DO51O75Y7729452462579293483",
+"expect": false
+},
+{
+"iban": "DO00O75Y77294524625792934838",
+"expect": false
+},
+{
+"iban": "do51o75y77294524625792934838",
+"expect": true
+},
+{
+"iban": "DO51 O75Y 7729 4524 6257 9293 4838",
+"expect": true
+},
+{
+"iban": "DO48AXW497142940971006258269",
+"expect": true
+},
+{
+"iban": "DO48AXW491142940971006258269",
+"expect": false
+},
+{
+"iban": "DO48AXW4971429409710062582691",
+"expect": false
+},
+{
+"iban": "DO48AXW49714294097100625826",
+"expect": false
+},
+{
+"iban": "DO00AXW497142940971006258269",
+"expect": false
+},
+{
+"iban": "do48axw497142940971006258269",
+"expect": true
+},
+{
+"iban": "DO48 AXW4 9714 2940 9710 0625 8269",
+"expect": true
+},
+{
+"iban": "EE869716899947621294",
+"expect": true
+},
+{
+"iban": "EE862716899947621294",
+"expect": false
+},
+{
+"iban": "EE8697168999476212941",
+"expect": false
+},
+{
+"iban": "EE86971689994762129",
+"expect": false
+},
+{
+"iban": "EE009716899947621294",
+"expect": false
+},
+{
+"iban": "ee869716899947621294",
+"expect": true
+},
+{
+"iban": "EE86 9716 8999 4762 1294",
+"expect": true
+},
+{
+"iban": "EE948084474339778818",
+"expect": true
+},
+{
+"iban": "EE9480K4474339778818",
+"expect": false
+},
+{
+"iban": "EE9480844743397788181",
+"expect": false
+},
+{
+"iban": "EE94808447433977881",
+"expect": false
+},
+{
+"iban": "EE008084474339778818",
+"expect": false
+},
+{
+"iban": "ee948084474339778818",
+"expect": true
+},
+{
+"iban": "EE94 8084 4743 3977 8818",
+"expect": true
+},
+{
+"iban": "EG198646651840334828180574438",
+"expect": true
+},
+{
+"iban": "EG19864665184033482D180574438",
+"expect": false
+},
+{
+"iban": "EG1986466518403348281805744381",
+"expect": false
+},
+{
+"iban": "EG19864665184033482818057443",
+"expect": false
+},
+{
+"iban": "EG008646651840334828180574438",
+"expect": false
+},
+{
+"iban": "eg198646651840334828180574438",
+"expect": true
+},
+{
+"iban": "EG19 8646 6518 4033 4828 1805 7443 8",
+"expect": true
+},
+{
+"iban": "EG084595723775494769398034591",
+"expect": true
+},
+{
+"iban": "EG084595723775494J69398034591",
+"expect": false
+},
+{
+"iban": "EG0845957237754947693980345911",
+"expect": false
+},
+{
+"iban": "EG08459572377549476939803459",
+"expect": false
+},
+{
+"iban": "EG004595723775494769398034591",
+"expect": false
+},
+{
+"iban": "eg084595723775494769398034591",
+"expect": true
+},
+{
+"iban": "EG08 4595 7237 7549 4769 3980 3459 1",
+"expect": true
+},
+{
+"iban": "FI5201612451673558",
+"expect": true
+},
+{
+"iban": "FI52016124516735H8",
+"expect": false
+},
+{
+"iban": "FI52016124516735581",
+"expect": false
+},
+{
+"iban": "FI520161245167355",
+"expect": false
+},
+{
+"iban": "FI0001612451673558",
+"expect": false
+},
+{
+"iban": "fi5201612451673558",
+"expect": true
+},
+{
+"iban": "FI52 0161 2451 6735 58",
+"expect": true
+},
+{
+"iban": "FI8281968795152635",
+"expect": true
+},
+{
+"iban": "FI8281968795152F35",
+"expect": false
+},
+{
+"iban": "FI82819687951526351",
+"expect": false
+},
+{
+"iban": "FI828196879515263",
+"expect": false
+},
+{
+"iban": "FI0081968795152635",
+"expect": false
+},
+{
+"iban": "fi8281968795152635",
+"expect": true
+},
+{
+"iban": "FI82 8196 8795 1526 35",
+"expect": true
+},
+{
+"iban": "FK46EB547278729540",
+"expect": true
+},
+{
+"iban": "FK46EB5472787O9540",
+"expect": false
+},
+{
+"iban": "FK46EB5472787295401",
+"expect": false
+},
+{
+"iban": "FK46EB54727872954",
+"expect": false
+},
+{
+"iban": "FK00EB547278729540",
+"expect": false
+},
+{
+"iban": "fk46eb547278729540",
+"expect": true
+},
+{
+"iban": "FK46 EB54 7278 7295 40",
+"expect": true
+},
+{
+"iban": "FK86IF443207479915",
+"expect": true
+},
+{
+"iban": "FK86IF443207479965",
+"expect": false
+},
+{
+"iban": "FK86IF4432074799151",
+"expect": false
+},
+{
+"iban": "FK86IF44320747991",
+"expect": false
+},
+{
+"iban": "FK00IF443207479915",
+"expect": false
+},
+{
+"iban": "fk86if443207479915",
+"expect": true
+},
+{
+"iban": "FK86 IF44 3207 4799 15",
+"expect": true
+},
+{
+"iban": "FO0561285466561610",
+"expect": true
+},
+{
+"iban": "FO056128S466561610",
+"expect": false
+},
+{
+"iban": "FO05612854665616101",
+"expect": false
+},
+{
+"iban": "FO056128546656161",
+"expect": false
+},
+{
+"iban": "FO0061285466561610",
+"expect": false
+},
+{
+"iban": "fo0561285466561610",
+"expect": true
+},
+{
+"iban": "FO05 6128 5466 5616 10",
+"expect": true
+},
+{
+"iban": "FO4558078600104874",
+"expect": true
+},
+{
+"iban": "FO45Q8078600104874",
+"expect": false
+},
+{
+"iban": "FO45580786001048741",
+"expect": false
+},
+{
+"iban": "FO455807860010487",
+"expect": false
+},
+{
+"iban": "FO0058078600104874",
+"expect": false
+},
+{
+"iban": "fo4558078600104874",
+"expect": true
+},
+{
+"iban": "FO45 5807 8600 1048 74",
+"expect": true
+},
+{
+"iban": "FR089331217546802H89MJ01Y69",
+"expect": true
+},
+{
+"iban": "FR089331217546802H89MJ01Y61",
+"expect": false
+},
+{
+"iban": "FR089331217546802H89MJ01Y691",
+"expect": false
+},
+{
+"iban": "FR089331217546802H89MJ01Y6",
+"expect": false
+},
+{
+"iban": "FR009331217546802H89MJ01Y69",
+"expect": false
+},
+{
+"iban": "fr089331217546802h89mj01y69",
+"expect": true
+},
+{
+"iban": "FR08 9331 2175 4680 2H89 MJ01 Y69",
+"expect": true
+},
+{
+"iban": "FR020806147177PKC8F9KUX7O25",
+"expect": true
+},
+{
+"iban": "FR020806197177PKC8F9KUX7O25",
+"expect": false
+},
+{
+"iban": "FR020806147177PKC8F9KUX7O251",
+"expect": false
+},
+{
+"iban": "FR020806147177PKC8F9KUX7O2",
+"expect": false
+},
+{
+"iban": "FR000806147177PKC8F9KUX7O25",
+"expect": false
+},
+{
+"iban": "fr020806147177pkc8f9kux7o25",
+"expect": true
+},
+{
+"iban": "FR02 0806 1471 77PK C8F9 KUX7 O25",
+"expect": true
+},
+{
+"iban": "GB81AQXC17647912261403",
+"expect": true
+},
+{
+"iban": "GB81AQXC17647912261407",
+"expect": false
+},
+{
+"iban": "GB81AQXC176479122614031",
+"expect": false
+},
+{
+"iban": "GB81AQXC1764791226140",
+"expect": false
+},
+{
+"iban": "GB00AQXC17647912261403",
+"expect": false
+},
+{
+"iban": "gb81aqxc17647912261403",
+"expect": true
+},
+{
+"iban": "GB81 AQXC 1764 7912 2614 03",
+"expect": true
+},
+{
+"iban": "GB72HESI35137923131496",
+"expect": true
+},
+{
+"iban": "GB72HGSI35137923131496",
+"expect": false
+},
+{
+"iban": "GB72HESI351379231314961",
+"expect": false
+},
+{
+"iban": "GB72HESI3513792313149",
+"expect": false
+},
+{
+"iban": "GB00HESI35137923131496",
+"expect": false
+},
+{
+"iban": "gb72hesi35137923131496",
+"expect": true
+},
+{
+"iban": "GB72 HESI 3513 7923 1314 96",
+"expect": true
+},
+{
+"iban": "GE66KF4026371825145068",
+"expect": true
+},
+{
+"iban": "GE66K34026371825145068",
+"expect": false
+},
+{
+"iban": "GE66KF40263718251450681",
+"expect": false
+},
+{
+"iban": "GE66KF402637182514506",
+"expect": false
+},
+{
+"iban": "GE00KF4026371825145068",
+"expect": false
+},
+{
+"iban": "ge66kf4026371825145068",
+"expect": true
+},
+{
+"iban": "GE66 KF40 2637 1825 1450 68",
+"expect": true
+},
+{
+"iban": "GE61KR0732449966217586",
+"expect": true
+},
+{
+"iban": "GE61KR073244996Z217586",
+"expect": false
+},
+{
+"iban": "GE61KR07324499662175861",
+"expect": false
+},
+{
+"iban": "GE61KR073244996621758",
+"expect": false
+},
+{
+"iban": "GE00KR0732449966217586",
+"expect": false
+},
+{
+"iban": "ge61kr0732449966217586",
+"expect": true
+},
+{
+"iban": "GE61 KR07 3244 9966 2175 86",
+"expect": true
+},
+{
+"iban": "GI09OIBQDF9C37VB91IU7J3",
+"expect": true
+},
+{
+"iban": "GI09OIBQDF9C37VB91IP7J3",
+"expect": false
+},
+{
+"iban": "GI09OIBQDF9C37VB91IU7J31",
+"expect": false
+},
+{
+"iban": "GI09OIBQDF9C37VB91IU7J",
+"expect": false
+},
+{
+"iban": "GI00OIBQDF9C37VB91IU7J3",
+"expect": false
+},
+{
+"iban": "gi09oibqdf9c37vb91iu7j3",
+"expect": true
+},
+{
+"iban": "GI09 OIBQ DF9C 37VB 91IU 7J3",
+"expect": true
+},
+{
+"iban": "GI85YYTY1IU4FFIDGUEI06E",
+"expect": true
+},
+{
+"iban": "GI85YYTY1IU4FFIDGUEI06I",
+"expect": false
+},
+{
+"iban": "GI85YYTY1IU4FFIDGUEI06E1",
+"expect": false
+},
+{
+"iban": "GI85YYTY1IU4FFIDGUEI06",
+"expect": false
+},
+{
+"iban": "GI00YYTY1IU4FFIDGUEI06E",
+"expect": false
+},
+{
+"iban": "gi85yyty1iu4ffidguei06e",
+"expect": true
+},
+{
+"iban": "GI85 YYTY 1IU4 FFID GUEI 06E",
+"expect": true
+},
+{
+"iban": "GL9611706553955925",
+"expect": true
+},
+{
+"iban": "GL9611706U53955925",
+"expect": false
+},
+{
+"iban": "GL96117065539559251",
+"expect": false
+},
+{
+"iban": "GL961170655395592",
+"expect": false
+},
+{
+"iban": "GL0011706553955925",
+"expect": false
+},
+{
+"iban": "gl9611706553955925",
+"expect": true
+},
+{
+"iban": "GL96 1170 6553 9559 25",
+"expect": true
+},
+{
+"iban": "GL6303028968401413",
+"expect": true
+},
+{
+"iban": "GL6303078968401413",
+"expect": false
+},
+{
+"iban": "GL63030289684014131",
+"expect": false
+},
+{
+"iban": "GL630302896840141",
+"expect": false
+},
+{
+"iban": "GL0003028968401413",
+"expect": false
+},
+{
+"iban": "gl6303028968401413",
+"expect": true
+},
+{
+"iban": "GL63 0302 8968 4014 13",
+"expect": true
+},
+{
+"iban": "GR6178593049NHJMC8VS7WE3EN3",
+"expect": true
+},
+{
+"iban": "GR6178593049NHJMC8VS7WE3EW3",
+"expect": false
+},
+{
+"iban": "GR6178593049NHJMC8VS7WE3EN31",
+"expect": false
+},
+{
+"iban": "GR6178593049NHJMC8VS7WE3EN",
+"expect": false
+},
+{
+"iban": "GR0078593049NHJMC8VS7WE3EN3",
+"expect": false
+},
+{
+"iban": "gr6178593049nhjmc8vs7we3en3",
+"expect": true
+},
+{
+"iban": "GR61 7859 3049 NHJM C8VS 7WE3 EN3",
+"expect": true
+},
+{
+"iban": "GR565975101PLPLY1NWA8UKQ11Y",
+"expect": true
+},
+{
+"iban": "GR565975101PLPLY6NWA8UKQ11Y",
+"expect": false
+},
+{
+"iban": "GR565975101PLPLY1NWA8UKQ11Y1",
+"expect": false
+},
+{
+"iban": "GR565975101PLPLY1NWA8UKQ11",
+"expect": false
+},
+{
+"iban": "GR005975101PLPLY1NWA8UKQ11Y",
+"expect": false
+},
+{
+"iban": "gr565975101plply1nwa8ukq11y",
+"expect": true
+},
+{
+"iban": "GR56 5975 101P LPLY 1NWA 8UKQ 11Y",
+"expect": true
+},
+{
+"iban": "GT982GXACMJBPO7D32CEWOQXGUJM",
+"expect": true
+},
+{
+"iban": "GT982GXACMJBPO7D32CEWOQXKUJM",
+"expect": false
+},
+{
+"iban": "GT982GXACMJBPO7D32CEWOQXGUJM1",
+"expect": false
+},
+{
+"iban": "GT982GXACMJBPO7D32CEWOQXGUJ",
+"expect": false
+},
+{
+"iban": "GT002GXACMJBPO7D32CEWOQXGUJM",
+"expect": false
+},
+{
+"iban": "gt982gxacmjbpo7d32cewoqxgujm",
+"expect": true
+},
+{
+"iban": "GT98 2GXA CMJB PO7D 32CE WOQX GUJM",
+"expect": true
+},
+{
+"iban": "GT286QBX2JTTJ7RV90QP64MV0K7A",
+"expect": true
+},
+{
+"iban": "GT286QBX2JTTJ7RV96QP64MV0K7A",
+"expect": false
+},
+{
+"iban": "GT286QBX2JTTJ7RV90QP64MV0K7A1",
+"expect": false
+},
+{
+"iban": "GT286QBX2JTTJ7RV90QP64MV0K7",
+"expect": false
+},
+{
+"iban": "GT006QBX2JTTJ7RV90QP64MV0K7A",
+"expect": false
+},
+{
+"iban": "gt286qbx2jttj7rv90qp64mv0k7a",
+"expect": true
+},
+{
+"iban": "GT28 6QBX 2JTT J7RV 90QP 64MV 0K7A",
+"expect": true
+},
+{
+"iban": "HN36QVMG87757974033710586952",
+"expect": true
+},
+{
+"iban": "HN36QVMG8775797403371058O952",
+"expect": false
+},
+{
+"iban": "HN36QVMG877579740337105869521",
+"expect": false
+},
+{
+"iban": "HN36QVMG8775797403371058695",
+"expect": false
+},
+{
+"iban": "HN00QVMG87757974033710586952",
+"expect": false
+},
+{
+"iban": "hn36qvmg87757974033710586952",
+"expect": true
+},
+{
+"iban": "HN36 QVMG 8775 7974 0337 1058 6952",
+"expect": true
+},
+{
+"iban": "HN59RACZ01318401845639537579",
+"expect": true
+},
+{
+"iban": "HN59RACZ0131J401845639537579",
+"expect": false
+},
+{
+"iban": "HN59RACZ013184018456395375791",
+"expect": false
+},
+{
+"iban": "HN59RACZ0131840184563953757",
+"expect": false
+},
+{
+"iban": "HN00RACZ01318401845639537579",
+"expect": false
+},
+{
+"iban": "hn59racz01318401845639537579",
+"expect": true
+},
+{
+"iban": "HN59 RACZ 0131 8401 8456 3953 7579",
+"expect": true
+},
+{
+"iban": "HR7048788800375769746",
+"expect": true
+},
+{
+"iban": "HR70487888003W5769746",
+"expect": false
+},
+{
+"iban": "HR70487888003757697461",
+"expect": false
+},
+{
+"iban": "HR704878880037576974",
+"expect": false
+},
+{
+"iban": "HR0048788800375769746",
+"expect": false
+},
+{
+"iban": "hr7048788800375769746",
+"expect": true
+},
+{
+"iban": "HR70 4878 8800 3757 6974 6",
+"expect": true
+},
+{
+"iban": "HR2107038443418923382",
+"expect": true
+},
+{
+"iban": "HR2107P38443418923382",
+"expect": false
+},
+{
+"iban": "HR21070384434189233821",
+"expect": false
+},
+{
+"iban": "HR210703844341892338",
+"expect": false
+},
+{
+"iban": "HR0007038443418923382",
+"expect": false
+},
+{
+"iban": "hr2107038443418923382",
+"expect": true
+},
+{
+"iban": "HR21 0703 8443 4189 2338 2",
+"expect": true
+},
+{
+"iban": "HU81443196383041812845485259",
+"expect": true
+},
+{
+"iban": "HU8144319N383041812845485259",
+"expect": false
+},
+{
+"iban": "HU814431963830418128454852591",
+"expect": false
+},
+{
+"iban": "HU8144319638304181284548525",
+"expect": false
+},
+{
+"iban": "HU00443196383041812845485259",
+"expect": false
+},
+{
+"iban": "hu81443196383041812845485259",
+"expect": true
+},
+{
+"iban": "HU81 4431 9638 3041 8128 4548 5259",
+"expect": true
+},
+{
+"iban": "HU14291651926181310028263243",
+"expect": true
+},
+{
+"iban": "HU1429165192618131002826N243",
+"expect": false
+},
+{
+"iban": "HU142916519261813100282632431",
+"expect": false
+},
+{
+"iban": "HU1429165192618131002826324",
+"expect": false
+},
+{
+"iban": "HU00291651926181310028263243",
+"expect": false
+},
+{
+"iban": "hu14291651926181310028263243",
+"expect": true
+},
+{
+"iban": "HU14 2916 5192 6181 3100 2826 3243",
+"expect": true
+},
+{
+"iban": "IE34NBGQ41410311416011",
+"expect": true
+},
+{
+"iban": "IE34NBGQ41410311412011",
+"expect": false
+},
+{
+"iban": "IE34NBGQ414103114160111",
+"expect": false
+},
+{
+"iban": "IE34NBGQ4141031141601",
+"expect": false
+},
+{
+"iban": "IE00NBGQ41410311416011",
+"expect": false
+},
+{
+"iban": "ie34nbgq41410311416011",
+"expect": true
+},
+{
+"iban": "IE34 NBGQ 4141 0311 4160 11",
+"expect": true
+},
+{
+"iban": "IE11NYYZ10030742378661",
+"expect": true
+},
+{
+"iban": "IE11NYYZ1003074237866P",
+"expect": false
+},
+{
+"iban": "IE11NYYZ100307423786611",
+"expect": false
+},
+{
+"iban": "IE11NYYZ1003074237866",
+"expect": false
+},
+{
+"iban": "IE00NYYZ10030742378661",
+"expect": false
+},
+{
+"iban": "ie11nyyz10030742378661",
+"expect": true
+},
+{
+"iban": "IE11 NYYZ 1003 0742 3786 61",
+"expect": true
+},
+{
+"iban": "IL925467880727395866767",
+"expect": true
+},
+{
+"iban": "IL9254678807273958B6767",
+"expect": false
+},
+{
+"iban": "IL9254678807273958667671",
+"expect": false
+},
+{
+"iban": "IL92546788072739586676",
+"expect": false
+},
+{
+"iban": "IL005467880727395866767",
+"expect": false
+},
+{
+"iban": "il925467880727395866767",
+"expect": true
+},
+{
+"iban": "IL92 5467 8807 2739 5866 767",
+"expect": true
+},
+{
+"iban": "IL298517313703869987385",
+"expect": true
+},
+{
+"iban": "IL29851731A703869987385",
+"expect": false
+},
+{
+"iban": "IL2985173137038699873851",
+"expect": false
+},
+{
+"iban": "IL29851731370386998738",
+"expect": false
+},
+{
+"iban": "IL008517313703869987385",
+"expect": false
+},
+{
+"iban": "il298517313703869987385",
+"expect": true
+},
+{
+"iban": "IL29 8517 3137 0386 9987 385",
+"expect": true
+},
+{
+"iban": "IQ69RJPM958613779582272",
+"expect": true
+},
+{
+"iban": "IQ69RJPM9586137V9582272",
+"expect": false
+},
+{
+"iban": "IQ69RJPM9586137795822721",
+"expect": false
+},
+{
+"iban": "IQ69RJPM95861377958227",
+"expect": false
+},
+{
+"iban": "IQ00RJPM958613779582272",
+"expect": false
+},
+{
+"iban": "iq69rjpm958613779582272",
+"expect": true
+},
+{
+"iban": "IQ69 RJPM 9586 1377 9582 272",
+"expect": true
+},
+{
+"iban": "IQ59EKKZ100471599003239",
+"expect": true
+},
+{
+"iban": "IQ59EKKZ10M471599003239",
+"expect": false
+},
+{
+"iban": "IQ59EKKZ1004715990032391",
+"expect": false
+},
+{
+"iban": "IQ59EKKZ10047159900323",
+"expect": false
+},
+{
+"iban": "IQ00EKKZ100471599003239",
+"expect": false
+},
+{
+"iban": "iq59ekkz100471599003239",
+"expect": true
+},
+{
+"iban": "IQ59 EKKZ 1004 7159 9003 239",
+"expect": true
+},
+{
+"iban": "IS457283775799803786205272",
+"expect": true
+},
+{
+"iban": "IS4572837757998037862B5272",
+"expect": false
+},
+{
+"iban": "IS4572837757998037862052721",
+"expect": false
+},
+{
+"iban": "IS45728377579980378620527",
+"expect": false
+},
+{
+"iban": "IS007283775799803786205272",
+"expect": false
+},
+{
+"iban": "is457283775799803786205272",
+"expect": true
+},
+{
+"iban": "IS45 7283 7757 9980 3786 2052 72",
+"expect": true
+},
+{
+"iban": "IS666406467007553280047684",
+"expect": true
+},
+{
+"iban": "IS66640646700755328M047684",
+"expect": false
+},
+{
+"iban": "IS6664064670075532800476841",
+"expect": false
+},
+{
+"iban": "IS66640646700755328004768",
+"expect": false
+},
+{
+"iban": "IS006406467007553280047684",
+"expect": false
+},
+{
+"iban": "is666406467007553280047684",
+"expect": true
+},
+{
+"iban": "IS66 6406 4670 0755 3280 0476 84",
+"expect": true
+},
+{
+"iban": "IT25G7328792351VS2P8RIRTWIZ",
+"expect": true
+},
+{
+"iban": "IT25G7328792351VSVP8RIRTWIZ",
+"expect": false
+},
+{
+"iban": "IT25G7328792351VS2P8RIRTWIZ1",
+"expect": false
+},
+{
+"iban": "IT25G7328792351VS2P8RIRTWI",
+"expect": false
+},
+{
+"iban": "IT00G7328792351VS2P8RIRTWIZ",
+"expect": false
+},
+{
+"iban": "it25g7328792351vs2p8rirtwiz",
+"expect": true
+},
+{
+"iban": "IT25 G732 8792 351V S2P8 RIRT WIZ",
+"expect": true
+},
+{
+"iban": "IT58H4305741849J0V71WAV6YBZ",
+"expect": true
+},
+{
+"iban": "IT58H4305741849JAV71WAV6YBZ",
+"expect": false
+},
+{
+"iban": "IT58H4305741849J0V71WAV6YBZ1",
+"expect": false
+},
+{
+"iban": "IT58H4305741849J0V71WAV6YB",
+"expect": false
+},
+{
+"iban": "IT00H4305741849J0V71WAV6YBZ",
+"expect": false
+},
+{
+"iban": "it58h4305741849j0v71wav6ybz",
+"expect": true
+},
+{
+"iban": "IT58 H430 5741 849J 0V71 WAV6 YBZ",
+"expect": true
+},
+{
+"iban": "JO60LUWG6761UIGNY6MX32AFKOI3OK",
+"expect": true
+},
+{
+"iban": "JO60LUWG6761UIGNY6MX32AFKBI3OK",
+"expect": false
+},
+{
+"iban": "JO60LUWG6761UIGNY6MX32AFKOI3OK1",
+"expect": false
+},
+{
+"iban": "JO60LUWG6761UIGNY6MX32AFKOI3O",
+"expect": false
+},
+{
+"iban": "JO00LUWG6761UIGNY6MX32AFKOI3OK",
+"expect": false
+},
+{
+"iban": "jo60luwg6761uigny6mx32afkoi3ok",
+"expect": true
+},
+{
+"iban": "JO60 LUWG 6761 UIGN Y6MX 32AF KOI3 OK",
+"expect": true
+},
+{
+"iban": "JO93CFDM530462HSX4SBJMK5JW3GJT",
+"expect": true
+},
+{
+"iban": "JO93CFSM530462HSX4SBJMK5JW3GJT",
+"expect": false
+},
+{
+"iban": "JO93CFDM530462HSX4SBJMK5JW3GJT1",
+"expect": false
+},
+{
+"iban": "JO93CFDM530462HSX4SBJMK5JW3GJ",
+"expect": false
+},
+{
+"iban": "JO00CFDM530462HSX4SBJMK5JW3GJT",
+"expect": false
+},
+{
+"iban": "jo93cfdm530462hsx4sbjmk5jw3gjt",
+"expect": true
+},
+{
+"iban": "JO93 CFDM 5304 62HS X4SB JMK5 JW3G JT",
+"expect": true
+},
+{
+"iban": "KW28CHEPPU25CY1WRR61ANPBXWLV1K",
+"expect": true
+},
+{
+"iban": "KW28CHEPPU25FY1WRR61ANPBXWLV1K",
+"expect": false
+},
+{
+"iban": "KW28CHEPPU25CY1WRR61ANPBXWLV1K1",
+"expect": false
+},
+{
+"iban": "KW28CHEPPU25CY1WRR61ANPBXWLV1",
+"expect": false
+},
+{
+"iban": "KW00CHEPPU25CY1WRR61ANPBXWLV1K",
+"expect": false
+},
+{
+"iban": "kw28cheppu25cy1wrr61anpbxwlv1k",
+"expect": true
+},
+{
+"iban": "KW28 CHEP PU25 CY1W RR61 ANPB XWLV 1K",
+"expect": true
+},
+{
+"iban": "KW67VFDUB5AD31GMXOGCI9890IYRJR",
+"expect": true
+},
+{
+"iban": "KW67VPDUB5AD31GMXOGCI9890IYRJR",
+"expect": false
+},
+{
+"iban": "KW67VFDUB5AD31GMXOGCI9890IYRJR1",
+"expect": false
+},
+{
+"iban": "KW67VFDUB5AD31GMXOGCI9890IYRJ",
+"expect": false
+},
+{
+"iban": "KW00VFDUB5AD31GMXOGCI9890IYRJR",
+"expect": false
+},
+{
+"iban": "kw67vfdub5ad31gmxogci9890iyrjr",
+"expect": true
+},
+{
+"iban": "KW67 VFDU B5AD 31GM XOGC I989 0IYR JR",
+"expect": true
+},
+{
+"iban": "KZ19379CQB8TBFJQIJSQ",
+"expect": true
+},
+{
+"iban": "KZ19379YQB8TBFJQIJSQ",
+"expect": false
+},
+{
+"iban": "KZ19379CQB8TBFJQIJSQ1",
+"expect": false
+},
+{
+"iban": "KZ19379CQB8TBFJQIJS",
+"expect": false
+},
+{
+"iban": "KZ00379CQB8TBFJQIJSQ",
+"expect": false
+},
+{
+"iban": "kz19379cqb8tbfjqijsq",
+"expect": true
+},
+{
+"iban": "KZ19 379C QB8T BFJQ IJSQ",
+"expect": true
+},
+{
+"iban": "KZ86214S0HBFJ0ZSF5KO",
+"expect": true
+},
+{
+"iban": "KZ86214S0HBFJ0ZSN5KO",
+"expect": false
+},
+{
+"iban": "KZ86214S0HBFJ0ZSF5KO1",
+"expect": false
+},
+{
+"iban": "KZ86214S0HBFJ0ZSF5K",
+"expect": false
+},
+{
+"iban": "KZ00214S0HBFJ0ZSF5KO",
+"expect": false
+},
+{
+"iban": "kz86214s0hbfj0zsf5ko",
+"expect": true
+},
+{
+"iban": "KZ86 214S 0HBF J0ZS F5KO",
+"expect": true
+},
+{
+"iban": "LB925447E7EPJFYQCUUOER1K81FG",
+"expect": true
+},
+{
+"iban": "LB925447E7EPOFYQCUUOER1K81FG",
+"expect": false
+},
+{
+"iban": "LB925447E7EPJFYQCUUOER1K81FG1",
+"expect": false
+},
+{
+"iban": "LB925447E7EPJFYQCUUOER1K81F",
+"expect": false
+},
+{
+"iban": "LB005447E7EPJFYQCUUOER1K81FG",
+"expect": false
+},
+{
+"iban": "lb925447e7epjfyqcuuoer1k81fg",
+"expect": true
+},
+{
+"iban": "LB92 5447 E7EP JFYQ CUUO ER1K 81FG",
+"expect": true
+},
+{
+"iban": "LB246496PLU1U0FYPFRO37S8ZKGJ",
+"expect": true
+},
+{
+"iban": "LB2464Z6PLU1U0FYPFRO37S8ZKGJ",
+"expect": false
+},
+{
+"iban": "LB246496PLU1U0FYPFRO37S8ZKGJ1",
+"expect": false
+},
+{
+"iban": "LB246496PLU1U0FYPFRO37S8ZKG",
+"expect": false
+},
+{
+"iban": "LB006496PLU1U0FYPFRO37S8ZKGJ",
+"expect": false
+},
+{
+"iban": "lb246496plu1u0fypfro37s8zkgj",
+"expect": true
+},
+{
+"iban": "LB24 6496 PLU1 U0FY PFRO 37S8 ZKGJ",
+"expect": true
+},
+{
+"iban": "LC65PORWBOZ6QATD6UW5KF4G17UMPNEZ",
+"expect": true
+},
+{
+"iban": "LC65POSWBOZ6QATD6UW5KF4G17UMPNEZ",
+"expect": false
+},
+{
+"iban": "LC65PORWBOZ6QATD6UW5KF4G17UMPNEZ1",
+"expect": false
+},
+{
+"iban": "LC65PORWBOZ6QATD6UW5KF4G17UMPNE",
+"expect": false
+},
+{
+"iban": "LC00PORWBOZ6QATD6UW5KF4G17UMPNEZ",
+"expect": false
+},
+{
+"iban": "lc65porwboz6qatd6uw5kf4g17umpnez",
+"expect": true
+},
+{
+"iban": "LC65 PORW BOZ6 QATD 6UW5 KF4G 17UM PNEZ",
+"expect": true
+},
+{
+"iban": "LC28HAIECM7MJL19XLYCH1728VCLF8PX",
+"expect": true
+},
+{
+"iban": "LC28HAIECM7MJL19XLYCH17283CLF8PX",
+"expect": false
+},
+{
+"iban": "LC28HAIECM7MJL19XLYCH1728VCLF8PX1",
+"expect": false
+},
+{
+"iban": "LC28HAIECM7MJL19XLYCH1728VCLF8P",
+"expect": false
+},
+{
+"iban": "LC00HAIECM7MJL19XLYCH1728VCLF8PX",
+"expect": false
+},
+{
+"iban": "lc28haiecm7mjl19xlych1728vclf8px",
+"expect": true
+},
+{
+"iban": "LC28 HAIE CM7M JL19 XLYC H172 8VCL F8PX",
+"expect": true
+},
+{
+"iban": "LI66546236MX0VUICL0XI",
+"expect": true
+},
+{
+"iban": "LI66546236MX0VUICR0XI",
+"expect": false
+},
+{
+"iban": "LI66546236MX0VUICL0XI1",
+"expect": false
+},
+{
+"iban": "LI66546236MX0VUICL0X",
+"expect": false
+},
+{
+"iban": "LI00546236MX0VUICL0XI",
+"expect": false
+},
+{
+"iban": "li66546236mx0vuicl0xi",
+"expect": true
+},
+{
+"iban": "LI66 5462 36MX 0VUI CL0X I",
+"expect": true
+},
+{
+"iban": "LI27354545BHM3OM158LD",
+"expect": true
+},
+{
+"iban": "LI27354545BHM3OM15HLD",
+"expect": false
+},
+{
+"iban": "LI27354545BHM3OM158LD1",
+"expect": false
+},
+{
+"iban": "LI27354545BHM3OM158L",
+"expect": false
+},
+{
+"iban": "LI00354545BHM3OM158LD",
+"expect": false
+},
+{
+"iban": "li27354545bhm3om158ld",
+"expect": true
+},
+{
+"iban": "LI27 3545 45BH M3OM 158L D",
+"expect": true
+},
+{
+"iban": "LT511520759770354693",
+"expect": true
+},
+{
+"iban": "LT511520059770354693",
+"expect": false
+},
+{
+"iban": "LT5115207597703546931",
+"expect": false
+},
+{
+"iban": "LT51152075977035469",
+"expect": false
+},
+{
+"iban": "LT001520759770354693",
+"expect": false
+},
+{
+"iban": "lt511520759770354693",
+"expect": true
+},
+{
+"iban": "LT51 1520 7597 7035 4693",
+"expect": true
+},
+{
+"iban": "LT306028262389309049",
+"expect": true
+},
+{
+"iban": "LT30602826D389309049",
+"expect": false
+},
+{
+"iban": "LT3060282623893090491",
+"expect": false
+},
+{
+"iban": "LT30602826238930904",
+"expect": false
+},
+{
+"iban": "LT006028262389309049",
+"expect": false
+},
+{
+"iban": "lt306028262389309049",
+"expect": true
+},
+{
+"iban": "LT30 6028 2623 8930 9049",
+"expect": true
+},
+{
+"iban": "LU58406U23VQ0SVFHJ8Y",
+"expect": true
+},
+{
+"iban": "LU58406U23V00SVFHJ8Y",
+"expect": false
+},
+{
+"iban": "LU58406U23VQ0SVFHJ8Y1",
+"expect": false
+},
+{
+"iban": "LU58406U23VQ0SVFHJ8",
+"expect": false
+},
+{
+"iban": "LU00406U23VQ0SVFHJ8Y",
+"expect": false
+},
+{
+"iban": "lu58406u23vq0svfhj8y",
+"expect": true
+},
+{
+"iban": "LU58 406U 23VQ 0SVF HJ8Y",
+"expect": true
+},
+{
+"iban": "LU367707I29XZ55J2XJ8",
+"expect": true
+},
+{
+"iban": "LU362707I29XZ55J2XJ8",
+"expect": false
+},
+{
+"iban": "LU367707I29XZ55J2XJ81",
+"expect": false
+},
+{
+"iban": "LU367707I29XZ55J2XJ",
+"expect": false
+},
+{
+"iban": "LU007707I29XZ55J2XJ8",
+"expect": false
+},
+{
+"iban": "lu367707i29xz55j2xj8",
+"expect": true
+},
+{
+"iban": "LU36 7707 I29X Z55J 2XJ8",
+"expect": true
+},
+{
+"iban": "LV16CJBHBDFEF6Y9RLH1E",
+"expect": true
+},
+{
+"iban": "LV16CJBHBDFEF6Y9NLH1E",
+"expect": false
+},
+{
+"iban": "LV16CJBHBDFEF6Y9RLH1E1",
+"expect": false
+},
+{
+"iban": "LV16CJBHBDFEF6Y9RLH1",
+"expect": false
+},
+{
+"iban": "LV00CJBHBDFEF6Y9RLH1E",
+"expect": false
+},
+{
+"iban": "lv16cjbhbdfef6y9rlh1e",
+"expect": true
+},
+{
+"iban": "LV16 CJBH BDFE F6Y9 RLH1 E",
+"expect": true
+},
+{
+"iban": "LV28PEEJEUL4DP6QDDKJA",
+"expect": true
+},
+{
+"iban": "LV28PEEJEUL4DPRQDDKJA",
+"expect": false
+},
+{
+"iban": "LV28PEEJEUL4DP6QDDKJA1",
+"expect": false
+},
+{
+"iban": "LV28PEEJEUL4DP6QDDKJ",
+"expect": false
+},
+{
+"iban": "LV00PEEJEUL4DP6QDDKJA",
+"expect": false
+},
+{
+"iban": "lv28peejeul4dp6qddkja",
+"expect": true
+},
+{
+"iban": "LV28 PEEJ EUL4 DP6Q DDKJ A",
+"expect": true
+},
+{
+"iban": "LY30149145399153413173570",
+"expect": true
+},
+{
+"iban": "LY30149145899153413173570",
+"expect": false
+},
+{
+"iban": "LY301491453991534131735701",
+"expect": false
+},
+{
+"iban": "LY3014914539915341317357",
+"expect": false
+},
+{
+"iban": "LY00149145399153413173570",
+"expect": false
+},
+{
+"iban": "ly30149145399153413173570",
+"expect": true
+},
+{
+"iban": "LY30 1491 4539 9153 4131 7357 0",
+"expect": true
+},
+{
+"iban": "LY33840159617947152086552",
+"expect": true
+},
+{
+"iban": "LY33840159617947L52086552",
+"expect": false
+},
+{
+"iban": "LY338401596179471520865521",
+"expect": false
+},
+{
+"iban": "LY3384015961794715208655",
+"expect": false
+},
+{
+"iban": "LY00840159617947152086552",
+"expect": false
+},
+{
+"iban": "ly33840159617947152086552",
+"expect": true
+},
+{
+"iban": "LY33 8401 5961 7947 1520 8655 2",
+"expect": true
+},
+{
+"iban": "MC9862030240711FSOD586B5730",
+"expect": true
+},
+{
+"iban": "MC9862030240711FSOD586B57O0",
+"expect": false
+},
+{
+"iban": "MC9862030240711FSOD586B57301",
+"expect": false
+},
+{
+"iban": "MC9862030240711FSOD586B573",
+"expect": false
+},
+{
+"iban": "MC0062030240711FSOD586B5730",
+"expect": false
+},
+{
+"iban": "mc9862030240711fsod586b5730",
+"expect": true
+},
+{
+"iban": "MC98 6203 0240 711F SOD5 86B5 730",
+"expect": true
+},
+{
+"iban": "MC030540353576CI24EXFMY1652",
+"expect": true
+},
+{
+"iban": "MC030540353576CI24EXFMY16O2",
+"expect": false
+},
+{
+"iban": "MC030540353576CI24EXFMY16521",
+"expect": false
+},
+{
+"iban": "MC030540353576CI24EXFMY165",
+"expect": false
+},
+{
+"iban": "MC000540353576CI24EXFMY1652",
+"expect": false
+},
+{
+"iban": "mc030540353576ci24exfmy1652",
+"expect": true
+},
+{
+"iban": "MC03 0540 3535 76CI 24EX FMY1 652",
+"expect": true
+},
+{
+"iban": "MD95TJBETTVRDBROAWL3XRDT",
+"expect": true
+},
+{
+"iban": "MD95WJBETTVRDBROAWL3XRDT",
+"expect": false
+},
+{
+"iban": "MD95TJBETTVRDBROAWL3XRDT1",
+"expect": false
+},
+{
+"iban": "MD95TJBETTVRDBROAWL3XRD",
+"expect": false
+},
+{
+"iban": "MD00TJBETTVRDBROAWL3XRDT",
+"expect": false
+},
+{
+"iban": "md95tjbettvrdbroawl3xrdt",
+"expect": true
+},
+{
+"iban": "MD95 TJBE TTVR DBRO AWL3 XRDT",
+"expect": true
+},
+{
+"iban": "MD245UL3B2DI3TIMXOGP1J91",
+"expect": true
+},
+{
+"iban": "MD245UL3BHDI3TIMXOGP1J91",
+"expect": false
+},
+{
+"iban": "MD245UL3B2DI3TIMXOGP1J911",
+"expect": false
+},
+{
+"iban": "MD245UL3B2DI3TIMXOGP1J9",
+"expect": false
+},
+{
+"iban": "MD005UL3B2DI3TIMXOGP1J91",
+"expect": false
+},
+{
+"iban": "md245ul3b2di3timxogp1j91",
+"expect": true
+},
+{
+"iban": "MD24 5UL3 B2DI 3TIM XOGP 1J91",
+"expect": true
+},
+{
+"iban": "MK67236ME7T7TT8T178",
+"expect": true
+},
+{
+"iban": "MK67236ME7T7TT8T1O8",
+"expect": false
+},
+{
+"iban": "MK67236ME7T7TT8T1781",
+"expect": false
+},
+{
+"iban": "MK67236ME7T7TT8T17",
+"expect": false
+},
+{
+"iban": "MK00236ME7T7TT8T178",
+"expect": false
+},
+{
+"iban": "mk67236me7t7tt8t178",
+"expect": true
+},
+{
+"iban": "MK67 236M E7T7 TT8T 178",
+"expect": true
+},
+{
+"iban": "MK28057V3B8FZ8Q1781",
+"expect": true
+},
+{
+"iban": "MK28057V3B8FZMQ1781",
+"expect": false
+},
+{
+"iban": "MK28057V3B8FZ8Q17811",
+"expect": false
+},
+{
+"iban": "MK28057V3B8FZ8Q178",
+"expect": false
+},
+{
+"iban": "MK00057V3B8FZ8Q1781",
+"expect": false
+},
+{
+"iban": "mk28057v3b8fz8q1781",
+"expect": true
+},
+{
+"iban": "MK28 057V 3B8F Z8Q1 781",
+"expect": true
+},
+{
+"iban": "MN512695004186424358",
+"expect": true
+},
+{
+"iban": "MN512695004I86424358",
+"expect": false
+},
+{
+"iban": "MN5126950041864243581",
+"expect": false
+},
+{
+"iban": "MN51269500418642435",
+"expect": false
+},
+{
+"iban": "MN002695004186424358",
+"expect": false
+},
+{
+"iban": "mn512695004186424358",
+"expect": true
+},
+{
+"iban": "MN51 2695 0041 8642 4358",
+"expect": true
+},
+{
+"iban": "MN620513470077421419",
+"expect": true
+},
+{
+"iban": "MN62051347007742C419",
+"expect": false
+},
+{
+"iban": "MN6205134700774214191",
+"expect": false
+},
+{
+"iban": "MN62051347007742141",
+"expect": false
+},
+{
+"iban": "MN000513470077421419",
+"expect": false
+},
+{
+"iban": "mn620513470077421419",
+"expect": true
+},
+{
+"iban": "MN62 0513 4700 7742 1419",
+"expect": true
+},
+{
+"iban": "MR7042450710985278914574675",
+"expect": true
+},
+{
+"iban": "MR7042450710985278914C74675",
+"expect": false
+},
+{
+"iban": "MR70424507109852789145746751",
+"expect": false
+},
+{
+"iban": "MR704245071098527891457467",
+"expect": false
+},
+{
+"iban": "MR0042450710985278914574675",
+"expect": false
+},
+{
+"iban": "mr7042450710985278914574675",
+"expect": true
+},
+{
+"iban": "MR70 4245 0710 9852 7891 4574 675",
+"expect": true
+},
+{
+"iban": "MR4871368219949521786348458",
+"expect": true
+},
+{
+"iban": "MR4871368219999521786348458",
+"expect": false
+},
+{
+"iban": "MR48713682199495217863484581",
+"expect": false
+},
+{
+"iban": "MR487136821994952178634845",
+"expect": false
+},
+{
+"iban": "MR0071368219949521786348458",
+"expect": false
+},
+{
+"iban": "mr4871368219949521786348458",
+"expect": true
+},
+{
+"iban": "MR48 7136 8219 9495 2178 6348 458",
+"expect": true
+},
+{
+"iban": "MT22RPYQ57379GSXJ86DHQL4TNOOWDO",
+"expect": true
+},
+{
+"iban": "MT22RPYQ57379GNXJ86DHQL4TNOOWDO",
+"expect": false
+},
+{
+"iban": "MT22RPYQ57379GSXJ86DHQL4TNOOWDO1",
+"expect": false
+},
+{
+"iban": "MT22RPYQ57379GSXJ86DHQL4TNOOWD",
+"expect": false
+},
+{
+"iban": "MT00RPYQ57379GSXJ86DHQL4TNOOWDO",
+"expect": false
+},
+{
+"iban": "mt22rpyq57379gsxj86dhql4tnoowdo",
+"expect": true
+},
+{
+"iban": "MT22 RPYQ 5737 9GSX J86D HQL4 TNOO WDO",
+"expect": true
+},
+{
+"iban": "MT11JOXI63322UDK5348ZJZDQ7PIVAE",
+"expect": true
+},
+{
+"iban": "MT11JOXI6E322UDK5348ZJZDQ7PIVAE",
+"expect": false
+},
+{
+"iban": "MT11JOXI63322UDK5348ZJZDQ7PIVAE1",
+"expect": false
+},
+{
+"iban": "MT11JOXI63322UDK5348ZJZDQ7PIVA",
+"expect": false
+},
+{
+"iban": "MT00JOXI63322UDK5348ZJZDQ7PIVAE",
+"expect": false
+},
+{
+"iban": "mt11joxi63322udk5348zjzdq7pivae",
+"expect": true
+},
+{
+"iban": "MT11 JOXI 6332 2UDK 5348 ZJZD Q7PI VAE",
+"expect": true
+},
+{
+"iban": "MU37LGBL0619172336570701654VWY",
+"expect": true
+},
+{
+"iban": "MU37LGBL06191723365707B1654VWY",
+"expect": false
+},
+{
+"iban": "MU37LGBL0619172336570701654VWY1",
+"expect": false
+},
+{
+"iban": "MU37LGBL0619172336570701654VW",
+"expect": false
+},
+{
+"iban": "MU00LGBL0619172336570701654VWY",
+"expect": false
+},
+{
+"iban": "mu37lgbl0619172336570701654vwy",
+"expect": true
+},
+{
+"iban": "MU37 LGBL 0619 1723 3657 0701 654V WY",
+"expect": true
+},
+{
+"iban": "MU08KUMT3180106733030499359GEY",
+"expect": true
+},
+{
+"iban": "MU08KUMT3180106733Y30499359GEY",
+"expect": false
+},
+{
+"iban": "MU08KUMT3180106733030499359GEY1",
+"expect": false
+},
+{
+"iban": "MU08KUMT3180106733030499359GE",
+"expect": false
+},
+{
+"iban": "MU00KUMT3180106733030499359GEY",
+"expect": false
+},
+{
+"iban": "mu08kumt3180106733030499359gey",
+"expect": true
+},
+{
+"iban": "MU08 KUMT 3180 1067 3303 0499 359G EY",
+"expect": true
+},
+{
+"iban": "NI03VZIE25951670484834063319",
+"expect": true
+},
+{
+"iban": "NI03VZI525951670484834063319",
+"expect": false
+},
+{
+"iban": "NI03VZIE259516704848340633191",
+"expect": false
+},
+{
+"iban": "NI03VZIE2595167048483406331",
+"expect": false
+},
+{
+"iban": "NI00VZIE25951670484834063319",
+"expect": false
+},
+{
+"iban": "ni03vzie25951670484834063319",
+"expect": true
+},
+{
+"iban": "NI03 VZIE 2595 1670 4848 3406 3319",
+"expect": true
+},
+{
+"iban": "NI80BZSP21001864898163570173",
+"expect": true
+},
+{
+"iban": "NI80BZSP21006864898163570173",
+"expect": false
+},
+{
+"iban": "NI80BZSP210018648981635701731",
+"expect": false
+},
+{
+"iban": "NI80BZSP2100186489816357017",
+"expect": false
+},
+{
+"iban": "NI00BZSP21001864898163570173",
+"expect": false
+},
+{
+"iban": "ni80bzsp21001864898163570173",
+"expect": true
+},
+{
+"iban": "NI80 BZSP 2100 1864 8981 6357 0173",
+"expect": true
+},
+{
+"iban": "NL11YFIM6061057777",
+"expect": true
+},
+{
+"iban": "NL11DFIM6061057777",
+"expect": false
+},
+{
+"iban": "NL11YFIM60610577771",
+"expect": false
+},
+{
+"iban": "NL11YFIM606105777",
+"expect": false
+},
+{
+"iban": "NL00YFIM6061057777",
+"expect": false
+},
+{
+"iban": "nl11yfim6061057777",
+"expect": true
+},
+{
+"iban": "NL11 YFIM 6061 0577 77",
+"expect": true
+},
+{
+"iban": "NL83PYGY2940304614",
+"expect": true
+},
+{
+"iban": "NL83PYGY4940304614",
+"expect": false
+},
+{
+"iban": "NL83PYGY29403046141",
+"expect": false
+},
+{
+"iban": "NL83PYGY294030461",
+"expect": false
+},
+{
+"iban": "NL00PYGY2940304614",
+"expect": false
+},
+{
+"iban": "nl83pygy2940304614",
+"expect": true
+},
+{
+"iban": "NL83 PYGY 2940 3046 14",
+"expect": true
+},
+{
+"iban": "OM96108TN8V4P6FIP3ZN5YM",
+"expect": true
+},
+{
+"iban": "OM96138TN8V4P6FIP3ZN5YM",
+"expect": false
+},
+{
+"iban": "OM96108TN8V4P6FIP3ZN5YM1",
+"expect": false
+},
+{
+"iban": "OM96108TN8V4P6FIP3ZN5Y",
+"expect": false
+},
+{
+"iban": "OM00108TN8V4P6FIP3ZN5YM",
+"expect": false
+},
+{
+"iban": "om96108tn8v4p6fip3zn5ym",
+"expect": true
+},
+{
+"iban": "OM96 108T N8V4 P6FI P3ZN 5YM",
+"expect": true
+},
+{
+"iban": "OM10692P3SC6QIOYO6GWHZ4",
+"expect": true
+},
+{
+"iban": "OM10692P3SC6GIOYO6GWHZ4",
+"expect": false
+},
+{
+"iban": "OM10692P3SC6QIOYO6GWHZ41",
+"expect": false
+},
+{
+"iban": "OM10692P3SC6QIOYO6GWHZ",
+"expect": false
+},
+{
+"iban": "OM00692P3SC6QIOYO6GWHZ4",
+"expect": false
+},
+{
+"iban": "om10692p3sc6qioyo6gwhz4",
+"expect": true
+},
+{
+"iban": "OM10 692P 3SC6 QIOY O6GW HZ4",
+"expect": true
+},
+{
+"iban": "PK54DCFSC0PX34K3KMG9IM7P",
+"expect": true
+},
+{
+"iban": "PK54DCFSCPPX34K3KMG9IM7P",
+"expect": false
+},
+{
+"iban": "PK54DCFSC0PX34K3KMG9IM7P1",
+"expect": false
+},
+{
+"iban": "PK54DCFSC0PX34K3KMG9IM7",
+"expect": false
+},
+{
+"iban": "PK00DCFSC0PX34K3KMG9IM7P",
+"expect": false
+},
+{
+"iban": "pk54dcfsc0px34k3kmg9im7p",
+"expect": true
+},
+{
+"iban": "PK54 DCFS C0PX 34K3 KMG9 IM7P",
+"expect": true
+},
+{
+"iban": "PK40BQAXSES1UFOF5AP6PXER",
+"expect": true
+},
+{
+"iban": "PK40BQAXSES1UFOF5AP6PXEA",
+"expect": false
+},
+{
+"iban": "PK40BQAXSES1UFOF5AP6PXER1",
+"expect": false
+},
+{
+"iban": "PK40BQAXSES1UFOF5AP6PXE",
+"expect": false
+},
+{
+"iban": "PK00BQAXSES1UFOF5AP6PXER",
+"expect": false
+},
+{
+"iban": "pk40bqaxses1ufof5ap6pxer",
+"expect": true
+},
+{
+"iban": "PK40 BQAX SES1 UFOF 5AP6 PXER",
+"expect": true
+},
+{
+"iban": "PL56187694008860908456685796",
+"expect": true
+},
+{
+"iban": "PL56187694008860908456685726",
+"expect": false
+},
+{
+"iban": "PL561876940088609084566857961",
+"expect": false
+},
+{
+"iban": "PL5618769400886090845668579",
+"expect": false
+},
+{
+"iban": "PL00187694008860908456685796",
+"expect": false
+},
+{
+"iban": "pl56187694008860908456685796",
+"expect": true
+},
+{
+"iban": "PL56 1876 9400 8860 9084 5668 5796",
+"expect": true
+},
+{
+"iban": "PL80633383052380216412854403",
+"expect": true
+},
+{
+"iban": "PL80633U83052380216412854403",
+"expect": false
+},
+{
+"iban": "PL806333830523802164128544031",
+"expect": false
+},
+{
+"iban": "PL8063338305238021641285440",
+"expect": false
+},
+{
+"iban": "PL00633383052380216412854403",
+"expect": false
+},
+{
+"iban": "pl80633383052380216412854403",
+"expect": true
+},
+{
+"iban": "PL80 6333 8305 2380 2164 1285 4403",
+"expect": true
+},
+{
+"iban": "PS76MSVOVAY732763ZYRM5ZQ2N5FO",
+"expect": true
+},
+{
+"iban": "PS76MSVOVAY732763ZYR05ZQ2N5FO",
+"expect": false
+},
+{
+"iban": "PS76MSVOVAY732763ZYRM5ZQ2N5FO1",
+"expect": false
+},
+{
+"iban": "PS76MSVOVAY732763ZYRM5ZQ2N5F",
+"expect": false
+},
+{
+"iban": "PS00MSVOVAY732763ZYRM5ZQ2N5FO",
+"expect": false
+},
+{
+"iban": "ps76msvovay732763zyrm5zq2n5fo",
+"expect": true
+},
+{
+"iban": "PS76 MSVO VAY7 3276 3ZYR M5ZQ 2N5F O",
+"expect": true
+},
+{
+"iban": "PS32YCRFJ8PQZVT1K8YKBGTWV4G12",
+"expect": true
+},
+{
+"iban": "PS32YCRFJ8PQZVT1K8YKBGTWV4G1T",
+"expect": false
+},
+{
+"iban": "PS32YCRFJ8PQZVT1K8YKBGTWV4G121",
+"expect": false
+},
+{
+"iban": "PS32YCRFJ8PQZVT1K8YKBGTWV4G1",
+"expect": false
+},
+{
+"iban": "PS00YCRFJ8PQZVT1K8YKBGTWV4G12",
+"expect": false
+},
+{
+"iban": "ps32ycrfj8pqzvt1k8ykbgtwv4g12",
+"expect": true
+},
+{
+"iban": "PS32 YCRF J8PQ ZVT1 K8YK BGTW V4G1 2",
+"expect": true
+},
+{
+"iban": "PT77637782656911696509789",
+"expect": true
+},
+{
+"iban": "PT77637783656911696509789",
+"expect": false
+},
+{
+"iban": "PT776377826569116965097891",
+"expect": false
+},
+{
+"iban": "PT7763778265691169650978",
+"expect": false
+},
+{
+"iban": "PT00637782656911696509789",
+"expect": false
+},
+{
+"iban": "pt77637782656911696509789",
+"expect": true
+},
+{
+"iban": "PT77 6377 8265 6911 6965 0978 9",
+"expect": true
+},
+{
+"iban": "PT11020249421728678805631",
+"expect": true
+},
+{
+"iban": "PT110202494G1728678805631",
+"expect": false
+},
+{
+"iban": "PT110202494217286788056311",
+"expect": false
+},
+{
+"iban": "PT1102024942172867880563",
+"expect": false
+},
+{
+"iban": "PT00020249421728678805631",
+"expect": false
+},
+{
+"iban": "pt11020249421728678805631",
+"expect": true
+},
+{
+"iban": "PT11 0202 4942 1728 6788 0563 1",
+"expect": true
+},
+{
+"iban": "QA59UFJNFTLP1ODXC2XTMGK42SQ33",
+"expect": true
+},
+{
+"iban": "QA59UFJNFTLP1ODXC2XTMGK42SQ37",
+"expect": false
+},
+{
+"iban": "QA59UFJNFTLP1ODXC2XTMGK42SQ331",
+"expect": false
+},
+{
+"iban": "QA59UFJNFTLP1ODXC2XTMGK42SQ3",
+"expect": false
+},
+{
+"iban": "QA00UFJNFTLP1ODXC2XTMGK42SQ33",
+"expect": false
+},
+{
+"iban": "qa59ufjnftlp1odxc2xtmgk42sq33",
+"expect": true
+},
+{
+"iban": "QA59 UFJN FTLP 1ODX C2XT MGK4 2SQ3 3",
+"expect": true
+},
+{
+"iban": "QA13UWFGFFTNSXS643TXX7G1OSBQT",
+"expect": true
+},
+{
+"iban": "QA13UWYGFFTNSXS643TXX7G1OSBQT",
+"expect": false
+},
+{
+"iban": "QA13UWFGFFTNSXS643TXX7G1OSBQT1",
+"expect": false
+},
+{
+"iban": "QA13UWFGFFTNSXS643TXX7G1OSBQ",
+"expect": false
+},
+{
+"iban": "QA00UWFGFFTNSXS643TXX7G1OSBQT",
+"expect": false
+},
+{
+"iban": "qa13uwfgfftnsxs643txx7g1osbqt",
+"expect": true
+},
+{
+"iban": "QA13 UWFG FFTN SXS6 43TX X7G1 OSBQ T",
+"expect": true
+},
+{
+"iban": "RO81IZAAZ01URTIOTYEZ6WNL",
+"expect": true
+},
+{
+"iban": "RO81IZAXZ01URTIOTYEZ6WNL",
+"expect": false
+},
+{
+"iban": "RO81IZAAZ01URTIOTYEZ6WNL1",
+"expect": false
+},
+{
+"iban": "RO81IZAAZ01URTIOTYEZ6WN",
+"expect": false
+},
+{
+"iban": "RO00IZAAZ01URTIOTYEZ6WNL",
+"expect": false
+},
+{
+"iban": "ro81izaaz01urtiotyez6wnl",
+"expect": true
+},
+{
+"iban": "RO81 IZAA Z01U RTIO TYEZ 6WNL",
+"expect": true
+},
+{
+"iban": "RO80IGFDPG387O5891QQFUAV",
+"expect": true
+},
+{
+"iban": "RO80XGFDPG387O5891QQFUAV",
+"expect": false
+},
+{
+"iban": "RO80IGFDPG387O5891QQFUAV1",
+"expect": false
+},
+{
+"iban": "RO80IGFDPG387O5891QQFUA",
+"expect": false
+},
+{
+"iban": "RO00IGFDPG387O5891QQFUAV",
+"expect": false
+},
+{
+"iban": "ro80igfdpg387o5891qqfuav",
+"expect": true
+},
+{
+"iban": "RO80 IGFD PG38 7O58 91QQ FUAV",
+"expect": true
+},
+{
+"iban": "RS76843994459739168621",
+"expect": true
+},
+{
+"iban": "RS76843994459739768621",
+"expect": false
+},
+{
+"iban": "RS768439944597391686211",
+"expect": false
+},
+{
+"iban": "RS7684399445973916862",
+"expect": false
+},
+{
+"iban": "RS00843994459739168621",
+"expect": false
+},
+{
+"iban": "rs76843994459739168621",
+"expect": true
+},
+{
+"iban": "RS76 8439 9445 9739 1686 21",
+"expect": true
+},
+{
+"iban": "RS34964774890441094507",
+"expect": true
+},
+{
+"iban": "RS34964774890B41094507",
+"expect": false
+},
+{
+"iban": "RS349647748904410945071",
+"expect": false
+},
+{
+"iban": "RS3496477489044109450",
+"expect": false
+},
+{
+"iban": "RS00964774890441094507",
+"expect": false
+},
+{
+"iban": "rs34964774890441094507",
+"expect": true
+},
+{
+"iban": "RS34 9647 7489 0441 0945 07",
+"expect": true
+},
+{
+"iban": "RU81372660384216277M5FL4OD2CH1V7V",
+"expect": true
+},
+{
+"iban": "RU81372660384216277M5FL4OD2CG1V7V",
+"expect": false
+},
+{
+"iban": "RU81372660384216277M5FL4OD2CH1V7V1",
+"expect": false
+},
+{
+"iban": "RU81372660384216277M5FL4OD2CH1V7",
+"expect": false
+},
+{
+"iban": "RU00372660384216277M5FL4OD2CH1V7V",
+"expect": false
+},
+{
+"iban": "ru81372660384216277m5fl4od2ch1v7v",
+"expect": true
+},
+{
+"iban": "RU81 3726 6038 4216 277M 5FL4 OD2C H1V7 V",
+"expect": true
+},
+{
+"iban": "RU4503259841104583RDPV4DUA9RTLM6I",
+"expect": true
+},
+{
+"iban": "RU4503259841104583RDPV4DUASRTLM6I",
+"expect": false
+},
+{
+"iban": "RU4503259841104583RDPV4DUA9RTLM6I1",
+"expect": false
+},
+{
+"iban": "RU4503259841104583RDPV4DUA9RTLM6",
+"expect": false
+},
+{
+"iban": "RU0003259841104583RDPV4DUA9RTLM6I",
+"expect": false
+},
+{
+"iban": "ru4503259841104583rdpv4dua9rtlm6i",
+"expect": true
+},
+{
+"iban": "RU45 0325 9841 1045 83RD PV4D UA9R TLM6 I",
+"expect": true
+},
+{
+"iban": "SA7169B5TWMTXYWZ8F1M6HJH",
+"expect": true
+},
+{
+"iban": "SA7169B5TWMTXYOZ8F1M6HJH",
+"expect": false
+},
+{
+"iban": "SA7169B5TWMTXYWZ8F1M6HJH1",
+"expect": false
+},
+{
+"iban": "SA7169B5TWMTXYWZ8F1M6HJ",
+"expect": false
+},
+{
+"iban": "SA0069B5TWMTXYWZ8F1M6HJH",
+"expect": false
+},
+{
+"iban": "sa7169b5twmtxywz8f1m6hjh",
+"expect": true
+},
+{
+"iban": "SA71 69B5 TWMT XYWZ 8F1M 6HJH",
+"expect": true
+},
+{
+"iban": "SA6087WH635SBOKOLL1HL4JR",
+"expect": true
+},
+{
+"iban": "SA6087WHO35SBOKOLL1HL4JR",
+"expect": false
+},
+{
+"iban": "SA6087WH635SBOKOLL1HL4JR1",
+"expect": false
+},
+{
+"iban": "SA6087WH635SBOKOLL1HL4J",
+"expect": false
+},
+{
+"iban": "SA0087WH635SBOKOLL1HL4JR",
+"expect": false
+},
+{
+"iban": "sa6087wh635sbokoll1hl4jr",
+"expect": true
+},
+{
+"iban": "SA60 87WH 635S BOKO LL1H L4JR",
+"expect": true
+},
+{
+"iban": "SC06QSBW37956618524413581314SOV",
+"expect": true
+},
+{
+"iban": "SC06QSB537956618524413581314SOV",
+"expect": false
+},
+{
+"iban": "SC06QSBW37956618524413581314SOV1",
+"expect": false
+},
+{
+"iban": "SC06QSBW37956618524413581314SO",
+"expect": false
+},
+{
+"iban": "SC00QSBW37956618524413581314SOV",
+"expect": false
+},
+{
+"iban": "sc06qsbw37956618524413581314sov",
+"expect": true
+},
+{
+"iban": "SC06 QSBW 3795 6618 5244 1358 1314 SOV",
+"expect": true
+},
+{
+"iban": "SC74YZEI14373310281401537669FDB",
+"expect": true
+},
+{
+"iban": "SC74YZEI143733102814015376A9FDB",
+"expect": false
+},
+{
+"iban": "SC74YZEI14373310281401537669FDB1",
+"expect": false
+},
+{
+"iban": "SC74YZEI14373310281401537669FD",
+"expect": false
+},
+{
+"iban": "SC00YZEI14373310281401537669FDB",
+"expect": false
+},
+{
+"iban": "sc74yzei14373310281401537669fdb",
+"expect": true
+},
+{
+"iban": "SC74 YZEI 1437 3310 2814 0153 7669 FDB",
+"expect": true
+},
+{
+"iban": "SD9211429897700863",
+"expect": true
+},
+{
+"iban": "SD921N429897700863",
+"expect": false
+},
+{
+"iban": "SD92114298977008631",
+"expect": false
+},
+{
+"iban": "SD921142989770086",
+"expect": false
+},
+{
+"iban": "SD0011429897700863",
+"expect": false
+},
+{
+"iban": "sd9211429897700863",
+"expect": true
+},
+{
+"iban": "SD92 1142 9897 7008 63",
+"expect": true
+},
+{
+"iban": "SD3066783074651990",
+"expect": true
+},
+{
+"iban": "SD30667830746Q1990",
+"expect": false
+},
+{
+"iban": "SD30667830746519901",
+"expect": false
+},
+{
+"iban": "SD306678307465199",
+"expect": false
+},
+{
+"iban": "SD0066783074651990",
+"expect": false
+},
+{
+"iban": "sd3066783074651990",
+"expect": true
+},
+{
+"iban": "SD30 6678 3074 6519 90",
+"expect": true
+},
+{
+"iban": "SE1654608971890534155000",
+"expect": true
+},
+{
+"iban": "SE16546089N1890534155000",
+"expect": false
+},
+{
+"iban": "SE16546089718905341550001",
+"expect": false
+},
+{
+"iban": "SE165460897189053415500",
+"expect": false
+},
+{
+"iban": "SE0054608971890534155000",
+"expect": false
+},
+{
+"iban": "se1654608971890534155000",
+"expect": true
+},
+{
+"iban": "SE16 5460 8971 8905 3415 5000",
+"expect": true
+},
+{
+"iban": "SE9356947523028037936628",
+"expect": true
+},
+{
+"iban": "SE9356947523028037936428",
+"expect": false
+},
+{
+"iban": "SE93569475230280379366281",
+"expect": false
+},
+{
+"iban": "SE935694752302803793662",
+"expect": false
+},
+{
+"iban": "SE0056947523028037936628",
+"expect": false
+},
+{
+"iban": "se9356947523028037936628",
+"expect": true
+},
+{
+"iban": "SE93 5694 7523 0280 3793 6628",
+"expect": true
+},
+{
+"iban": "SI53908046502708553",
+"expect": true
+},
+{
+"iban": "SI53908V46502708553",
+"expect": false
+},
+{
+"iban": "SI539080465027085531",
+"expect": false
+},
+{
+"iban": "SI5390804650270855",
+"expect": false
+},
+{
+"iban": "SI00908046502708553",
+"expect": false
+},
+{
+"iban": "si53908046502708553",
+"expect": true
+},
+{
+"iban": "SI53 9080 4650 2708 553",
+"expect": true
+},
+{
+"iban": "SI83699213009728327",
+"expect": true
+},
+{
+"iban": "SI8369921300X728327",
+"expect": false
+},
+{
+"iban": "SI836992130097283271",
+"expect": false
+},
+{
+"iban": "SI8369921300972832",
+"expect": false
+},
+{
+"iban": "SI00699213009728327",
+"expect": false
+},
+{
+"iban": "si83699213009728327",
+"expect": true
+},
+{
+"iban": "SI83 6992 1300 9728 327",
+"expect": true
+},
+{
+"iban": "SK0702852595296601183151",
+"expect": true
+},
+{
+"iban": "SK070285M595296601183151",
+"expect": false
+},
+{
+"iban": "SK07028525952966011831511",
+"expect": false
+},
+{
+"iban": "SK070285259529660118315",
+"expect": false
+},
+{
+"iban": "SK0002852595296601183151",
+"expect": false
+},
+{
+"iban": "sk0702852595296601183151",
+"expect": true
+},
+{
+"iban": "SK07 0285 2595 2966 0118 3151",
+"expect": true
+},
+{
+"iban": "SK1885524034266512515903",
+"expect": true
+},
+{
+"iban": "SK18F5524034266512515903",
+"expect": false
+},
+{
+"iban": "SK18855240342665125159031",
+"expect": false
+},
+{
+"iban": "SK188552403426651251590",
+"expect": false
+},
+{
+"iban": "SK0085524034266512515903",
+"expect": false
+},
+{
+"iban": "sk1885524034266512515903",
+"expect": true
+},
+{
+"iban": "SK18 8552 4034 2665 1251 5903",
+"expect": true
+},
+{
+"iban": "SM79D602522363971HB7K5W76XD",
+"expect": true
+},
+{
+"iban": "SM79D602522363971HB7K5W765D",
+"expect": false
+},
+{
+"iban": "SM79D602522363971HB7K5W76XD1",
+"expect": false
+},
+{
+"iban": "SM79D602522363971HB7K5W76X",
+"expect": false
+},
+{
+"iban": "SM00D602522363971HB7K5W76XD",
+"expect": false
+},
+{
+"iban": "sm79d602522363971hb7k5w76xd",
+"expect": true
+},
+{
+"iban": "SM79 D602 5223 6397 1HB7 K5W7 6XD",
+"expect": true
+},
+{
+"iban": "SM42N9805262153FN7XFTVIYFGZ",
+"expect": true
+},
+{
+"iban": "SM42N9805262Y53FN7XFTVIYFGZ",
+"expect": false
+},
+{
+"iban": "SM42N9805262153FN7XFTVIYFGZ1",
+"expect": false
+},
+{
+"iban": "SM42N9805262153FN7XFTVIYFG",
+"expect": false
+},
+{
+"iban": "SM00N9805262153FN7XFTVIYFGZ",
+"expect": false
+},
+{
+"iban": "sm42n9805262153fn7xftviyfgz",
+"expect": true
+},
+{
+"iban": "SM42 N980 5262 153F N7XF TVIY FGZ",
+"expect": true
+},
+{
+"iban": "SO914269322000056264533",
+"expect": true
+},
+{
+"iban": "SO91426932200005626453G",
+"expect": false
+},
+{
+"iban": "SO9142693220000562645331",
+"expect": false
+},
+{
+"iban": "SO91426932200005626453",
+"expect": false
+},
+{
+"iban": "SO004269322000056264533",
+"expect": false
+},
+{
+"iban": "so914269322000056264533",
+"expect": true
+},
+{
+"iban": "SO91 4269 3220 0005 6264 533",
+"expect": true
+},
+{
+"iban": "SO767810401707796201050",
+"expect": true
+},
+{
+"iban": "SO76781040170779L201050",
+"expect": false
+},
+{
+"iban": "SO7678104017077962010501",
+"expect": false
+},
+{
+"iban": "SO76781040170779620105",
+"expect": false
+},
+{
+"iban": "SO007810401707796201050",
+"expect": false
+},
+{
+"iban": "so767810401707796201050",
+"expect": true
+},
+{
+"iban": "SO76 7810 4017 0779 6201 050",
+"expect": true
+},
+{
+"iban": "ST72726808226466596707248",
+"expect": true
+},
+{
+"iban": "ST727268082264665W6707248",
+"expect": false
+},
+{
+"iban": "ST727268082264665967072481",
+"expect": false
+},
+{
+"iban": "ST7272680822646659670724",
+"expect": false
+},
+{
+"iban": "ST00726808226466596707248",
+"expect": false
+},
+{
+"iban": "st72726808226466596707248",
+"expect": true
+},
+{
+"iban": "ST72 7268 0822 6466 5967 0724 8",
+"expect": true
+},
+{
+"iban": "ST95710641477049240668619",
+"expect": true
+},
+{
+"iban": "ST95710641479049240668619",
+"expect": false
+},
+{
+"iban": "ST957106414770492406686191",
+"expect": false
+},
+{
+"iban": "ST9571064147704924066861",
+"expect": false
+},
+{
+"iban": "ST00710641477049240668619",
+"expect": false
+},
+{
+"iban": "st95710641477049240668619",
+"expect": true
+},
+{
+"iban": "ST95 7106 4147 7049 2406 6861 9",
+"expect": true
+},
+{
+"iban": "SV50SSVD74987287278309722295",
+"expect": true
+},
+{
+"iban": "SV50SSVD7O987287278309722295",
+"expect": false
+},
+{
+"iban": "SV50SSVD749872872783097222951",
+"expect": false
+},
+{
+"iban": "SV50SSVD7498728727830972229",
+"expect": false
+},
+{
+"iban": "SV00SSVD74987287278309722295",
+"expect": false
+},
+{
+"iban": "sv50ssvd74987287278309722295",
+"expect": true
+},
+{
+"iban": "SV50 SSVD 7498 7287 2783 0972 2295",
+"expect": true
+},
+{
+"iban": "SV07VRDQ48965634677287297543",
+"expect": true
+},
+{
+"iban": "SV07VRDQ40965634677287297543",
+"expect": false
+},
+{
+"iban": "SV07VRDQ489656346772872975431",
+"expect": false
+},
+{
+"iban": "SV07VRDQ4896563467728729754",
+"expect": false
+},
+{
+"iban": "SV00VRDQ48965634677287297543",
+"expect": false
+},
+{
+"iban": "sv07vrdq48965634677287297543",
+"expect": true
+},
+{
+"iban": "SV07 VRDQ 4896 5634 6772 8729 7543",
+"expect": true
+},
+{
+"iban": "TL244589121215058895389",
+"expect": true
+},
+{
+"iban": "TL24458912K215058895389",
+"expect": false
+},
+{
+"iban": "TL2445891212150588953891",
+"expect": false
+},
+{
+"iban": "TL24458912121505889538",
+"expect": false
+},
+{
+"iban": "TL004589121215058895389",
+"expect": false
+},
+{
+"iban": "tl244589121215058895389",
+"expect": true
+},
+{
+"iban": "TL24 4589 1212 1505 8895 389",
+"expect": true
+},
+{
+"iban": "TL322677212618442229433",
+"expect": true
+},
+{
+"iban": "TL322677212618442929433",
+"expect": false
+},
+{
+"iban": "TL3226772126184422294331",
+"expect": false
+},
+{
+"iban": "TL32267721261844222943",
+"expect": false
+},
+{
+"iban": "TL002677212618442229433",
+"expect": false
+},
+{
+"iban": "tl322677212618442229433",
+"expect": true
+},
+{
+"iban": "TL32 2677 2126 1844 2229 433",
+"expect": true
+},
+{
+"iban": "TN9549681824156467792783",
+"expect": true
+},
+{
+"iban": "TN9549681N24156467792783",
+"expect": false
+},
+{
+"iban": "TN95496818241564677927831",
+"expect": false
+},
+{
+"iban": "TN954968182415646779278",
+"expect": false
+},
+{
+"iban": "TN0049681824156467792783",
+"expect": false
+},
+{
+"iban": "tn9549681824156467792783",
+"expect": true
+},
+{
+"iban": "TN95 4968 1824 1564 6779 2783",
+"expect": true
+},
+{
+"iban": "TN3014081209574638178620",
+"expect": true
+},
+{
+"iban": "TN30140812095746381786C0",
+"expect": false
+},
+{
+"iban": "TN30140812095746381786201",
+"expect": false
+},
+{
+"iban": "TN301408120957463817862",
+"expect": false
+},
+{
+"iban": "TN0014081209574638178620",
+"expect": false
+},
+{
+"iban": "tn3014081209574638178620",
+"expect": true
+},
+{
+"iban": "TN30 1408 1209 5746 3817 8620",
+"expect": true
+},
+{
+"iban": "TR477551701F4E3ZWC7TDC84I3",
+"expect": true
+},
+{
+"iban": "TR477551701F4E3ZWC7TGC84I3",
+"expect": false
+},
+{
+"iban": "TR477551701F4E3ZWC7TDC84I31",
+"expect": false
+},
+{
+"iban": "TR477551701F4E3ZWC7TDC84I",
+"expect": false
+},
+{
+"iban": "TR007551701F4E3ZWC7TDC84I3",
+"expect": false
+},
+{
+"iban": "tr477551701f4e3zwc7tdc84i3",
+"expect": true
+},
+{
+"iban": "TR47 7551 701F 4E3Z WC7T DC84 I3",
+"expect": true
+},
+{
+"iban": "TR48164697N7Q3P7864PO5S1R1",
+"expect": true
+},
+{
+"iban": "TR48164697N7Q3P7864PO5S1W1",
+"expect": false
+},
+{
+"iban": "TR48164697N7Q3P7864PO5S1R11",
+"expect": false
+},
+{
+"iban": "TR48164697N7Q3P7864PO5S1R",
+"expect": false
+},
+{
+"iban": "TR00164697N7Q3P7864PO5S1R1",
+"expect": false
+},
+{
+"iban": "tr48164697n7q3p7864po5s1r1",
+"expect": true
+},
+{
+"iban": "TR48 1646 97N7 Q3P7 864P O5S1 R1",
+"expect": true
+},
+{
+"iban": "UA18498578KZGWETRUHJV1FR119VT",
+"expect": true
+},
+{
+"iban": "UA18G98578KZGWETRUHJV1FR119VT",
+"expect": false
+},
+{
+"iban": "UA18498578KZGWETRUHJV1FR119VT1",
+"expect": false
+},
+{
+"iban": "UA18498578KZGWETRUHJV1FR119V",
+"expect": false
+},
+{
+"iban": "UA00498578KZGWETRUHJV1FR119VT",
+"expect": false
+},
+{
+"iban": "ua18498578kzgwetruhjv1fr119vt",
+"expect": true
+},
+{
+"iban": "UA18 4985 78KZ GWET RUHJ V1FR 119V T",
+"expect": true
+},
+{
+"iban": "UA02304757DEEHGNWV6IPD6GFPJLK",
+"expect": true
+},
+{
+"iban": "UA02304457DEEHGNWV6IPD6GFPJLK",
+"expect": false
+},
+{
+"iban": "UA02304757DEEHGNWV6IPD6GFPJLK1",
+"expect": false
+},
+{
+"iban": "UA02304757DEEHGNWV6IPD6GFPJL",
+"expect": false
+},
+{
+"iban": "UA00304757DEEHGNWV6IPD6GFPJLK",
+"expect": false
+},
+{
+"iban": "ua02304757deehgnwv6ipd6gfpjlk",
+"expect": true
+},
+{
+"iban": "UA02 3047 57DE EHGN WV6I PD6G FPJL K",
+"expect": true
+},
+{
+"iban": "VA12351844062763251096",
+"expect": true
+},
+{
+"iban": "VA12351844062763251P96",
+"expect": false
+},
+{
+"iban": "VA123518440627632510961",
+"expect": false
+},
+{
+"iban": "VA1235184406276325109",
+"expect": false
+},
+{
+"iban": "VA00351844062763251096",
+"expect": false
+},
+{
+"iban": "va12351844062763251096",
+"expect": true
+},
+{
+"iban": "VA12 3518 4406 2763 2510 96",
+"expect": true
+},
+{
+"iban": "VA11788637283769472064",
+"expect": true
+},
+{
+"iban": "VA11788637283769470064",
+"expect": false
+},
+{
+"iban": "VA117886372837694720641",
+"expect": false
+},
+{
+"iban": "VA1178863728376947206",
+"expect": false
+},
+{
+"iban": "VA00788637283769472064",
+"expect": false
+},
+{
+"iban": "va11788637283769472064",
+"expect": true
+},
+{
+"iban": "VA11 7886 3728 3769 4720 64",
+"expect": true
+},
+{
+"iban": "VG65XMOP8305499545929730",
+"expect": true
+},
+{
+"iban": "VG65XM6P8305499545929730",
+"expect": false
+},
+{
+"iban": "VG65XMOP83054995459297301",
+"expect": false
+},
+{
+"iban": "VG65XMOP830549954592973",
+"expect": false
+},
+{
+"iban": "VG00XMOP8305499545929730",
+"expect": false
+},
+{
+"iban": "vg65xmop8305499545929730",
+"expect": true
+},
+{
+"iban": "VG65 XMOP 8305 4995 4592 9730",
+"expect": true
+},
+{
+"iban": "VG73KEMG5599066009814716",
+"expect": true
+},
+{
+"iban": "VG73KEMG5599066B09814716",
+"expect": false
+},
+{
+"iban": "VG73KEMG55990660098147161",
+"expect": false
+},
+{
+"iban": "VG73KEMG559906600981471",
+"expect": false
+},
+{
+"iban": "VG00KEMG5599066009814716",
+"expect": false
+},
+{
+"iban": "vg73kemg5599066009814716",
+"expect": true
+},
+{
+"iban": "VG73 KEMG 5599 0660 0981 4716",
+"expect": true
+},
+{
+"iban": "XK921586152437434892",
+"expect": true
+},
+{
+"iban": "XK921586132437434892",
+"expect": false
+},
+{
+"iban": "XK9215861524374348921",
+"expect": false
+},
+{
+"iban": "XK92158615243743489",
+"expect": false
+},
+{
+"iban": "XK001586152437434892",
+"expect": false
+},
+{
+"iban": "xk921586152437434892",
+"expect": true
+},
+{
+"iban": "XK92 1586 1524 3743 4892",
+"expect": true
+},
+{
+"iban": "XK297073085371532881",
+"expect": true
+},
+{
+"iban": "XK2970730853J1532881",
+"expect": false
+},
+{
+"iban": "XK2970730853715328811",
+"expect": false
+},
+{
+"iban": "XK29707308537153288",
+"expect": false
+},
+{
+"iban": "XK007073085371532881",
+"expect": false
+},
+{
+"iban": "xk297073085371532881",
+"expect": true
+},
+{
+"iban": "XK29 7073 0853 7153 2881",
+"expect": true
+},
+{
+"iban": "YE52JJKU18704J98RIMYQOQ55VG4P0",
+"expect": true
+},
+{
+"iban": "YE52JJKU18704J98RIMKQOQ55VG4P0",
+"expect": false
+},
+{
+"iban": "YE52JJKU18704J98RIMYQOQ55VG4P01",
+"expect": false
+},
+{
+"iban": "YE52JJKU18704J98RIMYQOQ55VG4P",
+"expect": false
+},
+{
+"iban": "YE00JJKU18704J98RIMYQOQ55VG4P0",
+"expect": false
+},
+{
+"iban": "ye52jjku18704j98rimyqoq55vg4p0",
+"expect": true
+},
+{
+"iban": "YE52 JJKU 1870 4J98 RIMY QOQ5 5VG4 P0",
+"expect": true
+},
+{
+"iban": "YE72CLLL5297PZK3AOJZYC3K82I8BX",
+"expect": true
+},
+{
+"iban": "YE72CLLL7297PZK3AOJZYC3K82I8BX",
+"expect": false
+},
+{
+"iban": "YE72CLLL5297PZK3AOJZYC3K82I8BX1",
+"expect": false
+},
+{
+"iban": "YE72CLLL5297PZK3AOJZYC3K82I8B",
+"expect": false
+},
+{
+"iban": "YE00CLLL5297PZK3AOJZYC3K82I8BX",
+"expect": false
+},
+{
+"iban": "ye72clll5297pzk3aojzyc3k82i8bx",
+"expect": true
+},
+{
+"iban": "YE72 CLLL 5297 PZK3 AOJZ YC3K 82I8 BX",
+"expect": true
+}
+]
+}

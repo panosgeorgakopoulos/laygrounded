@@ -1,0 +1,124 @@
+{
+  "id": "shinc-excepted-over-sunday-0005",
+  "archetype": "shinc-excepted-over-sunday",
+  "seed": 2270915508,
+  "description": "GENCON 94 + SHINC: an agreed excepted period laid over a Sunday. The Sunday still counts (Cl. 7(b)); the agreed exception inside it does not (Cl. 7(c)).",
+  "claim": {
+    "vessel": "STELLAR PIONEER",
+    "voyageRef": "V23-739",
+    "port": "Santos",
+    "cargo": "Steam coal",
+    "portTimezone": "America/Sao_Paulo"
+  },
+  "cpTerms": {
+    "laytime_allowed_hours": 88,
+    "load_rate": 5000,
+    "discharge_rate": 9000,
+    "turn_time_hours": 6,
+    "nor_variant": "WIBON",
+    "days_basis": "SHINC",
+    "demurrage_rate": 18000,
+    "despatch_rate": 9000,
+    "currency": "USD",
+    "port_timezone": "America/Sao_Paulo",
+    "engine_version": 2
+  },
+  "events": [
+    {
+      "id": "e1",
+      "occurred_at": "2024-08-17T09:00:00.000Z",
+      "event_type": "NOR_TENDERED",
+      "verbatim": "NOR tendered by Master"
+    },
+    {
+      "id": "e2",
+      "occurred_at": "2024-08-17T12:00:00.000Z",
+      "event_type": "ALL_FAST",
+      "verbatim": "All fast"
+    },
+    {
+      "id": "e3",
+      "occurred_at": "2024-08-17T15:00:00.000Z",
+      "event_type": "COMMENCED_DISCHARGE",
+      "verbatim": "Commenced discharge"
+    },
+    {
+      "id": "e4",
+      "occurred_at": "2024-08-18T11:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_START",
+      "verbatim": "Port workers industrial action — operations suspended"
+    },
+    {
+      "id": "e5",
+      "occurred_at": "2024-08-18T19:00:00.000Z",
+      "event_type": "EXCEPTED_PERIOD_END",
+      "verbatim": "Industrial action lifted, operations resumed"
+    },
+    {
+      "id": "e6",
+      "occurred_at": "2024-08-19T09:00:00.000Z",
+      "event_type": "COMPLETED_DISCHARGE",
+      "verbatim": "Discharge completed, holds swept clean"
+    }
+  ],
+  "expected": {
+    "result": {
+      "breakdown": [
+        {
+          "start_time": "2024-08-17T15:00:00.000Z",
+          "end_time": "2024-08-18T03:00:00.000Z",
+          "duration_hours": 12,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        },
+        {
+          "start_time": "2024-08-18T03:00:00.000Z",
+          "end_time": "2024-08-18T11:00:00.000Z",
+          "duration_hours": 8,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-08-18T11:00:00.000Z",
+          "end_time": "2024-08-18T19:00:00.000Z",
+          "duration_hours": 8,
+          "status": "excepted",
+          "counts": false,
+          "clause_ref": "GENCON94-7(c)",
+          "reasoning": "Agreed excepted period excluded from laytime — SHINC includes Sundays and holidays, not exceptions the parties agreed."
+        },
+        {
+          "start_time": "2024-08-18T19:00:00.000Z",
+          "end_time": "2024-08-19T03:00:00.000Z",
+          "duration_hours": 8,
+          "status": "excepted",
+          "counts": true,
+          "clause_ref": "GENCON94-7(b)",
+          "reasoning": "Sunday/holiday counts under SHINC."
+        },
+        {
+          "start_time": "2024-08-19T03:00:00.000Z",
+          "end_time": "2024-08-19T09:00:00.000Z",
+          "duration_hours": 6,
+          "status": "laytime",
+          "counts": true,
+          "clause_ref": "GENCON94-6",
+          "reasoning": "Laytime counting."
+        }
+      ],
+      "totals": {
+        "allowed_hours": 88,
+        "used_hours": 34,
+        "time_on_demurrage_hours": 0,
+        "time_saved_hours": 54,
+        "demurrage_amount": 0,
+        "despatch_amount": 20250,
+        "currency": "USD"
+      }
+    }
+  }
+}

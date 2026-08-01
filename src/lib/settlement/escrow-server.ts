@@ -15,8 +15,22 @@
 //   * a terminal shortfall nobody has reviewed is not an input to a payment.
 // They are optional arguments a caller passes once a human has reviewed them.
 // Absent, `escrow.ts` excludes them and says so in `memos`.
+//
+// BANK AND WALLET DETAILS *ARE* LOADED, and the distinction from terminal and
+// carbon is the point. Those two are DERIVED figures whose value depends on a
+// live price or an unreviewed computation. An IBAN is a stored fact somebody
+// typed in and validated (`counterparty-finance.ts` checks the ISO 13616 MOD-97
+// checksum, which is the account holder's own bank's arithmetic, not ours).
+// Loading a stored fact is not the same as inventing a derived one — and where
+// the fact is absent it stays absent, reported through `missingForBank` /
+// `missingForChain` rather than filled with a placeholder.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  resolveChainAgreement,
+  type CounterpartyFinanceRecord,
+} from "./counterparty-finance";
+import { loadCounterpartyFinance, loadSelfFinance } from "./counterparty-finance-server";
 import {
   buildSettlementPayload,
   digestOf,
@@ -74,33 +88,53 @@ export async function buildSettlementForClaim(
     .eq("claim_id", claimId)
     .eq("status", "pending");
 
-  const { data: company } = await db
-    .from("companies")
-    .select("name")
-    .eq("id", claim.company_id)
-    .maybeSingle();
+  const [{ data: company }, selfFinance, counterpartyFinance] = await Promise.all([
+    db.from("companies").select("name").eq("id", claim.company_id).maybeSingle(),
+    loadSelfFinance(db, claim.company_id),
+    loadCounterpartyFinance(db, claim.company_id, claim.counterparty_name),
+  ]);
 
   // The tenant is one side of the fixture and `counterparty_name` is the other.
   // Which is the owner and which the charterer follows from `tenant_role`; when
   // that is null or 'trader' the pure module refuses to name a debtor at all.
-  const tenantParty: SettlementParty = {
-    name: company?.name ?? "",
-    accountId: null,
-    bic: null,
-    country: null,
-    walletAddress: null,
-  };
-  const counterparty: SettlementParty = {
-    name: claim.counterparty_name ?? "",
-    accountId: null,
-    bic: null,
-    country: null,
-    walletAddress: null,
-  };
+  //
+  // Details are hydrated from `counterparty_finance` where they exist and stay
+  // null where they do not. Nothing is defaulted or inferred: a placeholder IBAN
+  // would make the payload look actionable and either fail at the bank or pay
+  // the wrong account, so absence stays absence and surfaces through
+  // `missingForBank` / `missingForChain`.
+  //
+  // The configured `legalName` wins over the company/claim name when present.
+  // It is the account holder as the bank knows them, and a transfer to
+  // "ACME Shipping Ltd" against an account held by "ACME Shipping Limited" is
+  // rejected or, worse, returned weeks later.
+  const tenantParty: SettlementParty = fromFinance(company?.name ?? "", selfFinance);
+  const counterparty: SettlementParty = fromFinance(
+    claim.counterparty_name ?? "",
+    counterpartyFinance
+  );
 
   const tenantIsOwner = claim.tenant_role === "owner";
   const owner = merge(tenantIsOwner ? tenantParty : counterparty, overrides.ownerBank);
   const charterer = merge(tenantIsOwner ? counterparty : tenantParty, overrides.chartererBank);
+
+  // Chain context. Derived from the parties rather than assumed, and only when
+  // BOTH are configured on the same chain — see `resolveChainAgreement`. An
+  // explicit `overrides.chain` still wins: a caller that knows the escrow
+  // deployment is more authoritative than an inference.
+  const ownerChain = tenantIsOwner ? selfFinance : counterpartyFinance;
+  const chartererChain = tenantIsOwner ? counterpartyFinance : selfFinance;
+  const agreement = resolveChainAgreement(ownerChain ?? {}, chartererChain ?? {});
+  const verifyingContract = process.env.SETTLEMENT_VERIFYING_CONTRACT?.trim() || null;
+  const chain: EscrowInput["chain"] =
+    overrides.chain ??
+    (agreement.chainId !== null && verifyingContract
+      ? {
+          chainId: agreement.chainId,
+          verifyingContract,
+          tokenAddress: process.env.SETTLEMENT_TOKEN_ADDRESS?.trim() || null,
+        }
+      : null);
 
   const input: EscrowInput = {
     claim: {
@@ -126,7 +160,7 @@ export async function buildSettlementForClaim(
     owner,
     charterer,
     tenantRole: claim.tenant_role,
-    chain: overrides.chain ?? null,
+    chain,
     issuedAt,
   };
 
@@ -134,6 +168,16 @@ export async function buildSettlementForClaim(
   // settling numbers nobody signed off. Surfaced as a blocker rather than
   // silently using the latest.
   const payload = buildSettlementPayload(input);
+
+  // A cross-chain pair is a blocker, not a silently-dropped chain leg. Mirrors
+  // the currency rule: components in different currencies become separate legs
+  // rather than being netted at an invented rate, and bridging two chains is
+  // the same decision with custody consequences attached.
+  if (agreement.conflict) {
+    payload.blockers.push(agreement.conflict);
+    payload.ready = false;
+  }
+
   if (
     claim.agreed_calculation_id &&
     claim.agreed_calculation_id !== calc.id &&
@@ -177,6 +221,26 @@ export async function persistSettlementPayload(
     throw new Error(`SETTLEMENT_PAYLOAD_PERSIST_FAILED: ${error.message}`);
   }
   return { persisted: true };
+}
+
+/**
+ * Builds a settlement party from a configured finance record.
+ *
+ * `fallbackName` is the company or claim name — used only when no record exists
+ * or it carries no legal name, so a payload still names the parties even when
+ * nobody has entered banking details yet.
+ */
+function fromFinance(
+  fallbackName: string,
+  finance: CounterpartyFinanceRecord | null
+): SettlementParty {
+  return {
+    name: finance?.legalName?.trim() || fallbackName,
+    accountId: finance?.iban ?? null,
+    bic: finance?.bic ?? null,
+    country: finance?.country ?? null,
+    walletAddress: finance?.walletAddress ?? null,
+  };
 }
 
 function merge(base: SettlementParty, over: Partial<SettlementParty> | undefined): SettlementParty {
