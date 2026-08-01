@@ -8,10 +8,18 @@
 // and the input digest are what make a published figure something a
 // counterparty can re-derive rather than take on trust.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import RiskDistributionChart, {
   type HistogramBin,
 } from "@/components/laygrounded/RiskDistributionChart";
+import {
+  hasPrefill,
+  isoToDatetimeLocal,
+  readPreArrivalPrefill,
+  type PreArrivalPrefill,
+} from "@/lib/simulator/prefill";
 import styles from "./PreArrival.module.css";
 
 const DAYS_BASES = [
@@ -131,13 +139,36 @@ interface VirtualArrivalPlan {
   caveats: string[];
 }
 
+/**
+ * `useSearchParams` suspends, so the page is split rather than the whole route
+ * being forced dynamic. The fallback is the same skeleton a slow network shows.
+ */
 export default function PreArrivalRiskPage() {
-  const [vessel, setVessel] = useState("");
-  const [voyageRef, setVoyageRef] = useState("");
-  const [port, setPort] = useState("Santos");
-  const [cargo, setCargo] = useState("Grain");
-  const [eta, setEta] = useState(defaultEta(7));
-  const [operation, setOperation] = useState<"loading" | "discharge">("loading");
+  return (
+    <Suspense fallback={<div className={styles.page} />}>
+      <PreArrivalRiskView />
+    </Suspense>
+  );
+}
+
+function PreArrivalRiskView() {
+  // Arriving from Fleet Schedules carries the ERP's plan for this port call.
+  // Read ONCE into the initial state rather than synced on every render: these
+  // are editable inputs, and a value that snapped back to the URL each time the
+  // user typed would be unusable.
+  const prefill: PreArrivalPrefill = readPreArrivalPrefill(useSearchParams());
+  const [fromSchedule] = useState(() => hasPrefill(prefill));
+
+  const [vessel, setVessel] = useState(prefill.vessel ?? "");
+  const [voyageRef, setVoyageRef] = useState(prefill.voyageRef ?? "");
+  const [port, setPort] = useState(prefill.port ?? "Santos");
+  const [cargo, setCargo] = useState(prefill.cargo ?? "Grain");
+  const [eta, setEta] = useState(
+    prefill.etaISO ? isoToDatetimeLocal(prefill.etaISO) : defaultEta(7)
+  );
+  const [operation, setOperation] = useState<"loading" | "discharge">(
+    prefill.operation ?? "loading"
+  );
   const [opsHours, setOpsHours] = useState(96);
   const [allowedHours, setAllowedHours] = useState(120);
   const [daysBasis, setDaysBasis] = useState("WWDSHEX-EIU");
@@ -269,6 +300,29 @@ export default function PreArrivalRiskPage() {
         </p>
       </header>
 
+      {fromSchedule && (
+        <div className={styles.prefillBanner}>
+          <div>
+            <strong>Prefilled from your ERP schedule</strong>
+            {prefill.scheduleRef && <span className={styles.prefillRef}> {prefill.scheduleRef}</span>}
+            <p>
+              Vessel, port, ETA, cargo and operation come from the synced port call.{" "}
+              <strong>Charterparty terms do not</strong> — laytime allowance, days basis and the
+              demurrage and despatch rates below are still this page&apos;s defaults, because an ERP
+              schedule does not carry them. Set them before treating the exposure as this
+              fixture&apos;s.
+              {prefill.cargoQuantityMt !== null && (
+                <> The schedule states {prefill.cargoQuantityMt.toLocaleString("en-US")} mt; the
+                cargo hours below are not derived from it.</>
+              )}
+            </p>
+          </div>
+          <Link className={styles.prefillBack} href="/schedules">
+            Back to schedules
+          </Link>
+        </div>
+      )}
+
       <section className={styles.formCard} aria-label="Voyage inputs">
         <div className={styles.formGrid}>
           <div className={styles.field}>
@@ -291,7 +345,7 @@ export default function PreArrivalRiskPage() {
             <input id="cargo" className={styles.input} value={cargo}
               onChange={(e) => setCargo(e.target.value)} />
           </div>
-          <div className={styles.field}>
+          <div className={`${styles.field} ${styles.fieldWide}`}>
             <label className={styles.label} htmlFor="eta">ETA</label>
             <input id="eta" type="datetime-local" className={styles.input} value={eta}
               onChange={(e) => setEta(e.target.value)} />

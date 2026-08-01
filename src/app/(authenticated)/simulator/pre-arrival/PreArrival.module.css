@@ -590,3 +590,55 @@
   line-height: 1.55;
   color: var(--color-text-secondary);
 }
+
+/* A datetime-local renders the locale's own date+time format, which in a
+   12-hour locale is wide enough to clip inside a 160px track — and the ETA is
+   now a prefilled field arriving from an ERP, so a clipped time reads as a
+   wrong one. Given its own wider track rather than widening every field. */
+.fieldWide { grid-column: span 2; }
+
+@media (max-width: 40rem) {
+  .fieldWide { grid-column: span 1; }
+}
+
+/* --- Prefill provenance banner (arriving from Fleet Schedules) --------------
+   Says what the ERP supplied AND what it did not. The second half matters more:
+   a prefilled form looks authoritative, and the charterparty terms it leaves at
+   defaults are exactly the inputs the exposure figure is most sensitive to. */
+.prefillBanner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md, 8px);
+  padding: 0.75rem 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.prefillBanner strong { font-size: 0.8125rem; color: #1e3a8a; }
+
+.prefillBanner p {
+  font-size: 0.75rem;
+  color: #1e40af;
+  line-height: 1.55;
+  margin: 0.25rem 0 0;
+  max-width: 52rem;
+}
+
+.prefillRef {
+  font-size: 0.6875rem;
+  color: #3b82f6;
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.375rem;
+}
+
+.prefillBack {
+  font-size: 0.75rem;
+  color: #1d4ed8;
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+}

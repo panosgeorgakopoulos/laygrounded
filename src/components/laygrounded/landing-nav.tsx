@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { label: "Defense",    href: "/defense" },
   { label: "New Claim",  href: "/claims/new" },
   { label: "Voyages",    href: "/voyages" },
+  { label: "Schedules",  href: "/schedules" },
   { label: "Analytics",  href: "/analytics" },
   { label: "Simulator",  href: "/simulator" },
   { label: "Pre-arrival", href: "/simulator/pre-arrival" },
