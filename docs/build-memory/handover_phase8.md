@@ -330,3 +330,62 @@ field values on screen):
    ERP, `p90_waiting_hours` is still not backfilled, Ulysses' revision cursor is
    still not honoured, webhook v1 signatures still ship, cross-tenant matviews
    are still data-starved, and nothing consumes `settlement_payloads`.
+
+
+---
+
+## 9. Phase 9 — zero-data entry & the audit room
+
+### The audit came first, and changed the work
+
+The directive asked for a drag-and-drop SoF uploader. **It already existed** —
+`document-viewer.tsx` has a dropzone (drag state, click-to-browse,
+`accept="application/pdf,image/*"`, 20 MB) wired to
+`POST /api/claims/[id]/documents` → vision extraction → events for review.
+Building a second one would have been the most expensive possible mistake, and
+the Phase 6/7 rule ("grep `src/`, do not read a status line") is what stopped it.
+
+The **real** gap was narrower and the directive named it correctly:
+`ingestion/multimodal.ts` had no user-facing route at all — `extractSofTimeline`
+was reachable only through the API-key M2M endpoint. That is what got built.
+
+| Directive | Reality |
+|---|---|
+| Drag-and-drop PDF/image upload | Already shipped; untouched |
+| `multimodal.ts` has no UI | True — built `/api/claims/[id]/ingest-sof-text` + `sof-text-ingest.tsx` |
+| Audit/verification UI | Genuinely absent; built |
+
+### Two defects found by verifying rather than assuming
+
+1. **The audit panel showed v1's conformance root on a v2 claim.**
+   `readVerifierManifest()` read the manifest's unqualified `conformance` key,
+   which is v1's. The bank-facing `/api/v1/claims/[id]/verify` had the SAME bug,
+   which matters more: a bank would run v1's suite, get a root matching the
+   manifest, and conclude they had attested the engine behind a v2 figure. Fixed
+   by making the reader version-aware and pinning it in
+   `verifier-manifest.test.ts`. Found by looking at the rendered page.
+2. **`howToVerify` still quoted v1's path in prose** after the machine-readable
+   field was fixed — the two had drifted within the same object. Caught by the
+   test written for defect 1, which is the argument for asserting on content
+   rather than on "the values differ".
+
+### One product gap found by using it
+
+`DMY_RE` — the **maritime day-first convention**, per the module's own comment —
+had no offset variant, so `12/03/2024 06:30 +08:00` was rejected as naive and the
+user was told to supply an offset they had already written on the line. Not
+wrong (it refused rather than guessed) but needlessly lossy on the format real
+SoFs use. Now the line's own offset is honoured and beats any default.
+
+### Verification state
+
+- `tsc` + `eslint` clean; **2,700 tests pass**.
+- Verified in the browser on a live claim, then confirmed in the database:
+  8 events landed `status=suggested`, `source=multimodal`, `bbox` zeroed (no
+  fabricated regions), `ais_geofence_verified` NULL (not checked ≠ failed), and
+  **the calculation did not move** — 122 used hours before and after, because
+  suggested events are invisible to the engine. Test rows deleted afterwards.
+- The audit panel renders the correct v2 root `261e3468d2246f30`, the engine
+  fingerprint, tzdata digest, notarisation Merkle root, and a 4.5 KB downloadable
+  bundle. WASM digest reads "not built" locally, honestly, because `javy` is
+  absent by design.

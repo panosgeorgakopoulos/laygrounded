@@ -10,6 +10,10 @@ import {
   type TimelineAuditResult,
   type ExtractedSofEvent,
 } from "@/lib/ingestion/multimodal";
+import {
+  ensureMultimodalDocument,
+  persistSuggestedSofEvents,
+} from "@/lib/ingestion/sof-text-server";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
 
 const AisFixSchema = z.object({
@@ -138,49 +142,16 @@ export async function POST(req: NextRequest) {
       verdictByLine.set(event.line, check.verdict === "unverifiable" ? null : check.verdict === "verified");
     }
 
-    // Stub document, reused across repeated ingests into the same claim.
-    let { data: doc } = await supabase
-      .from("documents")
-      .select("id")
-      .eq("claim_id", claimId)
-      .eq("mime", "multimodal")
-      .limit(1)
-      .maybeSingle();
-    if (!doc) {
-      const { data: createdDoc, error: docErr } = await supabase
-        .from("documents")
-        .insert({
-          claim_id: claimId,
-          storage_path: `multimodal/${claimId}`,
-          mime: "multimodal",
-          original_filename: "Multimodal SoF text ingest",
-          extraction_status: "extracted",
-        })
-        .select("id")
-        .single();
-      if (docErr || !createdDoc) throw new Error(`PERSIST_FAILED: ${docErr?.message}`);
-      doc = createdDoc;
-    }
-
-    const { data: inserted, error: eventsErr } = await supabase
-      .from("sof_events")
-      .insert(
-        extraction.events.map((e) => ({
-          claim_id: claimId,
-          document_id: doc!.id,
-          occurred_at: e.occurred_at,
-          event_type: e.event_type,
-          raw_text: e.raw_text,
-          page: 1,
-          bbox: { x: 0, y: 0, width: 0, height: 0 },
-          confidence: 0.9,
-          source: "multimodal",
-          status: "suggested",
-          ais_geofence_verified: verdictByLine.get(e.line) ?? null,
-        }))
-      )
-      .select("id, raw_text");
-    if (eventsErr || !inserted) throw new Error(`PERSIST_FAILED: ${eventsErr?.message}`);
+    // Stub document + event insert are shared with the workspace panel, so the
+    // two ingestion paths cannot drift on the review contract.
+    const documentId = await ensureMultimodalDocument(supabase, claimId);
+    const inserted = await persistSuggestedSofEvents(
+      supabase,
+      claimId,
+      documentId,
+      extraction.events,
+      verdictByLine
+    );
 
     // Critical flags on the discrepancies, so the review queue leads with
     // them. Inserted rows come back in insert order → map flags via line.

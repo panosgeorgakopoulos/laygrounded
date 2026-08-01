@@ -51,7 +51,8 @@ function baseInput(
       wasmSha256: "a".repeat(64),
       mjsSha256: "b".repeat(64),
       conformanceCases: 500,
-      conformanceRoot: "cafebabe",
+      conformanceFile: "conformance.json",
+    conformanceRoot: "cafebabe",
     },
     grant: {
       institutionLabel: "Test Bank",

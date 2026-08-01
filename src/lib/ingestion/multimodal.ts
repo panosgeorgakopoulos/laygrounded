@@ -71,7 +71,21 @@ const ISO_NAIVE_RE = /\b(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)\b/;
 // Maritime SoF convention: day first ("01.03.2026 14:30", "01/03/2026 1430").
 // The hour/minute separator is deliberately permissive — OCR and ships' agents
 // between them produce "14:30", "1430", "14.30" and "14h30" for the same time.
-const DMY_RE = /\b(\d{1,2})[./](\d{1,2})[./](\d{4})\s+(\d{2})[:.h]?(\d{2})\b/i;
+//
+// The trailing offset is OPTIONAL and captured when present. Day-first is the
+// format a real SoF actually uses, and an agent who writes the offset on the
+// line ("12/03/2024 06:30 +08:00") has already removed the ambiguity — rejecting
+// that as "naive" and asking for a default offset they had just supplied was
+// needlessly lossy. Absent, the line is still naive and still refused rather
+// than guessed.
+const DMY_RE =
+  /\b(\d{1,2})[./](\d{1,2})[./](\d{4})\s+(\d{2})[:.h]?(\d{2})(?:\s*(Z|[+-]\d{2}:?\d{2}))?/i;
+
+/** "+0800" → "+08:00". Z passes through. */
+function normalizeOffset(raw: string): string {
+  if (raw === "Z") return "Z";
+  return raw.includes(":") ? raw : `${raw.slice(0, 3)}:${raw.slice(3)}`;
+}
 
 // OCR and PDF text layers emit non-breaking/figure spaces and ragged runs of
 // whitespace, which would otherwise break keyword rules that assume single
@@ -110,10 +124,18 @@ function parseLineTimestamp(
     datePart = naiveIso[1];
     timePart = naiveIso[2].length === 5 ? `${naiveIso[2]}:00` : naiveIso[2];
   } else if (dmy) {
-    const [, dd, mm, yyyy, hh, min] = dmy;
+    const [, dd, mm, yyyy, hh, min, offset] = dmy;
     if (Number(mm) > 12 || Number(dd) > 31) return { error: `implausible date "${dmy[0]}"` };
     datePart = `${yyyy}-${pad(Number(mm))}-${pad(Number(dd))}`;
     timePart = `${hh}:${min}:00`;
+    // An offset written on the line beats any caller-supplied default: it is
+    // the port agent's own statement about the timestamp they wrote.
+    if (offset) {
+      const iso = `${datePart}T${timePart}${normalizeOffset(offset)}`;
+      return Number.isNaN(Date.parse(iso))
+        ? { error: `unparseable timestamp "${dmy[0]}"` }
+        : { iso };
+    }
   }
   if (!datePart || !timePart) return null;
 

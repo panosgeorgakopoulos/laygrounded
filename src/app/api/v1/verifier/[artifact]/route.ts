@@ -24,6 +24,9 @@ const ARTIFACTS: Record<string, { file: string; type: string }> = {
     type: "text/javascript; charset=utf-8",
   },
   "conformance.json": { file: "conformance.json", type: "application/json" },
+  // Engine rule set 2's suite. Separate cases, separate root — see
+  // `readVerifierManifest`.
+  "conformance-v2.json": { file: "conformance-v2.json", type: "application/json" },
   "manifest.json": { file: "manifest.json", type: "application/json" },
 };
 

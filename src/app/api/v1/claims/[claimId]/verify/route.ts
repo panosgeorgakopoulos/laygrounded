@@ -11,6 +11,7 @@ import {
 import { proofAsOf } from "@/lib/legal/notary-server";
 import { readVerifierManifest } from "@/lib/finance/verifier-manifest";
 import { bearerToken } from "@/lib/api/keys";
+import { resolveClaimEngineVersion } from "@/lib/laytime/engine-version";
 
 // The bank's endpoint: redeem a claim-scoped grant for an offline-verifiable
 // package.
@@ -80,6 +81,12 @@ export async function GET(
 
     const proof = await proofAsOf(service, grant.claimId, new Date());
 
+    // The conformance suite must match the rule set that computed THIS claim.
+    // Handing a bank v1's root for a v2 claim would send them to run the wrong
+    // suite, get a root matching the manifest, and conclude they had attested
+    // the engine behind the figure. They would not have.
+    const engineVersion = resolveClaimEngineVersion(claim);
+
     const pkg = buildVerificationPackage({
       claim: {
         id: claim.id,
@@ -101,7 +108,7 @@ export async function GET(
             authority: proof.anchor?.anchored ? proof.anchor.tsaUrl : null,
           }
         : null,
-      verifier: readVerifierManifest(),
+      verifier: readVerifierManifest(engineVersion),
       grant: {
         institutionLabel: grant.institutionLabel,
         purpose: grant.purpose,
