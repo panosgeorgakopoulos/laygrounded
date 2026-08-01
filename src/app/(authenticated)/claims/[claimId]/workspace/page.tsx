@@ -9,6 +9,8 @@ import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
 import { ClaimSettlementPanel } from "@/components/laygrounded/claim-settlement-panel";
 import { ClaimVerificationPanel } from "@/components/laygrounded/claim-verification-panel";
+import { ClaimNegotiationPanel } from "@/components/laygrounded/claim-negotiation-panel";
+import { AisVerificationMap } from "@/components/laygrounded/ais-verification-map";
 import { SofTextIngest } from "@/components/laygrounded/sof-text-ingest";
 import { WwdResolverPanel } from "@/components/laygrounded/wwd-resolver-panel";
 import { ClaimActionsPanel } from "@/components/laygrounded/claim-actions-panel";
@@ -430,6 +432,21 @@ export default function WorkspacePage({
         currency={cpTerms.currency}
         vesselImo={data.claim.vesselImo ?? null}
         counterpartyName={data.claim.counterpartyName ?? null}
+        onClaimChanged={fetchClaim}
+      />
+
+      {/* Where the SoF meets the satellite record */}
+      <AisVerificationMap claimId={claimId} />
+
+      {/* Disputes, and the workflow that reaches agreement */}
+      <ClaimNegotiationPanel
+        claimId={claimId}
+        events={data.claim.sofEvents.map((e) => ({
+          id: e.id,
+          event_type: e.eventType,
+          occurred_at: e.occurredAt,
+          status: e.status,
+        }))}
         onClaimChanged={fetchClaim}
       />
 
