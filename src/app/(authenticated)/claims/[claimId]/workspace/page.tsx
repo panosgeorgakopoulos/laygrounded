@@ -8,6 +8,8 @@ import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
 import { ClaimSettlementPanel } from "@/components/laygrounded/claim-settlement-panel";
+import { ClaimVerificationPanel } from "@/components/laygrounded/claim-verification-panel";
+import { SofTextIngest } from "@/components/laygrounded/sof-text-ingest";
 import { WwdResolverPanel } from "@/components/laygrounded/wwd-resolver-panel";
 import { ClaimActionsPanel } from "@/components/laygrounded/claim-actions-panel";
 import { PortCalendarAlert } from "@/components/laygrounded/port-calendar-alert";
@@ -434,6 +436,9 @@ export default function WorkspacePage({
       {/* Agreement, and the payment instruction it generates */}
       <ClaimSettlementPanel claimId={claimId} onClaimChanged={fetchClaim} />
 
+      {/* The audit room: engine, artifacts, notarisation, downloadable bundle */}
+      <ClaimVerificationPanel claimId={claimId} />
+
       {/* Legal, settlement, notary, charter-chain & interoperability actions */}
       <ClaimActionsPanel claimId={claimId} onClaimChanged={fetchClaim} />
 
@@ -468,6 +473,9 @@ export default function WorkspacePage({
             onUpload={onUpload}
             onReplace={onReplace}
           />
+          <div className={styles.ingestSlot}>
+            <SofTextIngest claimId={claimId} onIngested={fetchClaim} />
+          </div>
         </div>
         <div className={styles.pane}>
           <EventTimeline

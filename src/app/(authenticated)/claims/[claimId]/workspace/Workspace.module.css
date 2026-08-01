@@ -248,3 +248,10 @@
     display: none;
   }
 }
+
+/* The text-ingest entry point, under the document viewer. Deliberately below
+   it: the vision pipeline is the primary route for a scanned SoF, and this is
+   the alternative for text you already have. */
+.ingestSlot {
+  margin-top: 0.75rem;
+}

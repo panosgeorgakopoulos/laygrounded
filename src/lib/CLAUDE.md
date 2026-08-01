@@ -39,6 +39,27 @@ Six modules built on the engine's purity (pure math in `src/lib/**` with unit te
 - **What is deliberately NOT carried:** laytime allowance, days basis, demurrage/despatch rates and ops duration. An ERP schedule does not contain charterparty terms, and each is an input the exposure is highly sensitive to — carrying a plausible default would produce a figure that *looks* derived from the ERP and is not. The banner on the simulator says so.
 - `port_function` maps to the simulator's operation for `load`/`discharge` only. `bunker`, `transit` and `unknown` map to **null**, not to a guess: a bunker call is not a cargo operation.
 
+## Zero-data entry, and the audit room
+
+Two ingestion routes into `sof_events`, and they are complements rather than alternatives:
+
+- **Vision** — `POST /api/claims/[claimId]/documents` → `src/lib/ai/extraction.ts`. Page images to a model; the high-fidelity route for a scanned or photographed SoF. UI: the dropzone in `document-viewer.tsx`.
+- **Deterministic text** — `POST /api/claims/[claimId]/ingest-sof-text` → `extractSofTimeline` in `ingestion/multimodal.ts`. Line-based, no model call, instant, free, and the same text always yields the same events — which is what makes it reproducible if a figure derived from it is later disputed. UI: `sof-text-ingest.tsx` (paste, or drop a `.txt`/`.eml`). The M2M twin is `/api/v1/ingestion/sof-text`; **both write through `ingestion/sof-text-server.ts`** so the review contract cannot drift.
+
+Both land events as **`suggested`**. `loadClaimComputationInputs` reads only `accepted`/`edited`, so nothing extracted can move a figure until a human confirms it. Zero-touch data entry, not zero-touch trust. The text path previews before writing: unstructured text can yield nonsense, and thirty junk events to reject one by one is worse than showing them first.
+
+**Timestamps are never guessed.** A naive line is reported and skipped unless the caller supplies the port's UTC offset — and an offset written on the line itself wins over any default, including on day-first maritime dates (`12/03/2024 06:30 +08:00`).
+
+### The audit room
+
+`GET /api/claims/[claimId]/verification` is the owner's mirror of the bank-facing `/api/v1/claims/[claimId]/verify`, plus `?download=1` for the canonical bundle. UI: `claim-verification-panel.tsx`.
+
+**Two hashes live there and conflating them is the trap.** `verifier.conformanceRoot` fingerprints the ENGINE — identical for every claim on a rule set, and it does not move when the claim changes. The notarisation digest is a Merkle root over THIS CLAIM's sealed state and moves the moment anything does. A reader who believed the first was per-claim would conclude a tampered claim was intact.
+
+**Each rule set has its own suite and its own root.** `readVerifierManifest(engineVersion)` selects it; a fixed path would send a v2 claim's reader to v1's cases, where the root they computed would match the manifest and attest the wrong engine. Pinned by `verifier-manifest.test.ts`.
+
+An owner-exported package carries `grant: null` and a caveat saying so, rather than a synthesised grant descriptor — a fabricated authorisation record in a document a bank reads as evidence.
+
 ## Later modules (built after the sections above; same conventions)
 
 - **Voyage console** — `src/lib/console/triage.ts` (pure) ranks the whole book into a work queue: severity tiers first (an expiring time bar outranks a larger comfortable claim, because the deadline is irreversible), money only as the tiebreak within a tier. Page `/console`, server-rendered with batched per-claim queries.

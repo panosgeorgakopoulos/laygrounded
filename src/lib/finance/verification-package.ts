@@ -23,6 +23,12 @@ export interface VerifierDescriptor {
   mjsSha256: string;
   conformanceCases: number;
   conformanceRoot: string;
+  /**
+   * Which conformance bundle to run. Rule sets have separate suites and separate
+   * roots, so naming the file is what stops a counterparty running the wrong one
+   * and believing they attested the engine behind this claim.
+   */
+  conformanceFile: string;
 }
 
 export interface NotarizationDescriptor {
@@ -63,12 +69,22 @@ export interface VerificationPackageInput {
   publishedFigures: PublishedFigures | null;
   notarization: NotarizationDescriptor | null;
   verifier: VerifierDescriptor;
-  grant: {
+  /**
+   * The grant this package was redeemed against, or NULL when the claim owner
+   * exported it themselves.
+   *
+   * Null is a meaningful state, not a missing field: it says nobody presented a
+   * token for this copy, so there is no expiry, no access count and no
+   * institution it was scoped to. The alternative — synthesising a grant
+   * descriptor for a self-export — would put a fabricated authorisation record
+   * into a document a bank reads as evidence.
+   */
+  grant?: {
     institutionLabel: string;
     purpose: string;
     expiresAt: string;
     accessCount: number;
-  };
+  } | null;
 }
 
 export interface VerificationPackage {
@@ -101,15 +117,17 @@ export interface VerificationPackage {
   publishedFigures: PublishedFigures | null;
   notarization: NotarizationDescriptor | null;
   verifier: VerifierDescriptor & { downloadPath: string; conformancePath: string };
-  grant: VerificationPackageInput["grant"];
+  grant: NonNullable<VerificationPackageInput["grant"]> | null;
   /** Stated in the payload so the bank need not read our documentation. */
   howToVerify: string[];
   /** Honest limits of what this package proves. */
   caveats: string[];
 }
 
-export const VERIFIER_DOWNLOAD_PATH = "/api/v1/verifier/laygrounded-verify.wasm";
-export const VERIFIER_CONFORMANCE_PATH = "/api/v1/verifier/conformance.json";
+export const VERIFIER_ARTIFACT_BASE = "/api/v1/verifier";
+export const VERIFIER_DOWNLOAD_PATH = `${VERIFIER_ARTIFACT_BASE}/laygrounded-verify.wasm`;
+/** Fallback only — `conformanceFile` on the descriptor names the real one. */
+export const VERIFIER_CONFORMANCE_PATH = `${VERIFIER_ARTIFACT_BASE}/conformance.json`;
 
 export function buildVerificationPackage(
   input: VerificationPackageInput,
@@ -133,6 +151,19 @@ export function buildVerificationPackage(
   caveats.push(
     "Only CONFIRMED events are included. Events pushed by an integration but not yet reviewed are excluded by design and do not affect any figure here."
   );
+  if (!input.grant) {
+    caveats.push(
+      "This copy was exported by the claim owner rather than redeemed against a grant, so it carries no access token, expiry or audit trail of who read it. Its verifiability is unaffected — the recomputation below depends on the facts in this package, not on how you received it."
+    );
+  }
+
+  // Resolved once and used for BOTH the machine-readable path and the prose
+  // instruction. They were separate values and drifted the moment a second rule
+  // set existed: the field pointed at v2's suite while the step told the reader
+  // to download v1's.
+  const conformancePath = input.verifier.conformanceFile
+    ? `${VERIFIER_ARTIFACT_BASE}/${input.verifier.conformanceFile}`
+    : VERIFIER_CONFORMANCE_PATH;
 
   return {
     format: "laygrounded.claim-verification",
@@ -157,12 +188,15 @@ export function buildVerificationPackage(
     verifier: {
       ...input.verifier,
       downloadPath: VERIFIER_DOWNLOAD_PATH,
-      conformancePath: VERIFIER_CONFORMANCE_PATH,
+      // Points at THIS rule set's suite. A fixed path would send a v2 claim's
+      // reader to v1's cases, where the root they computed would match the
+      // manifest and attest the wrong engine.
+      conformancePath,
     },
-    grant: input.grant,
+    grant: input.grant ?? null,
     howToVerify: [
       `Download the verifier from ${VERIFIER_DOWNLOAD_PATH} and check its SHA-256 against verifier.wasmSha256 in this package.`,
-      `Optionally download ${VERIFIER_CONFORMANCE_PATH} and run the ${input.verifier.conformanceCases} conformance cases; the reported root must equal verifier.conformanceRoot.`,
+      `Optionally download ${conformancePath} and run the ${input.verifier.conformanceCases} conformance cases; the reported root must equal verifier.conformanceRoot (${input.verifier.conformanceRoot || "unavailable"}). Each engine rule set has its OWN suite and root — running another rule set\u2019s cases proves nothing about this claim.`,
       "Run the verifier against the `bundle` object in this package. It is exactly the input shape verifyClaim() expects.",
       "Read `matchesPublished` in the verdict. `true` means the published figures follow, in full, from the stated facts under the stated charterparty terms. `false` names the disagreeing figures in `discrepancies`. `null` means this claim published nothing to compare.",
       "Nothing in this step contacts LayGrounded. The verification is yours, not ours.",
