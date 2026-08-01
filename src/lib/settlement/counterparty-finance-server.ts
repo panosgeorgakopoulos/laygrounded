@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  isValidWalletAddress,
   partyKeyOf,
   validateCounterpartyFinance,
   type CounterpartyFinanceInput,
@@ -154,6 +155,110 @@ export async function upsertCounterpartyFinance(
     .single();
   if (error) throw new Error(`FINANCE_PERSIST_FAILED: ${error.message}`);
   return toRecord(data);
+}
+
+// === Escrow deployments ===
+
+export interface SettlementChainConfig {
+  id: string;
+  chainId: number;
+  verifyingContract: string;
+  tokenAddress: string | null;
+  label: string | null;
+}
+
+const CHAIN_COLUMNS = "id, chain_id, verifying_contract, token_address, label";
+
+function toChainConfig(row: Record<string, unknown>): SettlementChainConfig {
+  return {
+    id: row.id as string,
+    chainId: row.chain_id as number,
+    verifyingContract: row.verifying_contract as string,
+    tokenAddress: (row.token_address as string | null) ?? null,
+    label: (row.label as string | null) ?? null,
+  };
+}
+
+export async function listSettlementChainConfigs(
+  db: SupabaseClient,
+  companyId: string
+): Promise<SettlementChainConfig[]> {
+  const { data } = await db
+    .from("settlement_chain_configs")
+    .select(CHAIN_COLUMNS)
+    .eq("company_id", companyId)
+    .order("chain_id", { ascending: true });
+  return (data ?? []).map(toChainConfig);
+}
+
+/**
+ * The escrow deployment for one chain, or null.
+ *
+ * Looked up by chain because an escrow contract IS a deployment on one chain —
+ * the same address elsewhere is a different contract, usually nothing at all.
+ */
+export async function loadSettlementChainConfig(
+  db: SupabaseClient,
+  companyId: string,
+  chainId: number
+): Promise<SettlementChainConfig | null> {
+  const { data } = await db
+    .from("settlement_chain_configs")
+    .select(CHAIN_COLUMNS)
+    .eq("company_id", companyId)
+    .eq("chain_id", chainId)
+    .maybeSingle();
+  return data ? toChainConfig(data) : null;
+}
+
+export async function upsertSettlementChainConfig(
+  db: SupabaseClient,
+  companyId: string,
+  input: { chainId: number; verifyingContract: string; tokenAddress?: string | null; label?: string | null }
+): Promise<SettlementChainConfig> {
+  const reasons: string[] = [];
+  if (!Number.isInteger(input.chainId) || input.chainId <= 0) {
+    reasons.push("chainId must be a positive integer");
+  }
+  if (!isValidWalletAddress(input.verifyingContract)) {
+    reasons.push("verifyingContract must be a 0x-prefixed 20-byte hex address");
+  }
+  if (input.tokenAddress?.trim() && !isValidWalletAddress(input.tokenAddress)) {
+    reasons.push("tokenAddress must be a 0x-prefixed 20-byte hex address");
+  }
+  if (reasons.length > 0) throw new InvalidFinanceDetailsError(reasons);
+
+  const { data, error } = await db
+    .from("settlement_chain_configs")
+    .upsert(
+      {
+        company_id: companyId,
+        chain_id: input.chainId,
+        verifying_contract: input.verifyingContract.trim(),
+        token_address: input.tokenAddress?.trim() || null,
+        label: input.label?.trim() || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "company_id,chain_id" }
+    )
+    .select(CHAIN_COLUMNS)
+    .single();
+  if (error) throw new Error(`CHAIN_CONFIG_PERSIST_FAILED: ${error.message}`);
+  return toChainConfig(data);
+}
+
+export async function deleteSettlementChainConfig(
+  db: SupabaseClient,
+  companyId: string,
+  id: string
+): Promise<boolean> {
+  const { error, count } = await db
+    .from("settlement_chain_configs")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .eq("company_id", companyId);
+  if (error) throw new Error(`CHAIN_CONFIG_DELETE_FAILED: ${error.message}`);
+  return (count ?? 0) > 0;
 }
 
 export async function deleteCounterpartyFinance(

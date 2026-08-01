@@ -7,6 +7,7 @@ import { CalculationPane } from "@/components/laygrounded/calculation-pane";
 import { CpTerms, LaytimeResult } from "@/lib/laytime/types";
 import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
+import { ClaimSettlementPanel } from "@/components/laygrounded/claim-settlement-panel";
 import { WwdResolverPanel } from "@/components/laygrounded/wwd-resolver-panel";
 import { ClaimActionsPanel } from "@/components/laygrounded/claim-actions-panel";
 import { PortCalendarAlert } from "@/components/laygrounded/port-calendar-alert";
@@ -429,6 +430,9 @@ export default function WorkspacePage({
         counterpartyName={data.claim.counterpartyName ?? null}
         onClaimChanged={fetchClaim}
       />
+
+      {/* Agreement, and the payment instruction it generates */}
+      <ClaimSettlementPanel claimId={claimId} onClaimChanged={fetchClaim} />
 
       {/* Legal, settlement, notary, charter-chain & interoperability actions */}
       <ClaimActionsPanel claimId={claimId} onClaimChanged={fetchClaim} />

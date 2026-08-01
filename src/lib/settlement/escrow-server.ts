@@ -30,7 +30,11 @@ import {
   resolveChainAgreement,
   type CounterpartyFinanceRecord,
 } from "./counterparty-finance";
-import { loadCounterpartyFinance, loadSelfFinance } from "./counterparty-finance-server";
+import {
+  loadCounterpartyFinance,
+  loadSelfFinance,
+  loadSettlementChainConfig,
+} from "./counterparty-finance-server";
 import {
   buildSettlementPayload,
   digestOf,
@@ -125,14 +129,27 @@ export async function buildSettlementForClaim(
   const ownerChain = tenantIsOwner ? selfFinance : counterpartyFinance;
   const chartererChain = tenantIsOwner ? counterpartyFinance : selfFinance;
   const agreement = resolveChainAgreement(ownerChain ?? {}, chartererChain ?? {});
-  const verifyingContract = process.env.SETTLEMENT_VERIFYING_CONTRACT?.trim() || null;
+
+  // The escrow deployment for THAT chain. Looked up rather than taken from a
+  // global setting, because a contract address is a deployment on one chain —
+  // the same 20 bytes on another chain are a different contract, usually
+  // nothing at all. The env var remains a platform-wide fallback for installs
+  // running a single deployment.
+  const configured =
+    agreement.chainId !== null
+      ? await loadSettlementChainConfig(db, claim.company_id, agreement.chainId)
+      : null;
+  const envContract = process.env.SETTLEMENT_VERIFYING_CONTRACT?.trim() || null;
+  const verifyingContract = configured?.verifyingContract ?? envContract;
+
   const chain: EscrowInput["chain"] =
     overrides.chain ??
     (agreement.chainId !== null && verifyingContract
       ? {
           chainId: agreement.chainId,
           verifyingContract,
-          tokenAddress: process.env.SETTLEMENT_TOKEN_ADDRESS?.trim() || null,
+          tokenAddress:
+            configured?.tokenAddress ?? process.env.SETTLEMENT_TOKEN_ADDRESS?.trim() ?? null,
         }
       : null);
 
@@ -176,6 +193,21 @@ export async function buildSettlementForClaim(
   if (agreement.conflict) {
     payload.blockers.push(agreement.conflict);
     payload.ready = false;
+  }
+
+  // Both parties hold wallets on an agreed chain but no escrow is deployed for
+  // it. A memo rather than a blocker: the BANK leg is complete and settleable,
+  // and refusing the whole payload because the optional on-chain route is
+  // unconfigured would withhold a working instruction over an absent one. Said
+  // out loud rather than left as a silently missing `eip712`, because "there is
+  // no chain leg" and "we forgot to configure the contract" look identical from
+  // the outside.
+  if (agreement.chainId !== null && !verifyingContract && !overrides.chain) {
+    payload.memos.push(
+      `Both parties are configured on chain ${agreement.chainId}, but no escrow contract is ` +
+        `registered for it — no EIP-712 leg was generated. Add the deployment under ` +
+        `Settings → Settlement & Banking.`
+    );
   }
 
   if (

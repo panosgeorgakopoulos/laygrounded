@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { evaluateEligibility, EligibilityInput } from "./clearinghouse";
+import { CRITERION_LABELS, evaluateEligibility, EligibilityInput } from "./clearinghouse";
 
 // A claim that passes every zero-day criterion; each case below breaks
 // exactly one thing.
@@ -122,5 +122,43 @@ describe("evaluateEligibility", () => {
     const r = evaluateEligibility(input);
     expect(r.eligible).toBe(false);
     expect(r.failures).toHaveLength(3);
+  });
+});
+
+describe("criterion labels", () => {
+  // The agreement panel renders one checklist row per criterion. A criterion
+  // added without a label renders a blank row next to a tick or a cross, which
+  // is worse than not showing it at all — the operator sees a gate they cannot
+  // read gating money.
+  test("every criterion has a display label", () => {
+    const keys = Object.keys(evaluateEligibility(eligibleBase()).criteria);
+    expect(Object.keys(CRITERION_LABELS).sort()).toEqual(keys.sort());
+    for (const k of keys) {
+      expect(CRITERION_LABELS[k as keyof typeof CRITERION_LABELS]?.trim().length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  test("labels are not the failure messages", () => {
+    // The failure messages are complaints ("no confirmed cargo completion event
+    // — the voyage has not finished"). A checklist row has to read the same
+    // whether it is ticked or crossed, so the two phrasings must stay distinct;
+    // reusing a complaint as a label is the easy mistake this catches.
+    //
+    // Note "No pending counterparty proposals" IS a correct label: it describes
+    // the desired state, which is what a checklist row asserts.
+    const failures = evaluateEligibility({
+      hasCompletionEvent: false,
+      erpMatched: false,
+      calculation: null,
+      evidenceVerdicts: [],
+      pendingProposals: 2,
+      alreadySettled: true,
+    }).failures;
+
+    for (const label of Object.values(CRITERION_LABELS)) {
+      expect(failures).not.toContain(label);
+      // Labels are short; the failure messages explain themselves at length.
+      expect(label.length).toBeLessThan(45);
+    }
   });
 });

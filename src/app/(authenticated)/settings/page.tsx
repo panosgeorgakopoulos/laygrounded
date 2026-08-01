@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/core/Card";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
-import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound, CalendarDays, CloudRain } from "lucide-react";
+import { AlertCircle, CheckCircle2, UserPlus, Building2, Settings, User, Trash2, ShieldAlert, ShieldCheck, KeyRound, CalendarDays, CloudRain, Banknote } from "lucide-react";
 import { DeveloperSettings } from "@/components/laygrounded/developer-settings";
 import { SecurityTrail } from "@/components/laygrounded/security-trail";
 import { CargoProfileSettings } from "@/components/laygrounded/cargo-profile-settings";
 import { PortCalendarManager } from "@/components/laygrounded/port-calendar-manager";
+import { SettlementFinanceSettings } from "@/components/laygrounded/settlement-finance-settings";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/components/providers";
 import { createClient } from "@/lib/supabase/client";
@@ -32,7 +33,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const [data, setData] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "calendars" | "api" | "cargo" | "security" | "system">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "company" | "team" | "calendars" | "finance" | "api" | "cargo" | "security" | "system">("account");
   
   // Personal Account State
   const [displayName, setDisplayName] = useState("");
@@ -266,6 +267,13 @@ export default function SettingsPage() {
         >
           <CalendarDays size={16} />
           <span>Port Calendars</span>
+        </button>
+        <button
+          className={`${styles.tabTrigger} ${activeTab === "finance" ? styles.tabActive : ""}`}
+          onClick={() => setActiveTab("finance")}
+        >
+          <Banknote size={16} />
+          <span>Settlement &amp; Banking</span>
         </button>
         <button
           className={`${styles.tabTrigger} ${activeTab === "api" ? styles.tabActive : ""}`}
@@ -568,6 +576,21 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "calendars" && <PortCalendarManager />}
+
+      {activeTab === "finance" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Settlement &amp; Banking</CardTitle>
+            <CardDescription>
+              Bank and wallet details for the parties a settlement pays, and the escrow contract
+              that receives an on-chain leg.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SettlementFinanceSettings />
+          </CardContent>
+        </Card>
+      )}
 
       {activeTab === "api" && <DeveloperSettings />}
 

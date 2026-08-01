@@ -1,0 +1,226 @@
+.wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.875rem 1rem;
+  background: var(--color-surface, #fff);
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.engineChip {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: #f1f5f9;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.loading { font-size: 0.8125rem; color: var(--color-text-tertiary); margin: 0; }
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: var(--radius-sm);
+  padding: 0.4375rem 0.5625rem;
+  margin: 0 0 0.625rem;
+}
+
+.intro {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 0.625rem;
+}
+
+.agreed {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #166534;
+  background: #dcfce7;
+  border-radius: var(--radius-sm);
+  padding: 0.4375rem 0.5625rem;
+  margin: 0 0 0.75rem;
+}
+
+.criteria { list-style: none; margin: 0 0 0.75rem; padding: 0; }
+
+.critOk,
+.critBad {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  padding: 0.1875rem 0;
+}
+
+.critOk { color: var(--color-text-secondary); }
+.critBad { color: #b45309; }
+
+.detail { color: var(--color-text-tertiary); }
+
+.primary {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.4375rem 0.875rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent, #2563eb);
+  color: #fff;
+  cursor: pointer;
+}
+
+.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.pending {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin: 0.75rem 0 0;
+}
+
+.payload {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.payloadHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  margin-bottom: 0.625rem;
+}
+
+.chipOk,
+.chipWarn {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: var(--radius-sm);
+}
+
+.chipOk { background: #dcfce7; color: #166534; }
+.chipWarn { background: #fef3c7; color: #92400e; }
+
+.rails { display: flex; gap: 0.375rem; margin-left: auto; }
+
+.rail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.0625rem 0.3125rem;
+}
+
+.leg {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.625rem;
+  margin-bottom: 0.5rem;
+}
+
+.legAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.legDir {
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+
+.legParties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.3125rem;
+  word-break: break-all;
+}
+
+.legParties em { color: var(--color-text-tertiary); font-style: normal; }
+
+.missing { color: #b45309; font-style: italic; }
+
+.excluded,
+.blockers {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.excluded li { color: var(--color-text-tertiary); margin-bottom: 0.25rem; }
+
+.blockers li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3125rem;
+  color: #b45309;
+  margin-bottom: 0.25rem;
+}
+
+.missingNote,
+.memo {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0.5rem 0 0;
+}
+
+.digest {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  flex-wrap: wrap;
+  font-size: 0.625rem;
+  color: var(--color-text-tertiary);
+  margin: 0.75rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+.digestNote { flex-basis: 100%; }

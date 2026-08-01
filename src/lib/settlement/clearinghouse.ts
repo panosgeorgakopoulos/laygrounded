@@ -41,6 +41,25 @@ export interface EligibilityResult {
   currency: string;
 }
 
+/**
+ * Positive labels for each criterion, for display.
+ *
+ * Separate from the failure messages below, which are phrased as complaints
+ * ("no confirmed cargo completion event…"). A checklist needs to read the same
+ * whether the box is ticked or not, so the two phrasings cannot be the same
+ * string — and putting the display labels here keeps them next to the criteria
+ * they describe rather than drifting in a component.
+ */
+export const CRITERION_LABELS: Record<keyof EligibilityResult["criteria"], string> = {
+  voyage_complete: "Voyage complete",
+  erp_matched: "Anchored to ERP voyage data",
+  calculation_present: "Laytime calculation on file",
+  evidence_fully_corroborated: "Evidence fully corroborated",
+  no_pending_disputes: "No pending counterparty proposals",
+  not_already_settled: "Not already settled",
+  nonzero_amount: "Non-zero amount to settle",
+};
+
 export function evaluateEligibility(input: EligibilityInput): EligibilityResult {
   const demurrage = input.calculation?.demurrageAmount ?? 0;
   const despatch = input.calculation?.despatchAmount ?? 0;
