@@ -314,7 +314,13 @@ field values on screen):
    is labelled `mock` in the UI with a banner saying an assessment run from it is
    a rehearsal. Remove with:
    `delete from integrations where display_name = 'Fortune ERP (demo mock)';`
-5. **`AIS_CONGESTION_PROVIDER` is unset**, so a pre-arrival assessment refuses
+5. **The AIS map has never rendered a real track.** `AIS_PROVIDER_URL` /
+   `AIS_PROVIDER_KEY` are unset, so every run exercises the unavailable path.
+   The projection, segment colouring, gap dashing and event-to-fix matching are
+   therefore **unverified against real data** — they are straightforward, but
+   nobody has seen them draw. First contact with a live provider should be
+   treated as a review, not a deploy.
+6. **`AIS_CONGESTION_PROVIDER` is unset**, so a pre-arrival assessment refuses
    with an actionable message rather than guessing port queueing — correct, and
    unchanged. The end-to-end verification used an ephemeral `mock` value passed
    to the dev process; `.env` was not modified.
@@ -389,3 +395,63 @@ SoFs use. Now the line's own offset is honoured and beats any default.
   fingerprint, tzdata digest, notarisation Merkle root, and a 4.5 KB downloadable
   bundle. WASM digest reads "not built" locally, honestly, because `javy` is
   absent by design.
+
+
+---
+
+## 10. Phase 10 — spatial verification and negotiation
+
+### Audited first, again, and again it mattered
+
+The negotiation directive was **partly already built**: `event_proposals`
+(amend/add/remove, pending/accepted/rejected, notes) plus owner-side review UI
+and a guest-side POST through the claim room had shipped in Phase 4. What was
+missing was narrower — no way for the OWNER to raise a dispute, and no phase
+workflow. The AIS half was a genuine gap: `micro-movement.ts` and
+`geofence-server.ts` had no `.tsx` referencing them at all.
+
+### The phase is derived, and that is the design
+
+`claims.status` could not hold "negotiating": `recompute-server.ts` overwrites
+status on every calculation, so the phase would survive until the next recompute
+and then vanish with no error anywhere — the claim would leave negotiation
+because somebody edited an event. Phase 7 hit this exact wall with agreement and
+solved it the same way, with a column.
+
+`derivePhase()` reads `agreed_at`, `negotiation_opened_at` and the pending count.
+**A pending dispute alone is enough to read as negotiating**, whatever the flag
+says: a stored label that disagrees with reality is worse than no label, and the
+settlement gate reasons about this.
+
+`negotiation_opened_at <= agreed_at` is a DB CHECK. Not a workflow gate — a claim
+may be agreed with no dispute ever raised, which is the happy path — but an
+agreement dated before the negotiation that produced it is a corrupt record, and
+the settlement payload derives from it. Probed live.
+
+### Two defects found by looking at the running page
+
+1. **The redline rendered "undefined NaN".** My `Diff` interface assumed
+   `{net, currency}`; the engine returns `ScenarioDiff` with `delta.net_amount`
+   and the currency on `baseline.totals`. A money figure that renders as
+   "undefined NaN" is worse than no figure — it looks like one. Now the redline
+   simply does not render when the comparison could not be made, and says why.
+2. **A comment that misdescribed its own code.** It claimed the server rejects an
+   amendment whose timestamp is unchanged. It does not — it accepts it, which is
+   the desired behaviour (a recorded objection with no counter-time). The code
+   was right and the comment was wrong, which is the more dangerous direction.
+
+### Verification state
+
+- `tsc` + `eslint` clean; **2,698 tests pass**.
+- End-to-end in the browser: raising a dispute moved the workflow Open →
+  Negotiating, blocked agreement with "1 dispute is still open", and priced the
+  redline at **USD 2,333.34 / +2.0h** — arithmetic confirmed by hand (2h at
+  28,000/day). The settlement panel independently flipped "No pending
+  counterparty proposals" to failing, so the two panels agree.
+- Confirmed in the database: `share_id` NULL (internal, not from a claim room),
+  the company name as `proposed_by_label`, negotiation auto-opened by the first
+  dispute, and the event **unmutated while the proposal is pending**. All test
+  rows removed and the claim restored.
+- The AIS map renders its unavailable state honestly (no provider configured)
+  while still listing every event's motion verdict. **It has never been seen with
+  a real track** — see gaps below.
