@@ -17,7 +17,7 @@ import {
   TZDATA_ERA_END_SEC,
 } from "@laygrounded/laytime-core/tzdata";
 import type { DerivationRecord } from "@/lib/legal/prosecution";
-import type { SofEventInput } from "@/lib/laytime/types";
+import type { EngineVersion, SofEventInput } from "@/lib/laytime/types";
 
 /**
  * The engine's total-order rule, stated so a third party can reimplement it.
@@ -29,19 +29,27 @@ import type { SofEventInput } from "@/lib/laytime/types";
  */
 export const ORDERING_RULE = "occurred_at ASC, terminators-before-initiators, event_type ASC, id ASC";
 
-let cachedFingerprint: string | null = null;
+const cachedFingerprints = new Map<EngineVersion, string>();
 
 /**
- * SHA-256 over the engine's canary material. Computed once per process — it is
- * deterministic, so recomputing it per claim would be pure waste.
+ * SHA-256 over the engine's canary material. Computed once per rule set per
+ * process — it is deterministic, so recomputing it per claim would be pure
+ * waste.
+ *
+ * PER RULE SET, because two engines that compute different money must not share
+ * a fingerprint. v1's material is byte-identical to what it always was, so
+ * records already anchored still verify; v2 appends canaries that actually
+ * exercise the corrected branch, so its hash differs for a behavioural reason
+ * rather than merely because a label changed.
  */
-export function engineFingerprint(): string {
-  if (cachedFingerprint === null) {
-    cachedFingerprint = createHash("sha256")
-      .update(engineFingerprintMaterial())
-      .digest("hex");
-  }
-  return cachedFingerprint;
+export function engineFingerprint(engineVersion: EngineVersion = 1): string {
+  const cached = cachedFingerprints.get(engineVersion);
+  if (cached !== undefined) return cached;
+  const digest = createHash("sha256")
+    .update(engineFingerprintMaterial(engineVersion))
+    .digest("hex");
+  cachedFingerprints.set(engineVersion, digest);
+  return digest;
 }
 
 /**
@@ -53,6 +61,9 @@ export function engineFingerprint(): string {
 export function buildDerivationRecord(
   events: SofEventInput[],
   portTimezone: string | null | undefined,
+  // Defaults to 1 so the record for a legacy claim is byte-identical to the one
+  // already anchored for it. A caller that knows better passes the claim's own.
+  engineVersion: EngineVersion = 1,
 ): DerivationRecord {
   const zone = portTimezone && portTimezone.trim() ? portTimezone.trim() : "UTC";
   // Only THIS claim's zone travels in the bundle. Shipping all 463 would bloat
@@ -64,7 +75,7 @@ export function buildDerivationRecord(
     engine: {
       name: ENGINE_NAME,
       version: ENGINE_VERSION,
-      fingerprint: engineFingerprint(),
+      fingerprint: engineFingerprint(engineVersion),
     },
     tzdata: {
       digest: TZDATA_DIGEST,

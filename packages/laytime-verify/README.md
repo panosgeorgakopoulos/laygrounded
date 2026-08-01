@@ -51,16 +51,48 @@ Its agreement on your claim only means something if it agrees on cases published
 in advance. Run the conformance suite:
 
 ```
-node laygrounded-verify.mjs < conformance.json
+node laygrounded-verify.mjs < conformance.json      # engine rule set 1
+node laygrounded-verify.mjs < conformance-v2.json   # engine rule set 2
 ```
 
 ```json
 { "cases": 500, "passed": 500, "failed": 0, "root": "bc9f24fdab910a1b" }
+{ "cases": 500, "passed": 500, "failed": 0, "root": "261e3468d2246f30" }
 ```
 
-Compare `root` against the value in `manifest.json`. The suite is 500 generated
-voyages spanning weather exclusions, SHEX/SSHEX weekends, WIBON/WIPON shifting,
-port strikes, all four ASBATANKVOY behaviours, and the error paths.
+Compare each `root` against `manifest.json`. Each suite is 500 generated voyages
+spanning weather exclusions, SHEX/SSHEX weekends, WIBON/WIPON shifting, port
+strikes, all four ASBATANKVOY behaviours, and the error paths.
+
+## Two rule sets, and why the old one is still here
+
+A charterparty calculation is evidence. Once a figure has been served,
+notarised or agreed, it has to keep reproducing — including in 2035, and
+including when we later find a mistake in how it was produced. So the engine
+does not replace rules, it versions them.
+
+| Rule set | Root | What it is |
+|---|---|---|
+| 1 | `bc9f24fdab910a1b` | The rules as published through 2026-07. **Frozen.** |
+| 2 | `261e3468d2246f30` | One correction: an agreed excepted period is deducted under GENCON 94 + SHINC. |
+
+The defect in rule set 1: under GENCON 94 with a **SHINC** days basis, an
+`EXCEPTED_PERIOD` the parties agreed — a strike, an agreed suspension — was
+absorbed by the "Sundays and holidays included" rule and never deducted. SHINC
+deletes the *weekend* exception; it says nothing about exceptions the parties
+agreed on that voyage (Cl. 7(c)). Every other form and basis deducted correctly,
+and rule set 2 changes that branch alone.
+
+**A bundle says which rules produced it**, on `cpTerms.engine_version`. Absent
+means 1 — which is why every bundle issued before this existed still verifies
+without modification. The verifier does not guess and does not upgrade: handed a
+rule-set-1 bundle it applies rule set 1, and reproduces the figure on the
+document even where that figure is now known to be understated.
+
+Replaying rule set 1's 500 cases under rule set 2 changes **none** of them: the
+published suite never exercised the defective combination. The 44 cases that do
+exercise it are in `conformance-v2.json`, where they deduct under Cl. 7(c) and
+would not have been expressible at all under rule set 1.
 
 `root` fingerprints **what the artifact computes**, not whether it matched the
 goldens — that is `failed`. The distinction matters: it is why two artifacts
@@ -75,9 +107,12 @@ in the same way.
 | `laygrounded-verify.wasm` | ~1.7 MB | Running. No Node, no npm, no install. |
 
 Both are built from the same source, and CI refuses to publish unless they
-produce an identical conformance root, executed in two different engines
-(wasmtime for the wasm, Node for the JS). A 1.7 MB WebAssembly blob is not
-auditable by reading — that is exactly why the readable file ships beside it.
+produce an identical conformance root **for every rule set**, executed in two
+different engines (wasmtime for the wasm, Node for the JS). An artifact that
+agreed on rule set 1 and diverged on 2 would verify a legacy claim and quietly
+misjudge a current one — the worse failure, because the number it produced would
+still look authoritative. A 1.7 MB WebAssembly blob is not auditable by
+reading — that is exactly why the readable file ships beside it.
 
 ### What the published hashes do and do not prove
 
@@ -90,17 +125,18 @@ inside the embedded QuickJS section — so the published wasm hash confirms you
 received the artifact we published, and nothing more. It is a
 distribution-integrity check, not a build attestation.
 
-The claim that *is* reproducible is `conformance.root`. It is behavioural: run
-either artifact against `conformance.json` and you should get
-`bc9f24fdab910a1b`. That is the number to rely on, and it is why the root exists
-at all.
+The claim that *is* reproducible is each `conformance.root`. It is behavioural:
+run either artifact against `conformance.json` and you should get
+`bc9f24fdab910a1b`, and against `conformance-v2.json`, `261e3468d2246f30`. Those
+are the numbers to rely on, and they are why the roots exist at all.
 
 ## Bundle format
 
 ```jsonc
 {
   "claim":   { "vessel": "…", "voyageRef": "…", "port": "…" },  // optional
-  "cpTerms": { "laytime_allowed_hours": 72, "days_basis": "SHEX", … },
+  "cpTerms": { "laytime_allowed_hours": 72, "days_basis": "SHEX",
+               "engine_version": 2, … },   // omit for rule set 1
   "events":  [ { "id": "…", "occurred_at": "2026-03-02T06:00:00Z",
                  "event_type": "NOR_TENDERED" }, … ],
   "published": { "totals": { … }, "breakdown": [ … ] }          // optional

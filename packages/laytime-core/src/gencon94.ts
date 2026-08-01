@@ -2,6 +2,17 @@
 // Pure TypeScript, no I/O, no AI. Every branch cites its clause in clause_ref.
 // GENCON 94 references cite the form's clause numbers; ASBATANKVOY references
 // cite Part II clauses ("ASBA-II-n").
+//
+// TWO RULE SETS LIVE HERE AT ONCE. `cpTerms.engine_version` selects one; absent
+// means 1. v2 corrects a single defect — an agreed EXCEPTED_PERIOD being
+// absorbed by GENCON 94's SHINC branch — and changes nothing else.
+//
+// The old path is kept rather than replaced because a published calculation is
+// evidence. Claims already served, notarised or agreed must keep reproducing
+// the figures on the document, and the offline verifier must still return the
+// legacy conformance root `bc9f24fdab910a1b` for the 500 cases published under
+// v1. If you are tempted to delete the v1 branch, that root is the reason not
+// to. Any new divergence needs its own version, not a widening of this one.
 
 import { Decimal } from 'decimal.js';
 
@@ -15,6 +26,7 @@ import {
   SofEventInput,
   EventTypeEnum,
   PortCalendar,
+  resolveEngineVersion,
 } from "./types";
 
 export class NoNorError extends Error {
@@ -95,6 +107,18 @@ function isExceptedDay(
   return isSundayLocal(d, tz);
 }
 
+// Whether the hour falls inside an EXPLICITLY AGREED excepted period — one the
+// parties logged as EXCEPTED_PERIOD_START/END, e.g. a strike or an agreed
+// suspension. Distinct from a calendar exception (Sunday, holiday), which is a
+// property of the days basis rather than of anything the parties agreed on
+// THIS voyage. Engine v2 turns on exactly that distinction.
+function isInExplicitExceptedPeriod(
+  hour: Date,
+  exceptedPeriods: Array<{ start: Date; end: Date }>
+): boolean {
+  return exceptedPeriods.some((p) => hour >= p.start && hour < p.end);
+}
+
 // Determine if a Date lies inside an excepted period (Sunday or holiday).
 function isExceptedHour(
   hour: Date,
@@ -103,9 +127,7 @@ function isExceptedHour(
   tz: string,
   calendar?: PortCalendar
 ): boolean {
-  for (const p of exceptedPeriods) {
-    if (hour >= p.start && hour < p.end) return true;
-  }
+  if (isInExplicitExceptedPeriod(hour, exceptedPeriods)) return true;
   return isExceptedDay(hour, daysBasis, tz, calendar);
 }
 
@@ -262,6 +284,9 @@ export function recomputeLaytime(
   const norTime = parseISO(norEvent.occurred_at);
   const tz = cpTerms.port_timezone || "UTC";
   const isAsba = (cpTerms.cp_form ?? "GENCON94") === "ASBATANKVOY";
+  // Absent means 1. Read once, so no branch below can disagree with another
+  // about which rule set this calculation is running under.
+  const engineVersion = resolveEngineVersion(cpTerms);
 
   let laytimeCommencesAt = addHours(norTime, cpTerms.turn_time_hours);
 
@@ -364,9 +389,10 @@ export function recomputeLaytime(
       // ASBATANKVOY: running hours — Sundays/holidays included, weather does
       // not stop laytime; only agreed exceptions and delays getting into
       // berth beyond the charterer's control are excluded.
-      const explicitExcepted = exceptedPeriods.some(
-        (p) => hourStart >= p.start && hourStart < p.end
-      );
+      // ASBATANKVOY already separated the agreed exception from the calendar —
+      // it is the branch GENCON 94's v2 fix brings the dry-bulk side into line
+      // with. Unaffected by engine_version for that reason.
+      const explicitExcepted = isInExplicitExceptedPeriod(hourStart, exceptedPeriods);
       if (explicitExcepted) {
         status = "excepted";
         counts = false;
@@ -406,10 +432,36 @@ export function recomputeLaytime(
         );
         if (excepted) {
           if (cpTerms.days_basis === "SHINC") {
-            status = "excepted";
-            counts = true;
-            clause_ref = "GENCON94-7(b)";
-            reasoning = "Sunday/holiday counts under SHINC.";
+            // ENGINE v2 — the one behavioural change between rule set 1 and 2.
+            //
+            // SHINC says "Sundays and holidays INCLUDED". It speaks to the
+            // CALENDAR: it deletes the weekend exception, nothing more. An
+            // EXCEPTED_PERIOD the parties agreed on this voyage — a strike, an
+            // agreed suspension — is a separate contractual exclusion under
+            // Cl. 7(c), and it survives SHINC.
+            //
+            // v1 tested both through one predicate, so under SHINC the "counts"
+            // branch swallowed the agreed exception and the deduction silently
+            // vanished. Not a rounding difference: on a week-long strike it is
+            // the whole claim. Every other form × basis combination was probed
+            // and deducts correctly, which is why v2 changes this branch ALONE
+            // — a versioned engine has to justify each divergence separately,
+            // and "while we were in here" is not a justification.
+            const agreedException =
+              engineVersion >= 2 && isInExplicitExceptedPeriod(hourStart, exceptedPeriods);
+            if (agreedException) {
+              status = "excepted";
+              counts = false;
+              clause_ref = "GENCON94-7(c)";
+              reasoning =
+                "Agreed excepted period excluded from laytime — SHINC includes Sundays and " +
+                "holidays, not exceptions the parties agreed.";
+            } else {
+              status = "excepted";
+              counts = true;
+              clause_ref = "GENCON94-7(b)";
+              reasoning = "Sunday/holiday counts under SHINC.";
+            }
           } else if (cpTerms.days_basis.includes("-UU")) {
             const hatchOpen = isActiveAt(hatchIntervals, hourStart);
             const opsOngoing = isActiveAt(opsIntervals, hourStart);

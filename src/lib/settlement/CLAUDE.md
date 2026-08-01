@@ -48,4 +48,17 @@ POST /api/claims/:id/agree  ──▶ claims.agreed_at NULL→NOT NULL
 
 **Neither is persisted anywhere.** `clause_flags` is keyed on `event_id` and holds only clause_ref/severity/note; the ETS addendum is generated as a PDF and `drafts` has no `ets_addendum` kind and no metadata column. So `escrow-server.ts` does **not** recompute them: the ETS figure depends on a live EUA price, and a mock price reaching a payment instruction is exactly what the provenance discipline exists to prevent. Both are optional arguments passed once a human has reviewed them; absent, they are excluded and `memos` says so.
 
-Bank details are likewise never invented — absent IBAN/BIC are reported in `missingForBank` and emitted as `null` in the pacs.008. A placeholder would look complete and either fail at the bank or pay the wrong account.
+## Party details — `counterparty_finance`
+
+Bank and wallet details **are** loaded, and the distinction from terminal and carbon is the point. Those two are *derived figures* whose value depends on a live price or an unreviewed computation. An IBAN is a *stored fact* somebody typed in and validated. Loading a stored fact is not the same as inventing a derived one.
+
+Where a detail is absent it stays absent — reported in `missingForBank` / `missingForChain` and emitted as `null` in the pacs.008. A placeholder would look complete and either fail at the bank or pay the wrong account.
+
+- **`party_kind = 'self'`** is the tenant's own account (they are a party to their own settlements); **`'counterparty'`** is a trading partner, matched to `claims.counterparty_name` through `party_key = lower(trim(name))` with internal whitespace collapsed. There is no counterparties table — the claim carries free text — so the normalised key is the join.
+- **`legal_name` is not the match key.** It is the account holder as the bank knows them: a transfer to "acme shipping ltd" against an account held by "ACME Shipping Limited" is rejected, or returned weeks later.
+- **IBANs are checked with ISO 13616 MOD-97-10 plus the registry length**, cross-tested against `python-stdnum` over 1,190 generated cases (`scripts/settlement/build-iban-fixtures.py`). That cross-check is what found FK missing from the length table and five corrupted strings passing MOD-97 with check digits `00` — hence the 02–98 range check, where we are deliberately stricter than stdnum. A self-written IBAN test agrees with a self-written IBAN mistake.
+- **A wallet requires a `chain_id`**, enforced by a DB CHECK: the same 20 bytes exist on every EVM chain and mean a different account on each. **EIP-55 checksums are not verified** — that needs keccak-256, the same reason `buildEip712` hands the signer the typed data rather than the digest. `isValidWalletAddress` returning `true` means well-formed, not real.
+- **Two parties on different chains is a blocker, not a dropped chain leg.** Same reasoning as the currency rule: bridging is a custody decision nobody made.
+- The chain context is only assembled when both parties agree on a chain **and** `SETTLEMENT_VERIFYING_CONTRACT` is configured. Without the contract there is no EIP-712 domain, and `missingForChain` says so rather than emitting a payload with a zero address in it.
+
+Records go through `/api/settlement/counterparty-finance` on the **cookie client under RLS** — unlike `settlement_payloads`, which is generated and must never be user-editable, these are user data: somebody has to type the IBAN in.

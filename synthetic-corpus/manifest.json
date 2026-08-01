@@ -1,9 +1,10 @@
 {
   "generator": "synthetic-claims v1",
   "seed": 20260712,
+  "engineVersion": 1,
   "count": 500,
   "withPdfs": true,
-  "engineSha256": "ddf0c45128d1d1bd01d058d15e47acd76019da8c084c43fb6715e2dab77c9619",
+  "engineSha256": "1fca65ce828769ac146519ab907d7fa3f77fd53d06b453f424249ff7a9354f5f",
   "tzdataSha256": "e9ddffc8cdedaafc157a476f8cbead395e126028858512d68fe96ad9a4b193f8",
   "byArchetype": {
     "clean-shinc-demurrage": 28,

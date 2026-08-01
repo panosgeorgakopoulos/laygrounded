@@ -507,9 +507,12 @@ function exceptedPeriod(rng: Rng, kind: "strike" | "bunker"): Scenario {
   tl.add(rng, addH(opsStart, window), op.end);
 
   const cp = baseCp(rng, port.tz, {
-    // NOTE: the engine only excludes explicit excepted periods under
-    // SHEX-family bases (under SHINC they count, Cl.7(b) branch) — a known
-    // behavior these goldens deliberately pin down.
+    // SHEX, deliberately. Under engine v1 this archetype could not have used
+    // SHINC: v1's SHINC branch absorbed the agreed exception and the feature
+    // assertion below would never have been satisfiable. That is the defect
+    // engine v2 fixes, and `shincExcepted*` below are the archetypes that
+    // could not exist until it was. Left on SHEX so these goldens stay
+    // byte-identical under both rule sets.
     days_basis: "SHEX",
     laytime_allowed_hours: window + rng.int(0, 30),
   });
@@ -524,6 +527,106 @@ function exceptedPeriod(rng: Rng, kind: "strike" | "bunker"): Scenario {
     cpTerms: cp,
     events: tl.events,
     feature: (r) => r.breakdown.some((row) => row.status === "excepted" && !row.counts),
+  };
+}
+
+// === Engine v2 archetypes ===
+//
+// These exist ONLY in the v2 registry, and not because v2 needed extra coverage
+// for its own sake: under rule set 1 both `feature` predicates below are
+// unsatisfiable, so the generator would exhaust its attempts and refuse to emit
+// a case at all. That is the cleanest possible statement of the defect — the
+// corpus could not describe the correct answer until the engine could compute
+// it.
+
+/** GENCON 94 + SHINC with an agreed excepted period, isolated from any Sunday. */
+function shincExcepted(rng: Rng): Scenario {
+  const port = rng.pick(PORTS);
+  const day = randomDayWithLocalDow(rng, port.tz, 1); // Monday: window stays Sunday-free
+  const op = opEvents(rng.chance(0.5) ? "LOADING" : "DISCHARGE");
+  const tl = new Timeline();
+  const nor = tl.add(rng, localToUtc(port.tz, day.y, day.m1, day.d, 8), "NOR_TENDERED");
+  const opsStart = dryOpening(rng, tl, nor, op, false);
+
+  const stopAt = rng.int(4, 16);
+  const stopLen = rng.int(4, 18);
+  tl.add(rng, addH(opsStart, stopAt), "EXCEPTED_PERIOD_START", "STRIKE_START");
+  tl.add(rng, addH(opsStart, stopAt + stopLen), "EXCEPTED_PERIOD_END", "STRIKE_END");
+  const window = stopAt + stopLen + rng.int(10, 40);
+  tl.add(rng, addH(opsStart, window), op.end);
+
+  const cp = baseCp(rng, port.tz, {
+    days_basis: "SHINC",
+    // Generous, so the exception is reached while laytime is still running.
+    // Once on demurrage Cl. 8 counts everything and the branch under test is
+    // never entered.
+    laytime_allowed_hours: window + rng.int(12, 48),
+  });
+
+  return {
+    archetype: "shinc-excepted-period",
+    description:
+      "GENCON 94 + SHINC with a stevedores' strike logged as an agreed excepted period — " +
+      "excluded under Cl. 7(c) even though the basis includes Sundays and holidays.",
+    claim: claimHeader(rng, port),
+    cpTerms: cp,
+    events: tl.events,
+    // Unsatisfiable under engine v1, which routed this hour to Cl. 7(b) and
+    // counted it.
+    feature: (r) =>
+      r.breakdown.some(
+        (row) => row.status === "excepted" && !row.counts && row.clause_ref === "GENCON94-7(c)"
+      ),
+  };
+}
+
+/**
+ * The discriminating case: an agreed exception laid OVER a Sunday under SHINC.
+ *
+ * The fix has to be surgical, and a case that only proves "something now gets
+ * deducted" would not show that. This one requires BOTH rows in one breakdown —
+ * the Sunday still counting under Cl. 7(b), and the agreed exception inside that
+ * same Sunday not counting under Cl. 7(c). An over-broad fix that made SHINC
+ * behave like SHEX would fail it.
+ */
+function shincExceptedOverSunday(rng: Rng): Scenario {
+  const port = rng.pick(PORTS);
+  const day = randomDayWithLocalDow(rng, port.tz, 6); // Saturday: ops run into Sunday
+  const op = opEvents(rng.chance(0.5) ? "LOADING" : "DISCHARGE");
+  const tl = new Timeline();
+  const nor = tl.add(rng, localToUtc(port.tz, day.y, day.m1, day.d, 6), "NOR_TENDERED");
+  const opsStart = dryOpening(rng, tl, nor, op, false);
+
+  // Local Sunday 00:00 relative to ops start, so the exception lands strictly
+  // inside the Sunday with counting hours either side of it.
+  const sundayStart = localToUtc(port.tz, day.y, day.m1, day.d + 1, 0);
+  const intoSunday = rng.int(6, 10);
+  const stopStart = addH(sundayStart, intoSunday);
+  const stopLen = rng.int(4, 8);
+  tl.add(rng, stopStart, "EXCEPTED_PERIOD_START", "STRIKE_START");
+  tl.add(rng, addH(stopStart, stopLen), "EXCEPTED_PERIOD_END", "STRIKE_END");
+
+  const windowEnd = addH(sundayStart, 24 + rng.int(6, 30));
+  tl.add(rng, windowEnd, op.end);
+
+  const totalHours = Math.ceil((windowEnd.getTime() - opsStart.getTime()) / 3600_000);
+  const cp = baseCp(rng, port.tz, {
+    days_basis: "SHINC",
+    turn_time_hours: 6,
+    laytime_allowed_hours: totalHours + rng.int(12, 48),
+  });
+
+  return {
+    archetype: "shinc-excepted-over-sunday",
+    description:
+      "GENCON 94 + SHINC: an agreed excepted period laid over a Sunday. The Sunday still " +
+      "counts (Cl. 7(b)); the agreed exception inside it does not (Cl. 7(c)).",
+    claim: claimHeader(rng, port),
+    cpTerms: cp,
+    events: tl.events,
+    feature: (r) =>
+      r.breakdown.some((row) => row.counts && row.clause_ref === "GENCON94-7(b)") &&
+      r.breakdown.some((row) => !row.counts && row.clause_ref === "GENCON94-7(c)"),
   };
 }
 
@@ -759,6 +862,15 @@ function timeBarCase(
 
 // === Registry ===
 
+/**
+ * The v1 registry. **FROZEN.**
+ *
+ * Case allocation is proportional to weight across this whole list, so adding,
+ * removing or reweighting ANY entry renumbers every case and changes the
+ * published conformance root `bc9f24fdab910a1b`. That root is what a third
+ * party checks before trusting the offline verifier on their own claim, and it
+ * appears in the verifier README. New coverage goes in `V2_ONLY_ARCHETYPES`.
+ */
 export const ARCHETYPES: Archetype[] = [
   { name: "clean-shinc-demurrage", weight: 30, build: (r) => cleanShinc(r, true) },
   { name: "clean-shinc-despatch", weight: 30, build: (r) => cleanShinc(r, false) },
@@ -785,3 +897,24 @@ export const ARCHETYPES: Archetype[] = [
   { name: "timebar-warning", weight: 8, build: (r) => timeBarCase(r, "warning") },
   { name: "timebar-ok", weight: 9, build: (r) => timeBarCase(r, "ok") },
 ];
+
+/**
+ * Archetypes that only engine v2 can satisfy. Never added to `ARCHETYPES`.
+ *
+ * Both would exhaust the generator's attempt budget under rule set 1, because
+ * their feature predicates describe the corrected deduction.
+ */
+export const V2_ONLY_ARCHETYPES: Archetype[] = [
+  { name: "shinc-excepted-period", weight: 30, build: shincExcepted },
+  { name: "shinc-excepted-over-sunday", weight: 22, build: shincExceptedOverSunday },
+];
+
+/**
+ * The v2 registry: everything v1 covers, re-run under the corrected rules, plus
+ * the cases v1 could not express.
+ *
+ * The overlap is the point — the shared archetypes are how the v2 suite shows
+ * that correcting the SHINC branch left every other branch alone, rather than
+ * only showing that the new branch works.
+ */
+export const ARCHETYPES_V2: Archetype[] = [...ARCHETYPES, ...V2_ONLY_ARCHETYPES];

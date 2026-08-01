@@ -18,12 +18,25 @@ const CpTermsSchema = z.object({
   port_timezone: z.string().optional()
 });
 
+// Which laytime rule set computes this claim. Only `2` is expressible, and that
+// is the design rather than an omission:
+//
+//   * upgrading is a real operation — an open claim should get the corrected
+//     engine once someone has looked at what it changes;
+//   * DOWNGRADING is not on offer. Rule set 1 has a known defect (an agreed
+//     EXCEPTED_PERIOD absorbed by the SHINC branch), and an API that let a live
+//     claim opt back into it would be offering to under-deduct real money.
+//     Reproducing legacy figures does not need it: hand the offline verifier a
+//     bundle with no `engine_version` and it computes v1 by definition.
+const EngineVersionUpgrade = z.literal(2);
+
 const UpdateClaimSchema = z.object({
   vessel: z.string().min(1).optional(),
   voyageRef: z.string().min(1).optional(),
   port: z.string().min(1).optional(),
   cargo: z.string().min(1).optional(),
   cpTerms: CpTermsSchema.optional(),
+  engineVersion: EngineVersionUpgrade.optional(),
   status: z.enum(["draft", "processing", "completed", "failed", "demurrage", "despatch", "in_progress"]).optional(),
   timeBarDays: z.number().int().min(1).max(365).optional(),
   vesselImo: z.string().max(16).nullable().optional(),
@@ -200,7 +213,7 @@ export async function PATCH(
 
     const { data: claim } = await supabase
       .from("claims")
-      .select("company_id")
+      .select("company_id, agreed_at")
       .eq("id", claimId)
       .maybeSingle();
 
@@ -227,6 +240,25 @@ export async function PATCH(
       // Keep the top-level column in sync with the terms — dashboards and
       // analytics filter on it without unpacking the jsonb.
       data.cp_form = parsed.data.cpTerms.cp_form ?? "GENCON94";
+    }
+    if (parsed.data.engineVersion !== undefined) {
+      // Agreement is the moment the numbers stop being negotiable. Re-versioning
+      // the engine underneath an agreed claim changes the figures both sides
+      // signed off and the ones `agreed_calculation_id` pins — the same reason
+      // a recompute after agreement blocks the settlement payload rather than
+      // quietly settling the new number.
+      if (claim.agreed_at) {
+        return NextResponse.json(
+          {
+            error: "CLAIM_ALREADY_AGREED",
+            detail:
+              "the engine version cannot be changed after agreement — the agreed figures were " +
+              "computed under the current rule set",
+          },
+          { status: 409 }
+        );
+      }
+      data.engine_version = parsed.data.engineVersion;
     }
     if (parsed.data.timeBarDays !== undefined) data.time_bar_days = parsed.data.timeBarDays;
     if (parsed.data.vesselImo !== undefined) data.vessel_imo = parsed.data.vesselImo;
@@ -259,6 +291,7 @@ export async function PATCH(
       cpForm: updated.cp_form,
       terminalName: updated.terminal_name ?? null,
       cpTerms: updated.cp_terms,
+      engineVersion: updated.engine_version ?? 1,
       createdBy: updated.created_by,
       createdAt: updated.created_at,
       updatedAt: updated.updated_at,

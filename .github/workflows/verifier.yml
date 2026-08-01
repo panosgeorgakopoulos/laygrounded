@@ -4,12 +4,17 @@
 # reproducible from its inputs alone. That claim is only as good as the checks
 # that enforce it, so all three run on every change:
 #
-#   1. the 500-case corpus still replays,
+#   1. both 500-case corpora still replay,
 #   2. the pinned timezone table still agrees with the runtime's ICU,
-#   3. the readable .mjs and the sealed .wasm compute an IDENTICAL root.
+#   3. the readable .mjs and the sealed .wasm compute an IDENTICAL root — for
+#      EVERY engine rule set, not just the current one.
 #
 # (3) is the one that cannot be faked by a passing unit test: it executes both
-# artifacts, in two different engines, over the same 500 cases.
+# artifacts, in two different engines, over the same 1,000 cases.
+#
+# The engine carries two rule sets. v1 is frozen and its root, bc9f24fdab910a1b,
+# is published; the build fails outright if it moves, because a moved root means
+# every claim already served under those rules would no longer verify.
 
 name: verifier
 
@@ -44,8 +49,17 @@ jobs:
       - name: Engine + verifier unit tests
         run: bun test packages/
 
-      - name: 500-case corpus replay
+      - name: 500-case corpus replay (both rule sets)
         run: bun test src/lib/laytime/regression.test.ts
+
+      # Regenerating v1 must reproduce the committed goldens byte for byte. The
+      # replay above proves the ENGINE still agrees with them; this proves the
+      # GENERATOR does, which is what makes the corpus reproducible by a third
+      # party rather than merely stable in this repository.
+      - name: v1 corpus regenerates byte-identically
+        run: |
+          bun scripts/synthetic-claims/generate.ts --out /tmp/corpus-v1-check --no-pdf
+          diff -rq synthetic-corpus/cases /tmp/corpus-v1-check/cases
 
       - name: App unit tests
         run: bun test src/lib/
@@ -87,4 +101,5 @@ jobs:
             packages/laytime-verify/dist/laygrounded-verify.mjs
             packages/laytime-verify/dist/laygrounded-verify.wasm
             packages/laytime-verify/dist/conformance.json
+            packages/laytime-verify/dist/conformance-v2.json
             packages/laytime-verify/dist/manifest.json

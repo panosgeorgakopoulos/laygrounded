@@ -239,17 +239,41 @@ describe("the GENCON 94 + SHINC gap is surfaced, not silently swallowed", () => 
   // SHINC rule counts them. Reporting deductible hours the calculation then
   // ignores is worse than reporting none.
 
-  const withBasis = (daysBasis: string, cpForm: "GENCON94" | "ASBATANKVOY" = "GENCON94") =>
+  const withBasis = (
+    daysBasis: string,
+    cpForm: "GENCON94" | "ASBATANKVOY" = "GENCON94",
+    engineVersion: 1 | 2 = 1
+  ) =>
     attribute({
       deductionBasis: { kind: "owner_fault", reference: "crane", hours: 6 },
       daysBasis,
       cpForm,
+      engineVersion,
     });
 
   test("GENCON 94 + SHINC warns that the deduction will not apply", () => {
     const a = withBasis("SHINC");
     expect(a.deductibleHours).toBe(6);
     expect(a.caveats.some((c) => c.includes("ENGINE LIMITATION"))).toBe(true);
+  });
+
+  test("an absent engine version reads as 1 — the caveat still fires", () => {
+    const a = attribute({
+      deductionBasis: { kind: "owner_fault", reference: "crane", hours: 6 },
+      daysBasis: "SHINC",
+      cpForm: "GENCON94",
+    });
+    expect(a.caveats.some((c) => c.includes("ENGINE LIMITATION"))).toBe(true);
+  });
+
+  test("engine v2 is SILENT — the hours now do reduce the calculation", () => {
+    // Not cosmetic. A leftover "these hours will NOT reduce the calculation" on
+    // a claim where they now do would talk an operator out of a deduction they
+    // are entitled to, which is the same class of harm the caveat exists to
+    // prevent, pointing the other way.
+    const a = withBasis("SHINC", "GENCON94", 2);
+    expect(a.deductibleHours).toBe(6);
+    expect(a.caveats.some((c) => c.includes("ENGINE LIMITATION"))).toBe(false);
   });
 
   test("other bases carry no such warning", () => {

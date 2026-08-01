@@ -21,6 +21,7 @@ import {
 } from "@/lib/legal/prosecution";
 import { type TimeProofSnapshot } from "./prosecution";
 import { buildDerivationRecord } from "@/lib/legal/derivation";
+import { resolveClaimEngineVersion, withEngineVersion } from "@/lib/laytime/engine-version";
 import { canonicalEventOrder } from "@laygrounded/laytime-core/gencon94";
 import type { SofEventInput } from "@/lib/laytime/types";
 import { anchorMerkleRoot, type AnchorOutcome } from "./anchor";
@@ -41,7 +42,7 @@ export async function loadClaimSnapshotInputs(
 ): Promise<ClaimSnapshotInputs> {
   const { data: claim } = await supabase
     .from("claims")
-    .select("id, company_id, vessel, voyage_ref, port, cp_terms")
+    .select("id, company_id, vessel, voyage_ref, port, cp_terms, engine_version")
     .eq("id", claimId)
     .maybeSingle();
   if (!claim) throw new Error("CLAIM_NOT_FOUND");
@@ -68,7 +69,12 @@ export async function loadClaimSnapshotInputs(
   if (!calc) throw new Error("NO_CALCULATION");
   if (!events || events.length === 0) throw new Error("NO_CONFIRMED_EVENTS");
 
-  const cpTerms = claim.cp_terms as CpTerms;
+  // The rule set that computed the figures being sealed, resolved from the
+  // authoritative column. Stamped onto the terms only when it is 2 — a v1
+  // claim's `cp_terms` leaf must hash exactly as it did before this mechanism
+  // existed, or every root already anchored over it would stop verifying.
+  const engineVersion = resolveClaimEngineVersion(claim);
+  const cpTerms = withEngineVersion(claim.cp_terms as CpTerms, engineVersion);
   const totals: CalculationTotals = {
     allowed_hours: calc.allowed_hours,
     used_hours: calc.used_hours,
@@ -108,7 +114,7 @@ export async function loadClaimSnapshotInputs(
       asOf,
       // Commits the proof to HOW the numbers were derived — which engine, which
       // timezone transitions, which event order — not merely to what they were.
-      derivation: buildDerivationRecord(orderedEvents, cpTerms.port_timezone),
+      derivation: buildDerivationRecord(orderedEvents, cpTerms.port_timezone, engineVersion),
     },
   };
 }

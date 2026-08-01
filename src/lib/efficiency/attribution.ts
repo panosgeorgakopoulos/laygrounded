@@ -120,6 +120,11 @@ export interface AttributionInput {
    */
   cpForm?: "GENCON94" | "ASBATANKVOY" | null;
   daysBasis?: string | null;
+  /**
+   * The claim's laytime rule set. Absent means 1 — the same convention the
+   * engine uses. Decides whether the caveat below still applies at all.
+   */
+  engineVersion?: 1 | 2 | null;
   /** Supplied by the user; never inferred from the shortfall itself. */
   deductionBasis?: DeductionBasis | null;
 }
@@ -269,21 +274,26 @@ export function attributeInefficiency(input: AttributionInput): EfficiencyAttrib
     caveats.push(input.marketFellBackToPortReason);
   }
 
-  // VERIFIED AGAINST THE ENGINE, not assumed. Explicit EXCEPTED_PERIOD events
-  // are honoured on every CP form and days basis EXCEPT GENCON 94 + SHINC,
-  // where `isExceptedHour` folds agreed exceptions in with Sundays and holidays
-  // and the SHINC rule then counts them. ASBATANKVOY has its own branch and is
-  // unaffected. Reporting deductible hours that the calculation then ignores
-  // would be worse than reporting none, so it is called out here rather than
-  // fixed in the engine — changing gencon94.ts would alter the 500-case corpus
-  // and the published WASM root.
+  // FIXED IN ENGINE v2, and still true for v1.
+  //
+  // Under rule set 1, an explicit EXCEPTED_PERIOD is honoured on every CP form
+  // and days basis EXCEPT GENCON 94 + SHINC, where `isExceptedHour` folded
+  // agreed exceptions in with Sundays and holidays and the SHINC rule then
+  // counted them. Reporting deductible hours the calculation ignores is worse
+  // than reporting none, so v1 claims still get the warning.
+  //
+  // v2 deducts them under Cl. 7(c), so the caveat is SILENT there — and that
+  // silence matters as much as the warning did. A stale "these hours will NOT
+  // reduce the calculation" on a claim where they now do is not a harmless
+  // leftover: it would talk an operator out of a deduction they are entitled to.
   if (
     deductibleHours > 0 &&
+    (input.engineVersion ?? 1) === 1 &&
     (input.cpForm ?? "GENCON94") === "GENCON94" &&
     input.daysBasis === "SHINC"
   ) {
     caveats.push(
-      `ENGINE LIMITATION: under GENCON 94 with a SHINC basis, an agreed excepted period is not excluded from laytime — the SHINC rule ("Sundays and holidays included") currently absorbs it. These ${deductibleHours.toFixed(1)}h will NOT reduce the calculation until that is addressed. Every other CP form and days basis applies the deduction correctly.`
+      `ENGINE LIMITATION (rule set 1): under GENCON 94 with a SHINC basis, an agreed excepted period is not excluded from laytime — the SHINC rule ("Sundays and holidays included") absorbs it. These ${deductibleHours.toFixed(1)}h will NOT reduce this claim's calculation. Engine v2 corrects this; the claim can be moved to it while it remains unagreed.`
     );
   }
 

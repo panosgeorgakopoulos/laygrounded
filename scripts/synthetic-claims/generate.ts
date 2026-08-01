@@ -17,8 +17,8 @@ import path from "path";
 import { createHash } from "crypto";
 import { recomputeLaytime } from "../../src/lib/laytime/gencon94";
 import { computeTimeBar } from "../../src/lib/time-bar";
-import { SofEventInput } from "../../src/lib/laytime/types";
-import { ARCHETYPES, Scenario } from "./scenarios";
+import { EngineVersion, SofEventInput } from "../../src/lib/laytime/types";
+import { ARCHETYPES, ARCHETYPES_V2, Scenario } from "./scenarios";
 import { checkInvariants } from "./invariants";
 import { renderSofPdf } from "./pdf";
 import { Rng } from "./rng";
@@ -32,9 +32,37 @@ function argValue(flag: string): string | undefined {
 }
 const COUNT = parseInt(argValue("--count") ?? "500", 10);
 const SEED = parseInt(argValue("--seed") ?? "20260712", 10);
-const OUT = path.resolve(REPO_ROOT, argValue("--out") ?? "synthetic-corpus");
 const WITH_PDF = !process.argv.includes("--no-pdf");
 const MAX_ATTEMPTS = 40;
+
+// Which RULE SET the goldens are blessed under. The two corpora are separate
+// suites with separate conformance roots, not a corpus plus a patch: a golden
+// is only meaningful alongside the rules that produced it.
+//
+// v1's default output path is pinned to `synthetic-corpus/`, whose 500 cases
+// carry the published root `bc9f24fdab910a1b`. Regenerating it must reproduce
+// those bytes exactly — that is the invariant this flag exists to protect.
+const ENGINE_VERSION = parseInt(argValue("--engine-version") ?? "1", 10) as EngineVersion;
+if (ENGINE_VERSION !== 1 && ENGINE_VERSION !== 2) {
+  throw new Error(`--engine-version must be 1 or 2, got "${ENGINE_VERSION}"`);
+}
+const OUT = path.resolve(
+  REPO_ROOT,
+  argValue("--out") ?? (ENGINE_VERSION === 2 ? "synthetic-corpus-v2" : "synthetic-corpus")
+);
+const REGISTRY = ENGINE_VERSION === 2 ? ARCHETYPES_V2 : ARCHETYPES;
+
+/**
+ * Stamps the rule set onto a scenario's terms.
+ *
+ * v1 is stamped with NOTHING. Absent means 1 throughout the engine, and writing
+ * `engine_version: 1` into the v1 goldens would change all 500 case files and
+ * with them the published root — the exact regression this whole mechanism is
+ * built to prevent.
+ */
+function withEngineVersion(cpTerms: Scenario["cpTerms"]): Scenario["cpTerms"] {
+  return ENGINE_VERSION === 2 ? { ...cpTerms, engine_version: 2 } : cpTerms;
+}
 
 // FNV-1a — stable per-archetype seed salt.
 function fnv1a(s: string): number {
@@ -82,7 +110,10 @@ function buildCase(
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const rng = new Rng(caseSeed).child(attempt);
-    const scenario = build(rng);
+    const built = build(rng);
+    // Stamped before the engine ever sees the scenario, so the terms that
+    // produced the golden are exactly the terms written into the case file.
+    const scenario: Scenario = { ...built, cpTerms: withEngineVersion(built.cpTerms) };
     const inputs = engineInputs(scenario);
 
     // --- Error archetypes: the engine must refuse, with the right message ---
@@ -192,8 +223,8 @@ async function main() {
 
   // Per-archetype allocation proportional to weight; remainder to the
   // largest fractional parts so totals hit COUNT exactly.
-  const totalWeight = ARCHETYPES.reduce((a, x) => a + x.weight, 0);
-  const raw = ARCHETYPES.map((a) => (COUNT * a.weight) / totalWeight);
+  const totalWeight = REGISTRY.reduce((a, x) => a + x.weight, 0);
+  const raw = REGISTRY.map((a) => (COUNT * a.weight) / totalWeight);
   const alloc = raw.map(Math.floor);
   let remainder = COUNT - alloc.reduce((a, x) => a + x, 0);
   const byFraction = raw
@@ -213,7 +244,7 @@ async function main() {
   const summary: Array<{ archetype: string; cases: number; attempts: number }> = [];
   let emittedTotal = 0;
 
-  for (const [ai, arch] of ARCHETYPES.entries()) {
+  for (const [ai, arch] of REGISTRY.entries()) {
     let attempts = 0;
     for (let i = 0; i < alloc[ai]; i++) {
       const caseSeed = (SEED ^ fnv1a(arch.name) ^ Math.imul(i + 1, 0x9e3779b9)) >>> 0;
@@ -258,6 +289,10 @@ async function main() {
   const manifest = {
     generator: "synthetic-claims v1",
     seed: SEED,
+    // Which rule set blessed these goldens. `engineSha256` below hashes the
+    // engine SOURCE, which now contains both rule sets and therefore moves when
+    // either changes — it can no longer say which one produced this corpus.
+    engineVersion: ENGINE_VERSION,
     count: emittedTotal,
     withPdfs: WITH_PDF,
     engineSha256: createHash("sha256").update(engineSource).digest("hex"),
@@ -267,7 +302,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 
   const ms = Math.round(performance.now() - t0);
-  console.log(`\nSynthetic claim corpus — seed ${SEED}\n`);
+  console.log(`\nSynthetic claim corpus — seed ${SEED}, engine v${ENGINE_VERSION}\n`);
   for (const s of summary) {
     const retries = s.attempts - s.cases;
     console.log(
