@@ -62,3 +62,9 @@ An event is marked processed once its jobs are **enqueued**, never once the ERP 
 - Sync-job idempotency keys derive from the **event's** key, so a redelivered event cannot double-push.
 
 Route: `POST /api/events/dispatch` (cron via `CRON_SECRET`, or authenticated manual trigger), which dispatches and then drains.
+
+## Where schedules surface
+
+`pull_schedules` lands in `erp_vessel_schedules` and stops there — it is never promoted to a claim. The UI is `/schedules` ("Fleet Schedules"), read through `GET /api/integrations/schedules`, which joins each row to its integration so the page can show the provider, the external ref, whether the integration is in **mock** mode, and whether the field mapping is vendor-documented.
+
+Each port call links into `/simulator/pre-arrival` through `src/lib/simulator/prefill.ts`, carrying vessel, port, ETA, cargo and operation — and deliberately not charterparty terms, which an ERP schedule does not contain. That link is the reason the table exists: a forward schedule is the last point at which demurrage is still avoidable.

@@ -30,6 +30,15 @@ Six modules built on the engine's purity (pure math in `src/lib/**` with unit te
 - **Charter chain ("ripple")** — `src/lib/chain/ripple.ts` clones a claim's confirmed events one tier down (`claims.parent_claim_id/chain_role/chain_depth`, depth-capped) onto a stub document (`mime 'chain'`; never reference parent document rows — cross-claim cascade risk). Events corroborated by evidence clone as `locked` with `locked_reason`; `EVENT_LOCKED` (409) is enforced at guest proposal creation, owner proposal acceptance, and direct event PATCH. `POST/GET /api/claims/[claimId]/sub-claim`.
 - **Parametric insurance oracle** — `src/lib/insurance/`: pure `detect.ts` finds the longest *continuous* weather-delay window in a breakdown; `oracle.ts` compares it to each active policy's `threshold_hours`, ledgers `insurance_triggers` (UNIQUE idempotency key → at-most-once per window) and emits HMAC-signed webhooks. Insurers authenticate with a hashed API key (plaintext returned once at creation) on read-only `GET /api/insurance/oracle`; management `POST/GET /api/insurance/policies`; sweep `POST /api/insurance/run`.
 
+## ERP schedules → risk (the pre-arrival bridge)
+
+`erp_vessel_schedules` is the landing table for forward port calls pulled from an ERP. **A schedule is a plan, not a fact**: it is never promoted to a claim, has a SELECT policy and no write policy at all (the sync worker is the only writer, as service_role), and an end user editing it would silently diverge from the source system.
+
+- **`/schedules`** ("Fleet Schedules") lists them, carrying provenance to the surface: the integration's display name, its external ref, and whether it is a **mock** integration serving fixtures. `mappingVerifiedAgainstVendorDocs` is shown as a warning, and still means "follows published vendor documentation", never "live-tested".
+- **`src/lib/simulator/prefill.ts`** (pure) is the bridge, imported by **both** ends so the parameter names cannot drift: the schedules page builds the query with `buildPreArrivalQuery`, the simulator reads it with `readPreArrivalPrefill`. A silently-vanishing prefill looks exactly like a user who did not click the button.
+- **What is deliberately NOT carried:** laytime allowance, days basis, demurrage/despatch rates and ops duration. An ERP schedule does not contain charterparty terms, and each is an input the exposure is highly sensitive to — carrying a plausible default would produce a figure that *looks* derived from the ERP and is not. The banner on the simulator says so.
+- `port_function` maps to the simulator's operation for `load`/`discharge` only. `bunker`, `transit` and `unknown` map to **null**, not to a guess: a bunker call is not a cargo operation.
+
 ## Later modules (built after the sections above; same conventions)
 
 - **Voyage console** — `src/lib/console/triage.ts` (pure) ranks the whole book into a work queue: severity tiers first (an expiring time bar outranks a larger comfortable claim, because the deadline is irreversible), money only as the tiebreak within a tier. Page `/console`, server-rendered with batched per-claim queries.

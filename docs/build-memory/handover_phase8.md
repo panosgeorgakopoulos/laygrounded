@@ -295,15 +295,29 @@ field values on screen):
 
 ## 7. Known gaps and open decisions
 
-1. **`erp_vessel_schedules` still has no UI.** Pulled schedules land in the table
-   and nothing displays them. The remaining item from the UI audit, and the least
-   coupled to settlement — a read-only list on the voyages page.
+1. **The ERP schedules UI is built** (`/schedules` + `src/lib/simulator/prefill.ts`),
+   closing the last item from the UI audit. Verified end to end by driving a real
+   `pull_schedules` sync through the Fortune adapter in mock mode rather than by
+   inserting rows: 5 schedules landed, the page rendered them with provenance,
+   and "Assess risk" carried the port call into the Monte Carlo. The engine's own
+   seed — `kythnos voyager|7101/2026|tubarao|2026-08-03T12:14:26.683Z|…` — is
+   derived from the schedule, which is what proves the ERP data reached the
+   engine rather than merely the form.
 2. **v2's root is not yet attested by the wasm.** Only CI can build it (`javy` is
    absent locally by design). The `.mjs` reproduces both roots; the sealed
    artifact's agreement is asserted by the workflow on push.
 3. **The delete paths were exercised at the API and database layers, not through
    the browser.** Both are behind `confirm()` dialogs, which block the automation
    tools outright.
+4. **A mock FORTUNE integration and its 5 fixture schedules are live in the demo
+   tenant**, left deliberately so `/schedules` demonstrates something. Every row
+   is labelled `mock` in the UI with a banner saying an assessment run from it is
+   a rehearsal. Remove with:
+   `delete from integrations where display_name = 'Fortune ERP (demo mock)';`
+5. **`AIS_CONGESTION_PROVIDER` is unset**, so a pre-arrival assessment refuses
+   with an actionable message rather than guessing port queueing — correct, and
+   unchanged. The end-to-end verification used an ephemeral `mock` value passed
+   to the dev process; `.env` was not modified.
 4. **The v2 corpus ships no PDFs.** They are extraction fixtures, irrelevant to
    engine conformance, and would duplicate 2 MB.
 5. **EIP-55 and the EIP-712 digest remain uncomputed.** Both need keccak-256.
