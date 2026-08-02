@@ -68,6 +68,22 @@ An owner-exported package carries `grant: null` and a caveat saying so, rather t
 - **Synthetic AIS** — `src/lib/dev/mock-ais-track.ts` (pure) draws a track with an anchor phase, a feed gap **spanning real distance mid-transit**, a berth phase with a warping excursion, and a duplicate timestamp. Enabled only by `AIS_PROVIDER_URL=mock` outside production. Verdicts are derived in memory via the same `verifyTimelineMotion` the real pipeline uses and are **never persisted** — a fabricated track reaching a stored verdict would put invented evidence into a claim.
 - **Not to be confused with `negotiation/autonomous.ts`**, which is agent-to-agent concession trading producing a settlement recommendation (deterministic personas, not LLMs) with its own UI in `claim-actions-panel.tsx`. That answers "what should we settle at"; this answers "what is actually disputed".
 
+## The claim ledger, and where every backend feature surfaces
+
+- **Activity ledger** — `src/lib/audit/claim-activity.ts` (pure) + `GET /api/claims/[id]/activity` + `claim-activity-feed.tsx`. A **read-time projection**, deliberately not a `claim_audit_logs` table: a stored log would need backfilling (inventing timestamps for history), would be a second copy of facts that already carry their own times, and a failed writer would leave a hole nothing could detect. Projecting cannot disagree with the record because it *is* the record. **An actor that cannot be established reads `unknown`, never a person** — attributing a machine's action to a human is the failure that makes an audit trail actively misleading. `domain_events` is included but terse: it records that a transition was *published*, which is a different fact from the transition, already present from its own table.
+
+**Surface-area map** (every user-facing backend feature and its UI):
+
+| Feature | UI |
+|---|---|
+| Trade-finance grants (`grants-server.ts`) | `finance-grants-panel.tsx` — issue/revoke bank tokens, claim workspace |
+| Live exposure (`voyage/exposure.ts`) | `claim-outlook-panel.tsx` (left) |
+| Settlement expectation (`settlement/expectation.ts`) | `claim-outlook-panel.tsx` (right) |
+| Counterparty intel (`intel/counterparty.ts`) | `counterparty-intel.tsx` on `/analytics` |
+| CP risk analyzer (`prefixture/analyze-server.ts`) | `cp-risk-analyzer.tsx` on `/analytics` |
+
+Routes with **no** UI are machine-facing by design: cron sweeps (`*/run`, `events/dispatch`), M2M under `/api/v1/*`, inbound webhooks, the bank-facing `/v1/claims/:id/verify` (grant-redeemed), public verifier artifacts, and `/mcp`.
+
 ## Later modules (built after the sections above; same conventions)
 
 - **Voyage console** — `src/lib/console/triage.ts` (pure) ranks the whole book into a work queue: severity tiers first (an expiring time bar outranks a larger comfortable claim, because the deadline is irreversible), money only as the tiebreak within a tier. Page `/console`, server-rendered with batched per-claim queries.

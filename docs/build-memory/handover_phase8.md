@@ -512,3 +512,61 @@ behind a human review. Room and review rows deleted afterwards.
 Nothing here touches engine determinism: the agents price every position with a
 real laytime run through `sensitivity.ts`; the limits only decide how far each
 side may move.
+
+
+---
+
+## 12. Phase 12 — the ledger, and the orphan sweep
+
+### The sweep, done properly
+
+Table names barely appear in `.tsx`, so counting those would have proved
+nothing. The real test is whether a route reading a feature is fetched by any
+component: 117 routes on disk, cross-referenced against every `/api/...` string
+literal in every `.tsx`. **39 unreferenced, of which 34 are correctly
+machine-facing** — cron sweeps, M2M under `/api/v1/*`, inbound webhooks, the
+bank-facing grant redemption, public verifier artifacts, `/mcp`.
+
+**Five genuine orphans, all now built:**
+
+| Orphan | Why it mattered | UI |
+|---|---|---|
+| `finance-grants` | The trade-finance moat: nothing could issue a bank a token, so the audit room's bundle was unreachable | `finance-grants-panel.tsx` |
+| `exposure` | Live demurrage accrual on an unfinished voyage | `claim-outlook-panel.tsx` |
+| `settlement-expectation` | What claims like this actually settle at | `claim-outlook-panel.tsx` |
+| `intel/counterparty` | Counterparty behaviour from your own book | `/analytics` |
+| `prefixture/analyze` | Price a CP's risky clauses before fixing | `/analytics` |
+
+The grants one is the significant find: Phase 8 built the audit room showing
+what a bank would be handed, and Phase 12 discovered nothing could actually hand
+it to them. The two halves existed for four phases without meeting.
+
+### The ledger is a projection, not a table
+
+The directive offered `claim_audit_logs` as an option. A stored log is worse:
+it needs backfilling (inventing timestamps for everything before it existed), it
+is a second copy of facts that already carry their own times, and a writer that
+failed would leave a hole nothing could detect. **A read-time projection cannot
+disagree with the record because it is the record.** The cost is a bounded
+fan-out of narrow queries, paid only when the tab is opened.
+
+`actorForEventSource` defaults to **`unknown`, never `human`**. Attributing a
+machine's action to a person is the failure mode that makes an audit trail
+actively misleading — somebody will believe it. Pinned by a test.
+
+`domain_events` is included but deliberately terse: it records that a transition
+was *published to consumers*, which is a different fact from the transition
+itself, and the transition is already in the ledger from its own table.
+Including it as an equal peer would double-count every state change.
+
+### Verification state
+
+- `tsc` + `eslint` clean; **2,724 tests pass**; production build clean.
+- Browser-verified: the ledger rendered 19 entries on the demo claim with
+  filters reading Person 1 / AI 6 / System 9 / External 3, and the AI filter
+  correctly isolated the six vision-extracted timeline events — *not* attributed
+  to a person. Outlook rendered COMPLETED / USD 58,333 / 122-of-72 hours with
+  the meter over-full, and distinguished "no settled claims yet" from "market
+  comparison switched off". The CP analyzer parsed a real recap and reported
+  **"not priceable"** against 0 historical voyages while still listing the
+  unpriced structural risks and naming the one field it could not parse.

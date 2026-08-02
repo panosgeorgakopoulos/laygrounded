@@ -10,6 +10,8 @@ import { loadRoiReport } from "@/lib/analytics/roi";
 import { PrefixtureIntel } from "@/components/laygrounded/prefixture-intel";
 import { RoiCalculator } from "@/components/laygrounded/roi-calculator";
 import { MarketBenchmark } from "@/components/laygrounded/market-benchmark";
+import { CounterpartyIntel } from "@/components/laygrounded/counterparty-intel";
+import { CpRiskAnalyzer } from "@/components/laygrounded/cp-risk-analyzer";
 import styles from "./Analytics.module.css";
 
 export const dynamic = "force-dynamic";
@@ -232,6 +234,21 @@ export default function AnalyticsPage() {
       <div className={styles.sectionCard}>
         <MarketBenchmark />
       </div>
+
+      {/* Book-wide, so it belongs here rather than on a single claim: the
+          profile is computed across every claim with that counterparty. */}
+      <Card className={styles.sectionCard}>
+        <div className={styles.cardPad}>
+          <CounterpartyIntel />
+        </div>
+      </Card>
+
+      {/* Pre-fixture: priced from the same historical sample the oracle uses. */}
+      <Card className={styles.sectionCard}>
+        <div className={styles.cardPad}>
+          <CpRiskAnalyzer />
+        </div>
+      </Card>
 
       <Card className={styles.sectionCard}>
         <div className={styles.cardPad}>
