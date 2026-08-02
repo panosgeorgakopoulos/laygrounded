@@ -9,6 +9,9 @@ import { DownloadIcon } from "@/components/laygrounded/nav-icons";
 import { ClaimIntelPanel, TimeBarView } from "@/components/laygrounded/claim-intel-panel";
 import { ClaimSettlementPanel } from "@/components/laygrounded/claim-settlement-panel";
 import { ClaimVerificationPanel } from "@/components/laygrounded/claim-verification-panel";
+import { ClaimActivityFeed } from "@/components/laygrounded/claim-activity-feed";
+import { ClaimOutlookPanel } from "@/components/laygrounded/claim-outlook-panel";
+import { FinanceGrantsPanel } from "@/components/laygrounded/finance-grants-panel";
 import { ClaimNegotiationPanel } from "@/components/laygrounded/claim-negotiation-panel";
 import { AisVerificationMap } from "@/components/laygrounded/ais-verification-map";
 import { SofTextIngest } from "@/components/laygrounded/sof-text-ingest";
@@ -459,8 +462,17 @@ export default function WorkspacePage({
       {/* Agreement, and the payment instruction it generates */}
       <ClaimSettlementPanel claimId={claimId} onClaimChanged={fetchClaim} />
 
+      {/* Live exposure beside what claims like this actually settle at */}
+      <ClaimOutlookPanel claimId={claimId} />
+
       {/* The audit room: engine, artifacts, notarisation, downloadable bundle */}
       <ClaimVerificationPanel claimId={claimId} />
+
+      {/* The credential that lets a bank fetch the bundle above */}
+      <FinanceGrantsPanel claimId={claimId} />
+
+      {/* How this claim got to its number: every actor, every change */}
+      <ClaimActivityFeed claimId={claimId} />
 
       {/* Legal, settlement, notary, charter-chain & interoperability actions */}
       <ClaimActionsPanel claimId={claimId} onClaimChanged={fetchClaim} />
