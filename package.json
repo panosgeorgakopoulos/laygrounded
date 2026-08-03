@@ -15,7 +15,11 @@
     "seed:dataset": "bun scripts/seed/build-demo-dataset.ts",
     "sync:pdfjs": "bun scripts/sync-pdfjs-assets.ts",
     "tzdata": "bun scripts/build-tzdata.ts",
-    "verify:build": "bun packages/laytime-verify/scripts/build-artifacts.ts"
+    "verify:build": "bun packages/laytime-verify/scripts/build-artifacts.ts",
+    "check:routes": "bun scripts/check-orphaned-routes.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "dev:e2e": "bun scripts/sync-pdfjs-assets.ts && next dev -p ${E2E_PORT:-3100}"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -60,6 +64,7 @@
   },
   "devDependencies": {
     "@laygrounded/laytime-verify": "workspace:*",
+    "@playwright/test": "^1.62.1",
     "@types/node": "26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

@@ -134,11 +134,19 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
     setBusy(id);
     setError(null);
     try {
-      const res = await fetch(`/api/claims/${claimId}/finance-grants/${id}`, {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ reason: reason.trim() || "revoked by the issuing tenant" }),
+      // The reason travels as a QUERY PARAMETER, which is what the route reads.
+      // It was previously sent as a JSON body and silently dropped: the grant
+      // was revoked correctly, but every revocation was recorded with no reason
+      // — an audit entry for an unexplained action. Server-side checks all
+      // passed, so nothing surfaced it until the E2E suite asserted the reason
+      // appeared in the UI afterwards.
+      const query = new URLSearchParams({
+        reason: reason.trim() || "revoked by the issuing tenant",
       });
+      const res = await fetch(
+        `/api/claims/${claimId}/finance-grants/${id}?${query.toString()}`,
+        { method: "DELETE" }
+      );
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.detail ?? j.error ?? "Could not revoke the grant");
@@ -162,7 +170,7 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
   }
 
   return (
-    <div className={styles.wrap}>
+    <section className={styles.wrap} aria-label="Bank and auditor access">
       <header className={styles.head}>
         <h3 className={styles.title}>
           <Landmark size={15} /> Bank &amp; auditor access
@@ -358,6 +366,6 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
           No access has been granted for this claim. Nobody outside your company can fetch it.
         </p>
       )}
-    </div>
+    </section>
   );
 }

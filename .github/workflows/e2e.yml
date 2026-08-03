@@ -1,0 +1,64 @@
+# Browser-level checks: the things a green unit suite cannot see.
+#
+# Separate from `verifier.yml` because it needs a browser download, a running
+# app and live Supabase credentials, and because its failures mean something
+# different — a red verifier is "the engine changed", a red E2E is "the product
+# does not work in a browser".
+name: e2e
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  golden-path:
+    runs-on: ubuntu-latest
+    # The suite drives a real app against a real database. Without credentials
+    # it cannot sign in, and a run that silently "passed" by skipping would be
+    # worse than no run — so the job asserts they are present and fails loudly.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - run: bun install --frozen-lockfile
+
+      - name: Require Supabase credentials
+        env:
+          URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL is not set. The E2E suite drives a real app;"
+            echo "::error::a run without credentials cannot sign in and must not report success."
+            exit 1
+          fi
+
+      # Only Chromium, and only its deps. The golden path asserts behaviour, not
+      # cross-browser rendering, and three engines would triple the runtime for
+      # no additional signal.
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Golden path
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: bun run test:e2e
+
+      # Traces and video only exist on failure, and they are the whole reason a
+      # remote failure is diagnosable at all.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

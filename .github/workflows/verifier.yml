@@ -64,6 +64,15 @@ jobs:
       - name: App unit tests
         run: bun test src/lib/
 
+      # Every backend capability must be reachable from the UI. Phase 12 found
+      # five features with working backends and no interface — the worst being
+      # trade-finance grants, where the audit room had spent four phases showing
+      # a bank exactly what it would be handed while nothing could hand it over.
+      # Nothing was broken, so nothing surfaced it. This is what keeps 1:1
+      # surface area a property rather than a snapshot.
+      - name: No orphaned API routes
+        run: bun run check:routes
+
       # Both toolchains are pinned exactly. Javy v9 broke bytecode compatibility
       # with v8, so the compiler version is part of the artifact's identity: a
       # floating version would silently change the published wasm hash. wasmtime

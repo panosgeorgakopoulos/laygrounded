@@ -71,3 +71,9 @@ packages/laytime-verify/src/entry-javy.ts
 # lockfile of record). A stray package-lock.json makes Vercel detect npm, which
 # then chokes on the `workspace:*` protocol used by packages/*.
 package-lock.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

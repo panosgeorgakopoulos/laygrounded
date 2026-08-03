@@ -570,3 +570,81 @@ Including it as an equal peer would double-count every state change.
   comparison switched off". The CP analyzer parsed a real recap and reported
   **"not priceable"** against 0 historical voyages while still listing the
   unpriced structural risks and naming the one field it could not parse.
+
+
+---
+
+## 13. Phase 13 — guardrails and E2E
+
+### The orphan guardrail
+
+`scripts/check-orphaned-routes.ts` (`bun run check:routes`), wired into
+`verifier.yml`. 118 routes, cross-referenced against every `/api` string
+literal in every `.tsx`/`.ts` outside the route handlers.
+
+**The allowlist requires a REASON, and that is the design.** A list of bare
+paths degrades into a place to silence failures, which is exactly how the gap
+it exists to prevent got in. The reason is what a reviewer checks to tell a
+deliberate integration endpoint from a feature somebody forgot to finish.
+
+On its first run it flagged three. One was a scanner bug — `${qs}` appended
+without a `/` is a query string, not a path segment, so `/intel/benchmark${qs}`
+was normalised to a path matching no route and a live feature read as orphaned.
+The other two (`/knowledge/search`, `/intel/congestion`) turned out to be
+**deliberate public APIs whose UI reads the underlying library directly**. Both
+are now allowlisted with that reason recorded — previously it was tacit, and a
+later reader would eventually have deleted one.
+
+Verified by negative test: adding an unreferenced route makes it exit 1.
+
+### The E2E suite, and what writing it found
+
+`tests/e2e/golden-path.spec.ts`, 7 steps, all green in ~37s. Playwright starts
+the app itself on :3100.
+
+**Writing it found three defects, none of which any unit test could see:**
+
+1. **`Input` had no label association.** No `htmlFor`/`id`, so screen readers
+   announced every labelled field as unlabelled and clicking a label did not
+   focus it. Fixed with `useId`, plus `aria-invalid`/`aria-describedby` on the
+   error path.
+2. **Two panels were not landmarks.** A `<section>` with no accessible name is
+   not exposed as a region at all; a screen-reader user navigating by landmark
+   skipped straight past them.
+3. **Grant revocation recorded no reason.** The Phase 12 panel sent `reason` in
+   a JSON body; the route reads it from the query string. Revocation worked, so
+   every server-side check passed — and every revocation was logged as an
+   unexplained action. Only an assertion about what appears on screen
+   *afterwards* caught it.
+
+Two more findings were about the harness rather than the product, and both are
+worth remembering:
+
+- **The proxy's 100-req/min anti-flood bucket fails an E2E run.** One browser
+  loading a twelve-panel workspace four times clears it, and the 429 surfaced
+  in the UI as **"Claim not found"** — indistinguishable from a product bug.
+  `E2E_DISABLE_RATE_LIMIT=1`, honoured only outside production (the same gate
+  the synthetic AIS track uses).
+- **A Playwright `afterAll` cleanup hook ran before the last tests**, deleting
+  the claim mid-suite. Cleanup is now an explicit final step, where a failure
+  is reported rather than swallowed.
+
+### The suite does not clean up after itself, deliberately
+
+There is no claim-deletion route and this phase did not add one. A claim is
+evidence — notarisation anchors, an audit ledger, possibly a settlement
+instruction. Adding a destructive endpoint so a test could tidy up would be a
+product decision made for a test's convenience, and that endpoint would
+eventually be called by something other than a test.
+
+Artifacts carry a run id instead. **E2E runs leave claims named
+`E2E PATHFINDER <RUN>` in the demo tenant**; clear them with
+`delete from public.claims where vessel like 'E2E PATHFINDER %';`
+
+### Verification state
+
+- `tsc` + `eslint` clean; **2,636 unit tests** and **7 E2E steps** pass;
+  production build clean; `check:routes` green with 0 orphans.
+- The CI pipeline gains two jobs: `check:routes` in `verifier.yml`, and a new
+  `e2e.yml` that fails loudly if Supabase credentials are absent rather than
+  silently skipping.
