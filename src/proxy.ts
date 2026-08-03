@@ -133,7 +133,20 @@ export function proxy(request: NextRequest) {
 
   // Per-IP rate limiting, per surface. Preflight is never counted — it reaches
   // no handler and costs nothing to answer.
-  const bucket = request.method === 'OPTIONS' ? null : rateBucket(request.nextUrl.pathname);
+  //
+  // The E2E suite is exempt, and ONLY outside production. A single browser
+  // walking the golden path loads a workspace with a dozen panels four times
+  // over, which clears 100 requests/minute from one IP long before the run
+  // finishes — the tests then failed on a 429 that surfaced as "Claim not
+  // found", which looks exactly like a product bug and is not one.
+  //
+  // Gated the same way the synthetic AIS track is: opt-in AND non-production,
+  // because a limiter that any environment variable can switch off is not a
+  // limiter. In production this branch cannot be reached whatever is set.
+  const e2eExempt =
+    process.env.E2E_DISABLE_RATE_LIMIT === '1' && process.env.NODE_ENV !== 'production';
+  const bucket =
+    request.method === 'OPTIONS' || e2eExempt ? null : rateBucket(request.nextUrl.pathname);
   if (bucket) {
     const key = `${bucket.prefix}${clientKey(request)}`;
     const now = Date.now();

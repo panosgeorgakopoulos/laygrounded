@@ -325,7 +325,10 @@ export function ClaimNegotiationPanel({
           )}
 
           {/* ── Raise a dispute ────────────────────────────────────── */}
-          <section className={styles.composer}>
+          {/* Named, because a <section> with no accessible name is not exposed
+              as a landmark at all — a screen reader user navigating by region
+              would skip straight past the form that raises a dispute. */}
+          <section className={styles.composer} aria-label="Dispute an event">
             <h4 className={styles.composerTitle}>
               <Gavel size={13} /> Dispute an event
             </h4>
