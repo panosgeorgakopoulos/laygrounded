@@ -96,3 +96,17 @@ Routes with **no** UI are machine-facing by design: cron sweeps (`*/run`, `event
 - **Knowledge base** — `kb_clauses` / `kb_precedents` with generated-tsvector FTS; the app's one public anon-readable table. Public pages `/knowledge` (ISR) and `/knowledge/[slug]` (SSG). Case law is only ever user-supplied and licensed — never fabricated.
 - **Compliance** — see `src/lib/compliance/CLAUDE.md`.
 - Others: `market/` (bunker + AIS telemetry), `negotiation/autonomous.ts` (deterministic personas, **not** LLMs), `optimization/ecospeed.ts`, `security/url-guard.ts` (SSRF), `security/definer-grants.ts`.
+
+## The claim pipeline, step by step
+
+The root `CLAUDE.md` carries the one-line shape of this pipeline and the two rules that bind `packages/laytime-core`. The per-step detail is here because three of the four steps are files under `src/lib`.
+
+1. **Upload & extraction** — `POST /api/claims/[claimId]/documents` validates the file by magic bytes (`file-type`), stores it in the Supabase `sofs` bucket under `{companyId}/{claimId}/`, then calls `uploadSofAndExtract` in `src/lib/ai/extraction.ts`. Extraction sends page images via `generateWithFallback` (`src/lib/ai/gemini.ts` — model chain `GEMINI_MODEL` → `GEMINI_FALLBACK_MODEL`, per-model backoff, falls back on 429/404/5xx but never on 400/401/403), validates the response with Zod (timestamps must carry a timezone; events must match `EventTypeEnum`), and inserts rows into `sof_events`.
+
+2. **Rules engine** — `packages/laytime-core/src/gencon94.ts` takes `SofEventInput[]` + `CpTerms` and returns a `LaytimeResult` (breakdown rows + totals). It carries two rule sets at once, selected by `cpTerms.engine_version` (absent = 1) — see "Engine versioning" in the root `CLAUDE.md`. Under ASBATANKVOY, berthing cuts turn time short, weather never stops laytime, and storm on demurrage bills half rate via `totals.demurrage_half_rate_hours`. It uses `decimal.js` for money and `date-fns-tz` for port-timezone-aware SHEX/SSHEX day exclusions.
+
+3. **Recompute bridge** — `src/lib/laytime/recompute-server.ts` loads a claim's confirmed events and `cp_terms` (validated with Zod) via the shared `loadClaimComputationInputs()`, runs the engine, and persists the result to `laytime_calculations`. Callers running outside a user request (demo seeder, claim rooms) must pass a service-role client explicitly, because the default cookie client has no user and RLS blocks everything.
+
+4. **Clause flagging** — `src/lib/clause-flagging.ts` audits the event chronology for ambiguous triggers (NOR at anchorage, shifting before ALL_FAST, etc.) and writes `clause_flags` with severity + clause reference.
+
+Shared domain types (event enums, `CpTerms`, `LaytimeResult`, `DEFAULT_CP_TERMS`) live in `src/lib/laytime/types.ts`; DB row shapes in `src/lib/database-types.ts`.
