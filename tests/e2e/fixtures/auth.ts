@@ -7,8 +7,17 @@
 
 import { expect, type Page } from "@playwright/test";
 
-export const DEMO_EMAIL = process.env.E2E_EMAIL ?? "demo2@laygrounded.com";
-export const DEMO_PASSWORD = process.env.E2E_PASSWORD ?? "demo1234";
+// `||`, NOT `??`, and this is load-bearing in CI. GitHub Actions exports every
+// key declared in a step's `env:` block, so a secret that does not exist
+// arrives as the EMPTY STRING rather than as undefined. `??` only falls back on
+// null/undefined, so it handed the empty string straight through: the suite
+// typed nothing into the sign-in form, submission failed, and all seven tests
+// died in `beforeEach` on a 30s `waitForURL` timeout — with test (a) failing
+// first, so it read as "claim creation is broken" rather than "there is no
+// password". `||` treats empty as absent, which is the only reading that makes
+// sense for a credential.
+export const DEMO_EMAIL = process.env.E2E_EMAIL || "demo2@laygrounded.com";
+export const DEMO_PASSWORD = process.env.E2E_PASSWORD || "demo1234";
 
 /**
  * Signs in and waits for the app to be genuinely ready.

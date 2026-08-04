@@ -52,6 +52,11 @@ export const SECURITY_ACTIONS = [
   "webhook.deleted",
   "member.invited", // the tenant's user set changed
   "member.removed",
+  "member.role_changed", // someone's authority inside the tenant changed
+  // A role that was not high enough for what was attempted. Recorded because
+  // the denied half of an audit trail is the half that shows intent, and an
+  // RBAC model nobody can prove was enforced is a claim rather than a control.
+  "capability.denied",
   "proposal.accepted", // a counterparty amendment was written into the record
   "proposal.rejected",
   "event.amended", // a confirmed event was edited directly by the owner

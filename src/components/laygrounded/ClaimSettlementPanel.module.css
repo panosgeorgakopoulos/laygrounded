@@ -224,3 +224,16 @@
 }
 
 .digestNote { flex-basis: 100%; }
+
+/* Why a control is unavailable, when the reason is authority rather than state. */
+.roleNote {
+  margin-top: 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.roleNote a {
+  color: inherit;
+  text-decoration: underline;
+}

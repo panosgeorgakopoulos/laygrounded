@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { issueGrant, listGrants } from "@/lib/finance/grants-server";
 import { GRANT_PURPOSES, MAX_GRANT_EXPIRY_DAYS } from "@/lib/finance/grants";
 import { apiError } from "@/lib/api-errors";
@@ -40,6 +40,13 @@ export async function POST(
     const auth = await requireAuth();
     const { claimId } = await params;
     const supabase = await assertOwnedClaim(claimId, auth.companyId);
+
+    // Issuing hands a third party a credential to this claim's evidence.
+    await assertCapability(auth, "finance.grant", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     const parsed = IssueSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

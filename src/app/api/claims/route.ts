@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { requireAuth, requireCapability } from "@/lib/server-auth";
+import { apiError } from "@/lib/api-errors";
 import { DEFAULT_CP_TERMS } from "@/lib/laytime/types";
 import { runComplianceScan } from "@/lib/compliance/service";
 
@@ -92,15 +93,15 @@ export async function GET(req: NextRequest) {
       }
     });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "claims");
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // Checked first here, unlike the claim-scoped routes: there is no claim to
+    // establish ownership of yet, so there is no 404 for a 403 to leak past.
+    const auth = await requireCapability("claim.write", { req });
     const supabase = await createClient();
     const body = await req.json();
     const parsed = CreateClaimSchema.safeParse(body);
@@ -157,8 +158,6 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "claims");
   }
 }

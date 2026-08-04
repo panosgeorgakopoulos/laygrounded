@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { revokeGrant, listGrantAccesses } from "@/lib/finance/grants-server";
 import { apiError } from "@/lib/api-errors";
 
@@ -29,6 +29,15 @@ export async function DELETE(
     const auth = await requireAuth();
     const { claimId, grantId } = await params;
     const supabase = await assertOwned(claimId, auth.companyId);
+
+    // Revoking a bank's access is irreversible in the way that matters: on the
+    // holder's side a revoked token is indistinguishable from one that never
+    // existed, so it cannot be undone by resending anything.
+    await assertCapability(auth, "finance.grant", {
+      req,
+      resourceType: "finance_grant",
+      resourceId: grantId,
+    });
 
     const reason = req.nextUrl.searchParams.get("reason") ?? undefined;
     const revoked = await revokeGrant(supabase, grantId, auth.companyId, {

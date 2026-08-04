@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
+import { apiError } from "@/lib/api-errors";
 import { computeTimeBar } from "@/lib/time-bar";
 
 const CpTermsSchema = z.object({
@@ -196,9 +197,7 @@ export async function GET(
       })) 
     });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "claims/[claimId]");
   }
 }
 
@@ -220,6 +219,12 @@ export async function PATCH(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
+
+    await assertCapability(auth, "claim.write", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     const body = await req.json();
     const parsed = UpdateClaimSchema.safeParse(body);
@@ -300,8 +305,6 @@ export async function PATCH(
       settledAt: updated.settled_at ?? null,
     } });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "claims/[claimId]");
   }
 }

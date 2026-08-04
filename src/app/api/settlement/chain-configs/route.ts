@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { requireAuth, requireCapability } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 import {
   InvalidFinanceDetailsError,
@@ -43,7 +43,8 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    // Which escrow contract, on which chain, receives the transfer.
+    const auth = await requireCapability("finance.counterparty", { req });
     const supabase = await createClient();
 
     const parsed = UpsertSchema.safeParse(await req.json());
@@ -69,7 +70,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireCapability("finance.counterparty", { req });
     const supabase = await createClient();
 
     const id = new URL(req.url).searchParams.get("id");

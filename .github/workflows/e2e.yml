@@ -26,15 +26,29 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # Checks EVERY value the run needs, not just the URL. The earlier version
+      # asserted the URL alone, so a missing password sailed through the gate
+      # and surfaced six tests later as a 30s `waitForURL` timeout in
+      # `beforeEach` — which reads exactly like "claim creation is broken" and
+      # is nothing of the sort. A preflight that does not check the credential
+      # whose absence actually breaks the run is decoration.
       - name: Require Supabase credentials
         env:
-          URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          E2E_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
-          if [ -z "$URL" ]; then
-            echo "::error::NEXT_PUBLIC_SUPABASE_URL is not set. The E2E suite drives a real app;"
-            echo "::error::a run without credentials cannot sign in and must not report success."
-            exit 1
-          fi
+          missing=0
+          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY E2E_EMAIL E2E_PASSWORD; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty. The E2E suite drives a real app against a real"
+              echo "::error::database; a run without credentials cannot sign in and must not"
+              echo "::error::report success. Set the backing repository secret and re-run."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
 
       # Only Chromium, and only its deps. The golden path asserts behaviour, not
       # cross-browser rendering, and three engines would triple the runtime for
@@ -42,13 +56,23 @@ jobs:
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
+      # Playwright merges `process.env` into the webServer environment before
+      # applying `webServer.env`, so everything set here reaches `next dev` too.
+      # The suite runs against the dev server, not a production build, so the
+      # NEXT_PUBLIC_* values are read at runtime — there is nothing to inline at
+      # build time and no separate build step to expose them to.
+      #
+      # E2E_EMAIL/E2E_PASSWORD are the variable names the suite reads (see
+      # tests/e2e/README.md); TEST_USER_EMAIL/TEST_USER_PASSWORD are the secret
+      # names in repository settings. The indirection is deliberate — rename the
+      # secrets if you want them symmetric, but do not rename only one side.
       - name: Golden path
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
-          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: bun run test:e2e
 
       # Traces and video only exist on failure, and they are the whole reason a

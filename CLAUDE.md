@@ -69,6 +69,17 @@ Module-level docs live next to the code: `src/lib/CLAUDE.md` (module map), `src/
 - Every claim-scoped API route both relies on RLS **and** explicitly checks `claim.company_id === auth.companyId` — preserve this defense-in-depth pattern in new routes.
 - `bootstrapUserCompany` in `src/lib/auth-helpers.ts` creates a company + admin membership on first sign-in.
 
+## Roles (RBAC)
+
+`company_members.role` is one of `viewer` < `operator` < `finance_manager` < `admin` (text + CHECK; the old `app_role` enum is dropped and legacy `member` was rewritten to `operator`). The model lives in **`src/lib/auth/roles.ts`** and is the authority — a **minimum role per capability**, not a set of roles, so a non-monotonic grant (a finance manager missing something every operator has) is unrepresentable rather than merely unlikely.
+
+- **The API layer is the primary enforcement**, not RLS. Most routes hold a service-role handle, which bypasses RLS entirely, so a model enforced only in the database would be enforced on the routes that need it least. `requireCapability(cap)` / `assertCapability(auth, cap)` in `src/lib/server-auth.ts` throw `FORBIDDEN` → 403.
+- The capability check goes **after** the ownership check wherever ownership is already resolved, so a 403 never doubles as confirmation that a stranger's claim id is real. Collection routes with no claim to own (`POST /api/claims`) check first.
+- RLS is the second layer, and it genuinely binds on the three tables reached through the **cookie** client: `finance_grants`, `counterparty_finance`, `settlement_chain_configs`. Reads stay open to any member; writes require `current_role_rank() >= 2`. Verified live (operator blocked, finance manager allowed).
+- `public.current_role_rank()` restates the ladder in SQL because policies cannot import TypeScript. `roles.test.ts` fails if it drifts from `ROLE_RANK`, and `route-guards.test.ts` fails if a gated route loses its check — that test is mutation-verified, not just green.
+- A route that moves money or issues a credential **must** be added to `GATED_ROUTES` in `src/lib/auth/route-guards.test.ts`. That list is the specification.
+- Client components read the role through `useCan()` (`src/components/role-provider.tsx`, fed by `GET /api/me`), because the role is **not in the JWT** — `custom_access_token_hook` was never enabled. Hiding a control is courtesy; the server refusal is the security.
+
 ## Conventions
 
 - Next.js 16: route handler and page `params` is a Promise — always `await params`.

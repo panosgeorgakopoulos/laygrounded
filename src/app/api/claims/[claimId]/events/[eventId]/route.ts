@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
+import { apiError } from "@/lib/api-errors";
 import { recomputeLaytimeServerFn } from "@/lib/laytime/recompute-server";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
 
@@ -30,7 +31,13 @@ export async function PATCH(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
-    
+
+    await assertCapability(auth, "claim.write", {
+      req,
+      resourceType: "sof_event",
+      resourceId: eventId,
+    });
+
     const { data: event } = await supabase
       .from("sof_events")
       .select("claim_id, locked, locked_reason")
@@ -107,8 +114,6 @@ export async function PATCH(
       calcError
     });
   } catch (e) {
-    const isAuth = e instanceof Error && (e.message === "UNAUTHORIZED" || e.message === "NO_COMPANY");
-    console.error(e);
-    return NextResponse.json({ error: isAuth ? (e as Error).message : "INTERNAL_ERROR" }, { status: isAuth ? 401 : 500 });
+    return apiError(e, "claims/[claimId]/events/[eventId]");
   }
 }

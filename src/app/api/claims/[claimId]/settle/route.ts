@@ -37,7 +37,15 @@ export async function POST(
 ) {
   try {
     const { claimId } = await params;
-    const { supabase, auth } = await requireOwnedClaim(claimId, "id, company_id", req);
+    // Clearing funds is a finance-manager act. The HITL `human_approved` flag
+    // below asks whether a human approved; this asks whether that human was
+    // allowed to — a checkbox is not an authority.
+    const { supabase, auth } = await requireOwnedClaim(
+      claimId,
+      "id, company_id",
+      req,
+      "claim.settle"
+    );
 
     const parsed = SettleSchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

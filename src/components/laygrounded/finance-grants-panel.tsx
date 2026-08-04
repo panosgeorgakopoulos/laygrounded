@@ -30,6 +30,7 @@ import {
   Landmark,
   Loader2,
 } from "lucide-react";
+import { useCan } from "@/components/role-provider";
 import styles from "./FinanceGrantsPanel.module.css";
 
 interface Grant {
@@ -67,6 +68,10 @@ function status(g: Grant): { label: string; cls: string } {
 }
 
 export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
+  // Courtesy, not a control: the route re-checks this on every issue and
+  // revoke. Hiding the button stops an operator from discovering the boundary
+  // as an error message.
+  const canGrant = useCan("finance.grant");
   const [grants, setGrants] = useState<Grant[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -219,7 +224,19 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
         </div>
       )}
 
-      {/* ── Issue ────────────────────────────────────────────────────── */}
+      {/* ── Issue ──────────────────────────────────────────────────────
+          The ledger below stays visible to everyone: seeing which banks hold
+          access is not privileged, and hiding it would leave an operator unable
+          to answer "have we sent this yet?". Only the acts are gated. */}
+      {!canGrant && (
+        <p className={styles.intro}>
+          Issuing and revoking bank access needs the <strong>Finance manager</strong> role. You can
+          see the grants below; ask an admin on your{" "}
+          <a href="/settings/team">team page</a> if you need to issue one.
+        </p>
+      )}
+
+      {canGrant && (
       <div className={styles.form}>
         <div className={styles.grid}>
           <label className={styles.field}>
@@ -303,6 +320,7 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
           Issue access token
         </button>
       </div>
+      )}
 
       {/* ── Existing grants ──────────────────────────────────────────── */}
       {grants.length > 0 && (
@@ -345,7 +363,7 @@ export function FinanceGrantsPanel({ claimId }: { claimId: string }) {
                     </p>
                   )}
                 </div>
-                {!g.revokedAt && (
+                {!g.revokedAt && canGrant && (
                   <button
                     type="button"
                     className={styles.revokeBtn}
