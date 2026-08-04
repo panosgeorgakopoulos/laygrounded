@@ -32,6 +32,14 @@ export const EVENT_TYPES = {
    * act on it (or none).
    */
   SETTLEMENT_READY: "claim.settlement_ready",
+  /**
+   * The autonomous agents finished a run and stored a settlement matrix.
+   *
+   * Emitted on INSERT into `autonomous_negotiation_rooms` only. The room's later
+   * status changes are a human working through the review, which is a different
+   * fact and not a new recommendation.
+   */
+  NEGOTIATION_COMPLETED: "negotiation.completed",
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
@@ -55,6 +63,8 @@ export const CONSUMERS = {
   HINTERLAND: "hinterland",
   /** Generates settlement instructions (EIP-712 / ISO 20022) for agreed claims. */
   SETTLEMENT: "settlement",
+  /** Fans events out to the people whose role means they can act on them. */
+  NOTIFICATIONS: "notifications",
 } as const;
 
 export type Consumer = (typeof CONSUMERS)[keyof typeof CONSUMERS];
@@ -93,8 +103,25 @@ export interface RiskAssessedPayload {
   decision_grade: boolean;
   demurrage_probability: number;
   expected_exposure: number;
+  /**
+   * Added in 20260806000000. Optional because events emitted before that
+   * migration do not carry it, and a consumer replaying the log must not assume
+   * every historical event has the newer shape.
+   */
+  p90_exposure?: number | null;
   currency: string;
   inputs_digest: string;
+}
+
+export interface NegotiationCompletedPayload {
+  room_id: string;
+  claim_id: string;
+  /** numeric over PostgREST arrives as a string; callers must coerce. */
+  recommended_settlement: number | string | null;
+  currency: string | null;
+  settlement_probability: number | string | null;
+  converged: boolean | null;
+  rounds: number | null;
 }
 
 export interface SettlementChangedPayload {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureDemoUser } from "@/lib/auth-helpers";
+import { ensureDemoUser, ensureRoleTestUsers } from "@/lib/auth-helpers";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { seedScenarios } from "@/lib/seed-data";
 import { seedScenario } from "@/lib/seed-claims";
@@ -23,13 +23,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, reason: "no membership" });
     }
 
+    // Role accounts are seeded on EVERY run, not only the first. They are
+    // independent of whether claims exist, and the early return below would
+    // otherwise skip them forever on an already-seeded database — which is
+    // exactly the state every existing environment is already in.
+    const roleUsers = await ensureRoleTestUsers(membership.company_id);
+
     const { count } = await supabase
       .from("claims")
       .select("id", { count: "exact" })
       .eq("company_id", membership.company_id);
 
     if (count && count > 0) {
-      return NextResponse.json({ ok: true, alreadySeeded: true, demoEmail: user.email });
+      return NextResponse.json({ ok: true, alreadySeeded: true, demoEmail: user.email, roleUsers });
     }
 
     let seeded = 0;
@@ -45,6 +51,7 @@ export async function POST(req: Request) {
       ok: true,
       seeded,
       demoEmail: user.email,
+      roleUsers,
     });
   } catch (e) {
     return apiError(e, "init-demo/POST");

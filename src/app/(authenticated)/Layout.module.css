@@ -45,3 +45,19 @@
   font-size: 0.875rem;
   letter-spacing: 0.1em;
 }
+
+/* The notification bell sits outside the nav pill (which collapses at rest) and
+   above the page content, so a badge is visible on every authenticated screen. */
+.bellSlot {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  z-index: 50;
+}
+
+@media (max-width: 640px) {
+  .bellSlot {
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+}
