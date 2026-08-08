@@ -57,6 +57,8 @@ interface Proposal {
 interface Share {
   id: string;
   roomPath: string;
+  /** What the token grants. The path already reflects it; this labels it. */
+  accessMode: "negotiate" | "readonly";
   counterpartyLabel: string;
   expiresAt: string;
   revokedAt: string | null;
@@ -269,16 +271,16 @@ export function ClaimIntelPanel({
     }
   };
 
-  const createShare = async () => {
+  const createShare = async (accessMode: "negotiate" | "readonly" = "negotiate") => {
     setSharing(true);
     setError(null);
     try {
       const res = await fetch(`/api/claims/${claimId}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ accessMode }),
       });
-      if (!res.ok) throw new Error("Could not create claim room");
+      if (!res.ok) throw new Error("Could not create the share link");
       const d = await res.json();
       const url = `${window.location.origin}${d.share.roomPath}`;
       try {
@@ -719,18 +721,43 @@ export function ClaimIntelPanel({
             )}
           </div>
 
-          {/* --- Claim room / negotiation --- */}
+          {/* --- Sharing: two grants, deliberately distinguished ---
+
+              A negotiation room lets the counterparty WRITE proposals against
+              the claim. A statement link lets them read an allowlisted
+              projection and nothing else. Offering them as one button labelled
+              "share" is how somebody hands a charterer write access to a claim
+              when all they meant to do was send them the figure. --- */}
           <div className={styles.column}>
             <div className={styles.colTitle}>
-              Claim room
-              <button className={styles.smallBtn} onClick={createShare} disabled={sharing}>
-                {sharing ? "CREATING…" : "NEW SHARE LINK"}
-              </button>
+              Share with counterparty
+              <span className={styles.smallBtnRow}>
+                <button
+                  className={styles.smallBtn}
+                  onClick={() => createShare("readonly")}
+                  disabled={sharing}
+                  title="A read-only laytime statement: figures, breakdown, timeline, vessel track and the engine fingerprint. No internal data, and nothing they can change."
+                >
+                  {sharing ? "CREATING…" : "STATEMENT LINK"}
+                </button>
+                <button
+                  className={styles.smallBtn}
+                  onClick={() => createShare("negotiate")}
+                  disabled={sharing}
+                  title="A negotiation room: the counterparty can propose amendments to the timeline and both sides watch the redline move."
+                >
+                  NEGOTIATION ROOM
+                </button>
+              </span>
             </div>
             {activeShares.length === 0 ? (
               <div className={styles.muted}>
-                Invite the counterparty into a shared negotiation room — both sides
-                see the same clause-cited calculation and can propose amendments.
+                <strong>Statement link</strong> — read-only: the laytime statement, breakdown,
+                Statement of Facts, vessel track and the engine fingerprint that proves which rule
+                set produced the figure. Strips every internal field.
+                <br />
+                <strong>Negotiation room</strong> — both sides see the same clause-cited
+                calculation and the counterparty can propose amendments.
               </div>
             ) : (
               <div className={styles.itemList}>
@@ -748,12 +775,32 @@ export function ClaimIntelPanel({
                       </span>
                     </div>
                     <div className={styles.muted}>
+                      {/* What this link GRANTS, named on every row. The path
+                          hints at it, but a reader deciding whether to revoke
+                          should not have to infer it from a URL prefix. */}
+                      {s.accessMode === "readonly" ? "Read-only statement" : "Negotiation room"} ·{" "}
                       {s.counterpartyLabel || "Counterparty"} · expires {s.expiresAt.slice(0, 10)}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
+              Export
+              <a
+                className={styles.smallBtn}
+                href={`/api/claims/${claimId}/export/csv`}
+                download
+              >
+                EXPORT CSV
+              </a>
+            </div>
+            <div className={styles.muted}>
+              Totals, the full laytime breakdown and the Statement of Facts timeline, as a
+              spreadsheet. Carries the engine rule set and conformance root, so a figure can be
+              tied back to the rules that produced it.
+            </div>
 
             <div className={styles.colTitle} style={{ marginTop: "1rem" }}>
               Negotiation intel

@@ -15,6 +15,29 @@ The **fourth outbox consumer**. `rules.ts` is pure (`draftFor(event) → draft |
 
 UI: `notification-bell.tsx` (bell + dropdown, mounted in the authenticated layout outside the collapsing nav pill) and `/notifications` (full inbox, including dismissed).
 
+## `sharing/` — what a counterparty may see
+
+A share token carries an **access mode** (`claim_shares.access_mode`), and the two modes are different products rather than two renderings of one:
+
+- **`negotiate`** — the claim room (`rooms.ts`, `/rooms/[token]`). The counterparty **writes** `event_proposals` and both sides watch a redline.
+- **`readonly`** — the statement view (`sharing/statement-view.ts`, `/share/claim/[token]`). Evidence to be checked: laytime statement, breakdown, Statement of Facts, vessel track, and the engine conformance root. The reader changes nothing.
+
+**Enforced in the API, not in what the page renders.** `resolveShareForMode()` returns null on a mismatch, so a readonly token presented to `/api/rooms/[token]/proposals` gets the same 404 as a revoked or unknown one — never a 403, which would confirm the token is real and merely misused. A read-only link enforced only by rendering a different page is not read-only.
+
+**`buildStatementView` is an allowlist and nothing else.** Every field is copied by name; there are no spreads. `statement-view.test.ts` builds a view from a claim row stuffed with every internal column in the schema (plus invented future ones) and fails if any sentinel appears anywhere in the serialised payload — it is **mutation-verified**: injecting `...claim` makes it fail and name each leaked field. What must never be added: negotiation mandate/concession bounds, notifications, voyage alerts, drafts, ERP refs, `settled_amount`, `time_bar_days`, `negotiation_opened_at`, or any company/user identifier.
+
+The one judgement call is that **charterparty terms ARE shared** — the counterparty is a party to that charterparty and already has them, and withholding them produces a statement whose arithmetic cannot be checked. Read the key names from `CpTerms` in the engine package rather than guessing: an earlier draft invented `laytime_allowance_hours`/`demurrage_rate_per_day`, every field read as null, and the whole block rendered as em-dashes with a fully green test suite.
+
+## `export-csv.ts` — the spreadsheet operators actually use
+
+Pure. RFC 4180 quoting, CRLF, and a UTF-8 BOM on the **file** (not the format) so Excel on Windows does not mojibake `Gdańsk`.
+
+**Formula injection is the real threat here, not escaping.** Half the content is `raw_text` lifted verbatim from a counterparty-supplied PDF, and Excel executes a cell beginning `=`, `+`, `-`, `@`, tab or CR. `neutralise()` prefixes `'` rather than stripping the character, because these are evidence fields — deleting the minus from `-1200 MT shortfall` would corrupt a figure somebody may rely on in arbitration. Numbers never pass through it, so a computed `-1200` stays numeric and columns still sum.
+
+Timestamps export as **ISO-8601 text, never as spreadsheet dates**: Excel reinterprets anything date-shaped in the opening machine's locale, so `04/03/2024` is April 3rd for one recipient and March 4th for another — and laytime turns on exactly that.
+
+Not to be confused with **`export.ts`**, which builds the rendered PDF + XLSX claim pack (`POST /api/claims/:id/export`). That is a stored document set for attaching to a submission; this is raw tabular data streamed for pivoting. Both are wanted, and they are used differently. The CSV routes are `GET /api/claims/:id/export/csv` (owner) and `GET /api/share/claim/:token?format=csv` (counterparty), both built from the same `claimToCsv` so the two sides cannot disagree about a document they may compare.
+
 ## `auth/` — the RBAC model
 
 `roles.ts` is pure and is the single authority for who may do what: four totally-ordered roles and a **minimum role per capability**, so a capability a lower role holds and a higher one does not cannot be expressed. `roleOf()` fails closed — anything unrecognised becomes `viewer`, and only the legacy `member` is mapped (to `operator`) rather than rejected. Enforcement helpers are in `server-auth.ts`; the SQL mirror (`current_role_rank()`) and the route-gate audit are both pinned by tests in this directory. See the Roles section of the root `CLAUDE.md` for why the API layer, not RLS, is the primary enforcement.

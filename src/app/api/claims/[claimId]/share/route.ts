@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-errors";
-import { DEFAULT_SHARE_EXPIRY_DAYS, generateShareToken } from "@/lib/rooms";
+import { DEFAULT_SHARE_EXPIRY_DAYS, generateShareToken, shareAccessMode } from "@/lib/rooms";
 import { requireOwnedClaim } from "@/lib/audit/claim-access";
 import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const CreateShareSchema = z.object({
   counterpartyLabel: z.string().max(120).default(""),
   expiresInDays: z.number().int().min(1).max(365).default(DEFAULT_SHARE_EXPIRY_DAYS),
+  // Defaults to the negotiation room, matching the column default and every
+  // caller that predates Phase 17. A read-only statement is opted into.
+  accessMode: z.enum(["negotiate", "readonly"]).default("negotiate"),
 });
 
 const RevokeShareSchema = z.object({
@@ -15,10 +18,15 @@ const RevokeShareSchema = z.object({
 });
 
 function serialize(share: any) {
+  const mode = shareAccessMode(share.access_mode);
   return {
     id: share.id,
     token: share.token,
-    roomPath: `/rooms/${share.token}`,
+    accessMode: mode,
+    // The path depends on what the token GRANTS, resolved in one place. A UI
+    // that built this itself would eventually offer a readonly token at
+    // /rooms/, where it 404s — a link the owner has already emailed.
+    roomPath: mode === "readonly" ? `/share/claim/${share.token}` : `/rooms/${share.token}`,
     counterpartyLabel: share.counterparty_label,
     expiresAt: share.expires_at,
     revokedAt: share.revoked_at,
@@ -75,6 +83,7 @@ export async function POST(
         counterparty_label: parsed.data.counterpartyLabel,
         created_by: auth.userId,
         expires_at: expiresAt,
+        access_mode: parsed.data.accessMode,
       })
       .select("*")
       .single();
@@ -96,6 +105,10 @@ export async function POST(
         shareId: share.id,
         counterpartyLabel: parsed.data.counterpartyLabel,
         expiresAt,
+        // WHICH KIND of access was granted. "We shared this claim" is a much
+        // weaker audit record than "we granted a party the ability to file
+        // proposals against it" — those are different acts.
+        accessMode: parsed.data.accessMode,
       },
       ...requestAttribution(req),
     });
