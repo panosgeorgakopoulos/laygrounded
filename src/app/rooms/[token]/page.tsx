@@ -3,7 +3,7 @@
 // token; no Supabase session involved.
 
 import type { Metadata } from "next";
-import { resolveShare, loadRoomView } from "@/lib/rooms";
+import { resolveShareForMode, loadRoomView } from "@/lib/rooms";
 import { Logo } from "@/components/laygrounded/Logo";
 import { RoomClient } from "./room-client";
 import styles from "./Room.module.css";
@@ -28,7 +28,7 @@ export default async function ClaimRoomPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const resolved = await resolveShare(token);
+  const resolved = await resolveShareForMode(token, "negotiate");
 
   if (!resolved) {
     return (

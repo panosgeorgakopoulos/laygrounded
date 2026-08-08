@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { loadRoomView, resolveShare } from "@/lib/rooms";
+import { loadRoomView, resolveShareForMode } from "@/lib/rooms";
 import { apiError } from "@/lib/api-errors";
 
 // Public (token-authenticated) view of a claim room: the shared negotiation
@@ -18,7 +18,9 @@ export async function GET(
   try {
     const { token } = await params;
     const supabase = createServiceRoleClient();
-    const resolved = await resolveShare(token, supabase);
+    // The room projection carries proposals and the live redline — the
+    // negotiation state. A statement-only token must not reach it.
+    const resolved = await resolveShareForMode(token, "negotiate", supabase);
     if (!resolved) {
       return NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 });
     }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { MAX_PENDING_PROPOSALS_PER_SHARE, resolveShare } from "@/lib/rooms";
+import { MAX_PENDING_PROPOSALS_PER_SHARE, resolveShareForMode } from "@/lib/rooms";
 import { EVENT_TYPE_VALUES, EventTypeEnum } from "@/lib/laytime/types";
 import { apiError } from "@/lib/api-errors";
 
@@ -38,7 +38,13 @@ export async function POST(
   try {
     const { token } = await params;
     const supabase = createServiceRoleClient();
-    const resolved = await resolveShare(token, supabase);
+    // NEGOTIATE ONLY. A read-only statement token must not be able to write a
+    // proposal against the claim — otherwise "read-only" is a description of
+    // the page we chose to render, not of what the token can do.
+    //
+    // A mismatch returns null and becomes the same 404 as a revoked or unknown
+    // token: the holder learns nothing about whether it was real.
+    const resolved = await resolveShareForMode(token, "negotiate", supabase);
     if (!resolved) {
       return NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 });
     }

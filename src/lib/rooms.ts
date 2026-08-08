@@ -21,6 +21,24 @@ export function generateShareToken(): string {
   return randomBytes(SHARE_TOKEN_BYTES).toString("base64url");
 }
 
+/**
+ * What a share token grants.
+ *
+ * `negotiate` is the claim room: the counterparty files proposals and both
+ * sides watch a redline. `readonly` is the statement view: a strict allowlisted
+ * projection (`sharing/statement-view.ts`) that accepts no writes at all.
+ *
+ * Absence reads as `negotiate`, matching the column default — every token
+ * issued before Phase 17 was a room link, and its holder may have proposals in
+ * flight. Failing closed to `readonly` here would silently revoke half of a
+ * live grant, which from the counterparty's side looks like the product broke.
+ */
+export type ShareAccessMode = "negotiate" | "readonly";
+
+export function shareAccessMode(raw: string | null | undefined): ShareAccessMode {
+  return raw === "readonly" ? "readonly" : "negotiate";
+}
+
 export interface ResolvedShare {
   share: {
     id: string;
@@ -28,6 +46,7 @@ export interface ResolvedShare {
     counterparty_label: string;
     expires_at: string;
     created_at: string;
+    accessMode: ShareAccessMode;
   };
   claim: {
     id: string;
@@ -52,7 +71,7 @@ export async function resolveShare(
 
   const { data: share } = await supabase
     .from("claim_shares")
-    .select("id, claim_id, counterparty_label, expires_at, revoked_at, created_at")
+    .select("id, claim_id, counterparty_label, expires_at, revoked_at, created_at, access_mode")
     .eq("token", token)
     .maybeSingle();
 
@@ -74,9 +93,30 @@ export async function resolveShare(
       counterparty_label: share.counterparty_label,
       expires_at: share.expires_at,
       created_at: share.created_at,
+      accessMode: shareAccessMode(share.access_mode),
     },
     claim,
   };
+}
+
+/**
+ * Resolves a token AND requires it to grant a particular mode.
+ *
+ * Returns null on a mismatch, which callers translate to a 404 exactly as they
+ * already do for revoked and expired tokens. That is the important part: a
+ * read-only token presented to a write endpoint must be indistinguishable from
+ * a token that does not exist. A 403 here would tell the holder "this is real,
+ * you simply used it in the wrong place" — an invitation to go looking for the
+ * right place, and a confirmation that the claim behind it exists.
+ */
+export async function resolveShareForMode(
+  token: string,
+  mode: ShareAccessMode,
+  client?: SupabaseClient
+): Promise<ResolvedShare | null> {
+  const resolved = await resolveShare(token, client);
+  if (!resolved) return null;
+  return resolved.share.accessMode === mode ? resolved : null;
 }
 
 export interface RoomEvent {
