@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
+import { RoleProvider } from "@/components/role-provider";
 
 type AuthState = {
   user: User | null;
@@ -67,7 +68,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SupabaseAuthContext.Provider value={state}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <RoleProvider>{children}</RoleProvider>
+      </QueryClientProvider>
     </SupabaseAuthContext.Provider>
   );
 }

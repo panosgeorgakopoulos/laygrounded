@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { uploadSofAndExtract } from "@/lib/ai/extraction";
 import { fileTypeFromBuffer } from "file-type";
 import { apiError } from "@/lib/api-errors";
@@ -23,6 +23,12 @@ export async function POST(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
+
+    await assertCapability(auth, "claim.write", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

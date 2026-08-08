@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertCircle, Bot, Check, Loader2, Scale, Sparkles } from "lucide-react";
+import { useCan } from "@/components/role-provider";
 import styles from "./ConcessionStrategy.module.css";
 
 /** Mirrors NEGOTIATION_CATEGORIES in `@/lib/negotiation/autonomous`. */
@@ -77,6 +78,11 @@ export function ConcessionStrategy({
   currency: string;
   demurrageRatePerDay: number;
 }) {
+  // The mandate is a money ceiling, so setting it is a finance decision even
+  // though the controls read as percentages. Disabled rather than hidden: the
+  // converted figure below is exactly what an operator needs to SEE before
+  // asking a finance manager to authorise it.
+  const canNegotiate = useCan("claim.negotiate");
   const [floorPct, setFloorPct] = useState(85);
   const [counterpartyFloorPct, setCounterpartyFloorPct] = useState(85);
   const [hardStops, setHardStops] = useState<CategoryKey[]>([]);
@@ -242,11 +248,29 @@ export function ConcessionStrategy({
             onChange={(e) => setMaxRounds(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
           />
         </label>
-        <button type="button" className={styles.primary} disabled={running} onClick={() => void run()}>
+        <button
+          type="button"
+          className={styles.primary}
+          disabled={running || !canNegotiate}
+          title={
+            canNegotiate
+              ? undefined
+              : "Running a negotiation commits a concession budget — it needs the Finance manager role."
+          }
+          onClick={() => void run()}
+        >
           {running ? <Loader2 size={13} className={styles.spin} /> : <Sparkles size={13} />} Run
           negotiation
         </button>
       </div>
+
+      {!canNegotiate && (
+        <p className={styles.note}>
+          You can model a mandate here, but committing one needs the{" "}
+          <strong>Finance manager</strong> role — the budget above is real money this tenant&apos;s
+          agent may concede. Ask an admin on your <a href="/settings/team">team page</a>.
+        </p>
+      )}
 
       {error && (
         <p className={styles.error}>

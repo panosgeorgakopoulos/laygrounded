@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { loadClaimComputationInputs } from "@/lib/laytime/recompute-server";
 import { diffScenarios, ProposalInput, ScenarioDiff } from "@/lib/laytime/diff";
 import { apiError } from "@/lib/api-errors";
@@ -120,6 +120,12 @@ export async function POST(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
+
+    await assertCapability(auth, "claim.write", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     // Agreement is the moment the numbers stop being negotiable. A dispute
     // raised afterwards would sit pending against figures both sides signed

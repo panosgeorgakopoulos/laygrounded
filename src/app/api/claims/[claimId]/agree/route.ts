@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { CRITERION_LABELS, loadEligibility } from "@/lib/settlement/clearinghouse";
 import { apiError } from "@/lib/api-errors";
 
@@ -15,7 +15,7 @@ import { apiError } from "@/lib/api-errors";
 // and settling against a snapshot nobody agreed is the failure this prevents.
 // `escrow-server.ts` blocks the payload when the two diverge.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ claimId: string }> }
 ) {
   try {
@@ -31,6 +31,16 @@ export async function POST(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
+
+    // Agreement is the moment the numbers stop being negotiable and the
+    // settlement payload becomes generatable — a finance-manager act, not part
+    // of day-to-day laytime work. Checked after ownership so a 403 cannot
+    // confirm a stranger's claim id.
+    await assertCapability(auth, "claim.agree", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     // Idempotent: agreeing twice is not an error, and must NOT re-stamp
     // `agreed_at` — the trigger fires on NULL → NOT NULL, so a re-stamp would

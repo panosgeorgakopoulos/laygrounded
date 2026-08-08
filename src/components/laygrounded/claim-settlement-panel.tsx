@@ -23,6 +23,7 @@ import {
   Link2,
   RefreshCw,
 } from "lucide-react";
+import { useCan } from "@/components/role-provider";
 import styles from "./ClaimSettlementPanel.module.css";
 
 interface Leg {
@@ -83,6 +84,8 @@ export function ClaimSettlementPanel({
   claimId: string;
   onClaimChanged?: () => void;
 }) {
+  // Agreement fixes the figures and unblocks the payment instruction.
+  const canAgree = useCan("claim.agree");
   const [state, setState] = useState<State | null>(null);
   const [loading, setLoading] = useState(true);
   const [agreeing, setAgreeing] = useState(false);
@@ -180,12 +183,28 @@ export function ClaimSettlementPanel({
           <button
             type="button"
             className={styles.primary}
-            disabled={!el.eligible || agreeing}
+            disabled={!el.eligible || agreeing || !canAgree}
             onClick={() => void agree()}
-            title={el.eligible ? undefined : "Every criterion above must pass first."}
+            title={
+              !canAgree
+                ? "Agreeing a claim fixes its figures — it needs the Finance manager role."
+                : el.eligible
+                  ? undefined
+                  : "Every criterion above must pass first."
+            }
           >
             {agreeing ? "Agreeing…" : "Agree this claim"}
           </button>
+          {/* Shown even when the criteria already pass: "you may not" and "not
+              yet eligible" are different answers, and a single greyed button
+              cannot say which one applies. */}
+          {!canAgree && (
+            <p className={styles.roleNote}>
+              Agreeing fixes these figures and releases the payment instruction, so it needs the{" "}
+              <strong>Finance manager</strong> role. Ask an admin on your{" "}
+              <a href="/settings/team">team page</a>.
+            </p>
+          )}
         </>
       )}
 

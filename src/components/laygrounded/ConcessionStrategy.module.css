@@ -278,3 +278,19 @@
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none; }
 }
+
+/* Shown when the signed-in user may model a mandate but not commit one. */
+.note {
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.note a {
+  color: inherit;
+  text-decoration: underline;
+}

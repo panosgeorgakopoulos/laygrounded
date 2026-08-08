@@ -15,6 +15,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth, type AuthContext } from "@/lib/server-auth";
+import { can, type Capability } from "@/lib/auth/roles";
 import { recordSecurityEvent } from "./security-log";
 
 export interface OwnedClaim<T> {
@@ -26,11 +27,19 @@ export interface OwnedClaim<T> {
 /**
  * Resolves a claim the caller's company owns, or throws CLAIM_NOT_FOUND after
  * recording the refusal. `columns` must include company_id.
+ *
+ * `capability`, when given, is checked AFTER ownership and throws `FORBIDDEN`.
+ * The order matters and is deliberate: checking the role first would answer a
+ * cross-tenant probe with 403 instead of CLAIM_NOT_FOUND, and skip the
+ * `claim.access_denied` entry that makes such probes visible. A 403 here always
+ * means "your own claim, insufficient role" — which is the only reading that
+ * does not leak whether a stranger's claim id exists.
  */
 export async function requireOwnedClaim<T extends { company_id: string }>(
   claimId: string,
   columns = "id, company_id",
-  req?: { headers: Headers }
+  req?: { headers: Headers },
+  capability?: Capability
 ): Promise<OwnedClaim<T>> {
   const auth = await requireAuth();
   const supabase = await createClient();
@@ -59,6 +68,28 @@ export async function requireOwnedClaim<T extends { company_id: string }>(
       ...(req ? attribution(req) : {}),
     });
     throw new Error("CLAIM_NOT_FOUND");
+  }
+
+  if (capability && !can(auth.role, capability)) {
+    // Audit failures must not turn a 403 into a 500: the denial is the
+    // security-relevant outcome and stands on its own.
+    try {
+      await recordSecurityEvent({
+        companyId: auth.companyId,
+        action: "capability.denied",
+        actorType: "user",
+        actorId: auth.userId,
+        actorLabel: auth.email,
+        resourceType: "claim",
+        resourceId: claimId,
+        outcome: "denied",
+        metadata: { capability, role: auth.role },
+        ...(req ? attribution(req) : {}),
+      });
+    } catch (e) {
+      console.error("[requireOwnedClaim] failed to record capability denial", e);
+    }
+    throw new Error("FORBIDDEN");
   }
 
   return { auth, supabase, claim: row };

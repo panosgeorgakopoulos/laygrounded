@@ -10,6 +10,8 @@ import { SecurityTrail } from "@/components/laygrounded/security-trail";
 import { CargoProfileSettings } from "@/components/laygrounded/cargo-profile-settings";
 import { PortCalendarManager } from "@/components/laygrounded/port-calendar-manager";
 import { SettlementFinanceSettings } from "@/components/laygrounded/settlement-finance-settings";
+import { TeamManagement } from "@/components/laygrounded/team-management";
+import { ROLE_LABELS, can, roleOf } from "@/lib/auth/roles";
 import { format, parseISO } from "date-fns";
 import { useAuth } from "@/components/providers";
 import { createClient } from "@/lib/supabase/client";
@@ -49,13 +51,6 @@ export default function SettingsPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
-  // Invite State
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
-  const [inviting, setInviting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -74,7 +69,10 @@ export default function SettingsPage() {
     }
   }, [session]);
 
-  const currentUserRole = data?.members?.find(m => m.id === session?.user?.id)?.role || "member";
+  // Through roleOf(), so an unrecognised value fails closed to `viewer`
+  // instead of quietly reading as the old "member".
+  const currentUserRole = roleOf(data?.members?.find(m => m.id === session?.user?.id)?.role);
+  const isAdmin = can(currentUserRole, "team.manage");
 
   async function saveAccount() {
     setSavingAccount(true);
@@ -167,62 +165,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function invite(e: React.FormEvent) {
-    e.preventDefault();
-    setInviting(true);
-    setInviteError(null);
-    setInviteSuccess(null);
-    
-    try {
-      const res = await fetch("/api/settings/members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-      });
-      setInviting(false);
-      
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        setInviteError(d.error || "Failed to invite member");
-        return;
-      }
-      
-      const r = await fetch("/api/settings");
-      const d = await r.json();
-      setData(d);
-      
-      setInviteEmail("");
-      setInviteSuccess("Member successfully invited.");
-      setTimeout(() => setInviteSuccess(null), 3000);
-    } catch (e) {
-      setInviting(false);
-      setInviteError("A network error occurred. Please try again.");
-    }
-  }
-
-  async function removeMember(memberId: string) {
-    if (!confirm("Are you sure you want to completely revoke this user's access to the workspace?")) return;
-    setRemovingId(memberId);
-    try {
-      const res = await fetch("/api/settings/members", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: memberId }),
-      });
-      if (res.ok) {
-        const r = await fetch("/api/settings");
-        const d = await r.json();
-        setData(d);
-      } else {
-        alert("Failed to remove member.");
-      }
-    } catch (e) {
-      alert("A network error occurred.");
-    } finally {
-      setRemovingId(null);
-    }
-  }
-
   if (loading) {
     return (
       <div className={styles.pageContainer}>
@@ -234,8 +176,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const memberList = data?.members ?? [];
 
   return (
     <div className={styles.pageContainer}>
@@ -362,9 +302,9 @@ export default function SettingsPage() {
                 <ShieldAlert size={24} style={{ color: "var(--color-danger)", flexShrink: 0 }} />
                 <div>
                   <h4 style={{ fontWeight: 600, color: "var(--color-danger)", marginBottom: "0.25rem" }}>Account Deletion Policy</h4>
-                  {currentUserRole === "member" ? (
+                  {!isAdmin ? (
                     <p style={{ color: "var(--color-text-secondary)", fontSize: "0.875rem", lineHeight: 1.5 }}>
-                      As a workspace <strong>Member</strong>, you cannot delete your own account directly to ensure data integrity. 
+                      As a workspace <strong>{ROLE_LABELS[currentUserRole]}</strong>, you cannot delete your own account directly to ensure data integrity. 
                       To permanently delete your account and revoke your workspace access, please contact your company administrator.
                     </p>
                   ) : (
@@ -428,7 +368,7 @@ export default function SettingsPage() {
               <input
                 type="checkbox"
                 checked={shareMarketData}
-                disabled={savingSharing || currentUserRole !== "admin"}
+                disabled={savingSharing || !isAdmin}
                 onChange={(e) => saveSharing(e.target.checked)}
               />
               <span>
@@ -444,7 +384,7 @@ export default function SettingsPage() {
                 </span>
               </span>
             </label>
-            {currentUserRole !== "admin" && (
+            {!isAdmin && (
               <p className={styles.switchHint} style={{ marginTop: "0.5rem" }}>
                 Only a company admin can change this.
               </p>
@@ -453,127 +393,9 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {activeTab === "team" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {currentUserRole === "admin" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Invite New Member</CardTitle>
-                <CardDescription>Grant access to a new user to collaborate in your workspace.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={invite} className={styles.inviteForm}>
-                  <div style={{ flex: 1 }}>
-                    <Input 
-                      label="Email Address"
-                      type="email" 
-                      placeholder="captain@fleet.com" 
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      disabled={inviting}
-                      required
-                    />
-                  </div>
-                  <div className={styles.selectWrapper}>
-                    <label className={styles.selectLabel}>Role Level</label>
-                    <select
-                      value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
-                      className={styles.select}
-                      disabled={inviting}
-                    >
-                      <option value="member">Member</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                  </div>
-                  <Button type="submit" disabled={inviting || !inviteEmail} isLoading={inviting}>
-                    {inviting ? "Inviting..." : "Send Invite"}
-                  </Button>
-                </form>
-
-                {inviteError && (
-                  <div className={`${styles.alertBox} ${styles.alertError}`}>
-                    <AlertCircle size={16} />
-                    <p className={styles.alertText}>{inviteError}</p>
-                  </div>
-                )}
-                {inviteSuccess && (
-                  <div className={`${styles.alertBox} ${styles.alertSuccess}`}>
-                    <CheckCircle2 size={16} />
-                    <p className={styles.alertText}>{inviteSuccess}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Members ({memberList.length})</CardTitle>
-              <CardDescription>Manage your current workspace team.</CardDescription>
-            </CardHeader>
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th style={{ textAlign: "right" }}>Date Joined</th>
-                    {currentUserRole === "admin" && <th style={{ width: "80px" }}></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {memberList.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontWeight: 500 }}>{m.displayName || "No Name Set"}</span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-tertiary)" }}>{m.email}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`${styles.badge} ${m.role === "admin" ? styles.badgeAdmin : styles.badgeMember}`}>
-                          {m.role.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="tnum" style={{ textAlign: "right", color: "var(--color-text-secondary)" }}>
-                        {m.createdAt ? format(parseISO(m.createdAt), "dd MMM yyyy") : "—"}
-                      </td>
-                      {currentUserRole === "admin" && (
-                        <td style={{ textAlign: "right" }}>
-                          {m.id !== session?.user?.id && (
-                            <button
-                              onClick={() => removeMember(m.id)}
-                              disabled={removingId === m.id}
-                              style={{ 
-                                color: "var(--color-danger)", 
-                                background: "transparent", 
-                                border: "none", 
-                                cursor: "pointer",
-                                opacity: removingId === m.id ? 0.5 : 1
-                              }}
-                              title="Revoke Access"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {memberList.length === 0 && (
-                    <tr>
-                      <td colSpan={currentUserRole === "admin" ? 4 : 3} style={{ textAlign: "center", color: "var(--color-text-tertiary)", padding: "2rem" }}>
-                        No team members found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* The team UI lives in one component, shared with /settings/team. Two
+          copies of an invite form is two places for the role list to drift. */}
+      {activeTab === "team" && <TeamManagement />}
 
       {activeTab === "calendars" && <PortCalendarManager />}
 

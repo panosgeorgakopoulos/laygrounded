@@ -53,6 +53,16 @@ export const INTENTIONALLY_EXECUTABLE = new Set([
   "user_owns_claim",
   "user_owns_event",
   "user_owns_integration",
+  // The RBAC helpers (20260805000000). Same reasoning as the membership helpers
+  // above: they are evaluated inside the policy expressions on finance_grants,
+  // counterparty_finance and settlement_chain_configs, which run as the querying
+  // role, so revoking EXECUTE from `authenticated` would deny those policies and
+  // lock every user out of rows they own. Each answers only about the CALLER's
+  // own membership (keyed on auth.uid()) and returns their own role or its rank —
+  // it cannot be asked about anyone else. Both are revoked from `public` AND
+  // `anon` by name, so an anonymous caller cannot reach them at all.
+  "current_member_role",
+  "current_role_rank",
   // Supabase Auth invokes this hook as the `supabase_auth_admin` role, not over
   // PostgREST. Never enabled on this project (see the JWT app_metadata note in
   // the RLS migrations), but it is declared in 20260711000003.

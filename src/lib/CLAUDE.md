@@ -2,6 +2,10 @@
 
 Pure logic + unit tests in `src/lib/**`, DB access in the route or a `*-server.ts`. Design ledger, schema map, and verification log live in `docs/build-memory/`.
 
+## `auth/` — the RBAC model
+
+`roles.ts` is pure and is the single authority for who may do what: four totally-ordered roles and a **minimum role per capability**, so a capability a lower role holds and a higher one does not cannot be expressed. `roleOf()` fails closed — anything unrecognised becomes `viewer`, and only the legacy `member` is mapped (to `operator`) rather than rejected. Enforcement helpers are in `server-auth.ts`; the SQL mirror (`current_role_rank()`) and the route-gate audit are both pinned by tests in this directory. See the Roles section of the root `CLAUDE.md` for why the API layer, not RLS, is the primary enforcement.
+
 ## Engine rule sets
 
 `packages/laytime-core` carries **two** rule sets at once, selected by `cpTerms.engine_version` (absent = 1). v1 is frozen — its 500-case conformance root `bc9f24fdab910a1b` is published and pinned by the build. v2 corrects one defect: an agreed `EXCEPTED_PERIOD` absorbed by GENCON 94's SHINC branch. `src/lib/laytime/engine-version.ts` holds the single rule that governs this — **`claims.engine_version` is the authority, `cp_terms.engine_version` is the transport, and v1 is written as ABSENCE** (adding the key to a legacy claim would change its `cp_terms` Merkle leaf and break every RFC-3161 anchor over it). See the root `CLAUDE.md` before touching `gencon94.ts`.

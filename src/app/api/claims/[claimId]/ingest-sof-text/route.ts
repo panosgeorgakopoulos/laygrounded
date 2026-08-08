@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 import { extractSofTimeline } from "@/lib/ingestion/multimodal";
 import {
@@ -63,6 +63,16 @@ export async function POST(
     if (!claim || claim.company_id !== auth.companyId) {
       return NextResponse.json({ error: "CLAIM_NOT_FOUND" }, { status: 404 });
     }
+
+    // Gated as a whole, including `commit: false`. A preview writes nothing, but
+    // it is the first step of the ingestion flow rather than a way of reading
+    // the claim — a viewer has no route to it in the UI, and letting them run it
+    // would put the "add to timeline" button in front of someone who cannot.
+    await assertCapability(auth, "claim.write", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
 
     const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {

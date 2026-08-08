@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAuth } from "@/lib/server-auth";
+import { assertCapability, requireAuth } from "@/lib/server-auth";
 import { resolveCaller } from "@/lib/api/caller";
 import { createClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api-errors";
@@ -55,6 +55,18 @@ export async function POST(
       .eq("id", claimId)
       .maybeSingle();
     if (!claim || claim.company_id !== auth.companyId) throw new Error("CLAIM_NOT_FOUND");
+
+    // The mandate is denominated in money: `maxConcessionUsd` is the ceiling
+    // this tenant's agent may concede, and the strategy room converts the
+    // operator's percentage into exactly that figure. Setting it is a finance
+    // decision wearing an operations UI, which is precisely why it needs its own
+    // gate. After the ownership check, so a 403 cannot confirm a stranger's id.
+    await assertCapability(auth, "claim.negotiate", {
+      req,
+      resourceType: "claim",
+      resourceId: claimId,
+    });
+
     if (!claim.cp_terms) throw new Error("NO_CP_TERMS");
 
     const [{ data: events }, { data: evidence }] = await Promise.all([

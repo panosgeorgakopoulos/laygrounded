@@ -2,6 +2,7 @@
 
 ## API route conventions
 
+- **Capability gating.** A route that moves money, issues a credential or mutates a claim calls `requireCapability(cap)` (no claim yet) or `assertCapability(auth, cap)` after its ownership check — see the Roles section in the root `CLAUDE.md`. Add it to `GATED_ROUTES` in `src/lib/auth/route-guards.test.ts` in the same change; that test is what stops the gate from silently disappearing in a later refactor. The route must return errors through `apiError()`, or the `FORBIDDEN` throw becomes an opaque 500 — four routes had exactly that hand-rolled catch and were converted in Phase 14.
 - Routes live under `src/app/api/`. Business errors are thrown as sentinel string messages (`"CLAIM_NOT_FOUND"`, `"INVALID_CP_TERMS"`, …) and converted by `apiError()` in `src/lib/api-errors.ts`, which maps known sentinels to their HTTP status and turns anything unknown into a logged, opaque 500. Add new sentinels to `DEFAULT_KNOWN` or pass them via `extraKnown`.
 - `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts` — there is no `src/middleware.ts`) applies per-instance in-memory rate limiting to `/api` and `/oauth/*` (`oauth-reg:` 15/min on the unauthenticated RFC-7591 registration write, `oauth:` 60/min elsewhere), a deny-by-default CORS allowlist (`ALLOWED_ORIGINS`), and redirects users with a Supabase auth cookie from `/`, `/sign-in`, `/sign-up` to `/claims`.
 

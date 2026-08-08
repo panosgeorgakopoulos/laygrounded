@@ -21,6 +21,10 @@ const DEFAULT_KNOWN: Record<string, number> = {
   ALREADY_MEMBER: 409,
   USER_ALREADY_IN_ANOTHER_COMPANY: 409,
   CANNOT_REMOVE_SELF: 400,
+  MEMBER_NOT_FOUND: 404,
+  // Demoting or removing the last admin would leave the tenant unable to manage
+  // its own team, with no self-service way back.
+  LAST_ADMIN: 409,
 };
 
 export const GENERIC_ERROR_MESSAGE = "An unexpected server error occurred";
