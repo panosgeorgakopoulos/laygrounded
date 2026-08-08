@@ -19,6 +19,25 @@
 // protecting, which is how the recursion in 20260711000000 happened.
 //
 // Reads stay on the cookie client, where RLS does bind and does the right thing.
+//
+// PHASE 16: AN INVITATION IS NO LONGER A MEMBERSHIP.
+//
+// This route used to insert a `company_members` row the moment an admin typed
+// an address. That made an invitation and a membership the same object, and the
+// consequences were not cosmetic:
+//
+//   * the invitee held a role in a tenant they had never agreed to join;
+//   * "pending" was inferred from `auth.users.last_sign_in_at` — a property of
+//     the ACCOUNT — so anyone who had ever signed in to anything read as an
+//     active colleague of a company they had never seen;
+//   * a never-accepted `admin` invitation counted toward the admin census in
+//     `wouldOrphanCompany`, so the last real admin could demote themselves and
+//     lock the tenant out, believing a second admin existed;
+//   * and there was no way to withdraw an offer except to delete a membership,
+//     which is a different act with a different audit meaning.
+//
+// Now the offer is a row in `company_invitations` with its own lifecycle, and
+// the membership is created on redemption — see `invitations-server.ts`.
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -26,6 +45,12 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAuth, requireCapability } from "@/lib/server-auth";
 import { apiError } from "@/lib/api-errors";
 import { ROLES, roleOf, type Role } from "@/lib/auth/roles";
+import { invitationAcceptUrl, invitationState } from "@/lib/auth/invitations";
+import {
+  createInvitation,
+  listOutstandingInvitations,
+  revokeInvitation,
+} from "@/lib/auth/invitations-server";
 import { recordSecurityEvent, requestAttribution } from "@/lib/audit/security-log";
 
 const RoleEnum = z.enum(ROLES as unknown as [Role, ...Role[]]);
@@ -35,9 +60,17 @@ const InviteSchema = z.object({
   role: RoleEnum.default("operator"),
 });
 
-const RemoveSchema = z.object({
-  userId: z.string().uuid(),
-});
+/**
+ * DELETE serves two different acts, and they are deliberately not the same
+ * request shape: removing a colleague (`userId`) revokes access somebody has,
+ * while withdrawing an invitation (`invitationId`) cancels an offer nobody has
+ * taken up. Conflating them is how the old route ended up unable to express the
+ * second at all.
+ */
+const RemoveSchema = z.union([
+  z.object({ userId: z.string().uuid() }),
+  z.object({ invitationId: z.string().uuid() }),
+]);
 
 const ChangeRoleSchema = z.object({
   userId: z.string().uuid(),
@@ -51,6 +84,13 @@ const ChangeRoleSchema = z.object({
  * company out of its own team management permanently — there is no
  * self-service path back, because granting `team.manage` requires
  * `team.manage`. Support would have to do it by hand in the database.
+ *
+ * COUNTS MEMBERS, NEVER INVITATIONS, and that is now true by construction
+ * rather than by care. When an invitation WAS a `company_members` row, an
+ * unaccepted `admin` invite counted here as a second admin — so the last real
+ * admin could demote themselves, be told it was fine, and lock the tenant out
+ * on the strength of a colleague who had never clicked anything. An offer is
+ * not a person who can let you back in.
  */
 async function wouldOrphanCompany(
   db: ReturnType<typeof createServiceRoleClient>,
@@ -69,6 +109,13 @@ async function wouldOrphanCompany(
 
 // The team, with roles. Any member may see who their colleagues are — knowing
 // who to ask for a settlement approval is not privileged information.
+//
+// Members and invitations are returned as SEPARATE LISTS rather than merged
+// into one roster with a `pending` flag. They are different kinds of thing: a
+// member has a user id, a role that can be changed and claims they can open; an
+// invitation has an email, an expiry and nothing else. The old shape pretended
+// otherwise and had to invent a `pending` boolean from `last_sign_in_at` to
+// keep the fiction up.
 export async function GET() {
   try {
     const auth = await requireAuth();
@@ -89,18 +136,36 @@ export async function GET() {
           email: user?.email ?? "Unknown",
           displayName: user?.user_metadata?.display_name ?? null,
           role: roleOf(m.role),
-          // A user who has never signed in has no confirmation timestamp: the
-          // invite is still outstanding, and the UI says so rather than showing
-          // them as an active colleague.
-          pending: !user?.last_sign_in_at,
           joinedAt: m.created_at ?? user?.created_at ?? null,
+          // Genuinely "has never used the product", which is now a fact about
+          // the ACCOUNT and is labelled as such. It is no longer load-bearing
+          // for whether they have accepted anything — the invitation table
+          // answers that, and answers it correctly.
+          neverSignedIn: !user?.last_sign_in_at,
         };
       })
     );
 
     members.sort((a, b) => a.email.localeCompare(b.email));
 
-    return NextResponse.json({ members, selfId: auth.userId, selfRole: auth.role });
+    // Read through the cookie client: `company_invitations` has a SELECT policy
+    // for company members, so RLS scopes this without a redundant filter and
+    // any member may see who has been asked to join.
+    const invitations = (await listOutstandingInvitations(supabase, auth.companyId)).map((inv) => ({
+      ...inv,
+      // Expired invitations are shown rather than hidden, so an admin can see
+      // why somebody never appeared and re-send. Silently dropping them makes
+      // the invitation look like it was never sent.
+      expired: invitationState({ acceptedAt: null, revokedAt: null, expiresAt: inv.expiresAt }) ===
+        "expired",
+    }));
+
+    return NextResponse.json({
+      members,
+      invitations,
+      selfId: auth.userId,
+      selfRole: auth.role,
+    });
   } catch (e) {
     return apiError(e, "settings/members/GET");
   }
@@ -133,14 +198,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "USER_LOOKUP_FAILED" }, { status: 503 });
     }
 
-    let targetUserId = userId as string | null;
-    let existingAccount = Boolean(targetUserId);
+    const targetUserId = userId as string | null;
+    const existingAccount = Boolean(targetUserId);
 
+    // The admissibility checks stay where they were, and still run BEFORE
+    // anything is written. They are re-run again at redemption, because an
+    // invitation lives a week and any of these facts can change inside it —
+    // but refusing here means an admin learns immediately rather than after
+    // their colleague has clicked a link that cannot work.
     if (targetUserId) {
-      // This app supports a single company per user (requireAuth() assumes
-      // exactly one company_members row). Adding a user who already belongs to
-      // another company would give them a second row and break their own
-      // requireAuth() on every future request, locking them out.
       const { data: memberships } = await adminClient
         .from("company_members")
         .select("company_id")
@@ -149,30 +215,63 @@ export async function POST(req: NextRequest) {
       if ((memberships ?? []).some((m) => m.company_id === auth.companyId)) {
         return NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 });
       }
+      // This app supports a single company per user (requireAuth() assumes
+      // exactly one company_members row). Admitting a user who already belongs
+      // elsewhere would give them a second row and break their own requireAuth()
+      // on every future request, locking them out.
       if ((memberships ?? []).length > 0) {
         return NextResponse.json({ error: "USER_ALREADY_IN_ANOTHER_COMPANY" }, { status: 409 });
       }
-    } else {
-      const { data: invited, error: inviteErr } =
-        await adminClient.auth.admin.inviteUserByEmail(email);
-      if (inviteErr || !invited?.user) {
-        console.error("[settings/members/POST] invite failed:", inviteErr);
-        return NextResponse.json({ error: "FAILED_TO_INVITE" }, { status: 500 });
-      }
-      targetUserId = invited.user.id;
-      existingAccount = false;
     }
 
-    // Checked, unlike before. A membership that failed to insert must not be
-    // reported as an invitation that worked.
-    const { error: insertErr } = await adminClient.from("company_members").insert({
-      company_id: auth.companyId,
-      user_id: targetUserId,
-      role: parsed.data.role,
-    });
-    if (insertErr) {
-      console.error("[settings/members/POST] membership insert failed:", insertErr);
-      return NextResponse.json({ error: "FAILED_TO_ADD_MEMBER" }, { status: 500 });
+    // The offer, written before the email is sent. If delivery fails, an
+    // invitation that exists and can be copied from the team page is a better
+    // outcome than an email nobody can act on because the row was never made.
+    let created;
+    try {
+      created = await createInvitation(adminClient, {
+        companyId: auth.companyId,
+        email,
+        role: parsed.data.role,
+        invitedBy: auth.userId,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "";
+      if (message === "INVITATION_ALREADY_OUTSTANDING") {
+        return NextResponse.json({ error: "INVITATION_ALREADY_OUTSTANDING" }, { status: 409 });
+      }
+      throw e;
+    }
+
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
+    const acceptUrl = invitationAcceptUrl(origin, created.token);
+
+    // DELIVERY IS BEST-EFFORT, AND THE LINK IS RETURNED EITHER WAY.
+    //
+    // Supabase's `inviteUserByEmail` is the only mail channel this app has, and
+    // it only works for an address with no account — it fails outright on one
+    // that is already registered. So an existing account (a user who signed up
+    // alone and was never in a company) gets no email at all, and would have had
+    // no way to learn they had been invited.
+    //
+    // Two things close that: the accept URL comes back to the admin so they can
+    // send it however they like, and the onboarding page shows any invitation
+    // waiting for the address somebody signs in with. Neither depends on mail
+    // being deliverable, which in local development it usually is not.
+    let emailed = false;
+    if (!existingAccount) {
+      const { error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        // Without this the Supabase invite link lands on the site root, where
+        // the proxy sees an auth cookie and redirects to /claims — a tenantless
+        // user bounced into a workspace they cannot use. It must carry the token.
+        redirectTo: acceptUrl,
+      });
+      if (inviteErr) {
+        // Logged, not fatal. The invitation is real and the admin has the link.
+        console.error("[settings/members/POST] invite email failed:", inviteErr);
+      } else {
+        emailed = true;
+      }
     }
 
     await recordSecurityEvent({
@@ -180,15 +279,20 @@ export async function POST(req: NextRequest) {
       action: "member.invited",
       actorId: auth.userId,
       actorLabel: auth.email,
-      resourceType: "user",
-      resourceId: targetUserId!,
-      metadata: { email, role: parsed.data.role, existingAccount },
+      resourceType: "invitation",
+      resourceId: created.invitation.id,
+      metadata: { email, role: parsed.data.role, existingAccount, emailed },
       ...requestAttribution(req),
     });
 
     return NextResponse.json({
-      member: { id: targetUserId, email, role: parsed.data.role },
-      pending: !existingAccount,
+      invitation: created.invitation,
+      // Shown once and never again — the token is stored only as a hash, the
+      // same contract as a finance grant. Reloading the team page will not
+      // reveal it, so the UI has to surface it at this moment or not at all.
+      acceptUrl,
+      emailed,
+      existingAccount,
     });
   } catch (e) {
     return apiError(e, "settings/members/POST");
@@ -278,11 +382,41 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    const adminClient = createServiceRoleClient();
+
+    // Withdrawing an offer nobody has taken up. Scoped to the caller's own
+    // company and to the not-yet-terminal state inside `revokeInvitation`, so
+    // this can neither reach another tenant's invitation nor "revoke" one that
+    // was already accepted — that person is a member, and removing them is the
+    // branch below.
+    if ("invitationId" in parsed.data) {
+      const result = await revokeInvitation(adminClient, {
+        invitationId: parsed.data.invitationId,
+        companyId: auth.companyId,
+        revokedBy: auth.userId,
+      });
+      if (!result.ok) {
+        return NextResponse.json({ error: "INVITATION_NOT_FOUND" }, { status: 404 });
+      }
+
+      await recordSecurityEvent({
+        companyId: auth.companyId,
+        action: "invitation.revoked",
+        actorId: auth.userId,
+        actorLabel: auth.email,
+        resourceType: "invitation",
+        resourceId: parsed.data.invitationId,
+        metadata: { email: result.email },
+        ...requestAttribution(req),
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
     if (parsed.data.userId === auth.userId) {
       return NextResponse.json({ error: "CANNOT_REMOVE_SELF" }, { status: 400 });
     }
 
-    const adminClient = createServiceRoleClient();
     if (await wouldOrphanCompany(adminClient, auth.companyId, parsed.data.userId)) {
       return NextResponse.json({ error: "LAST_ADMIN" }, { status: 409 });
     }

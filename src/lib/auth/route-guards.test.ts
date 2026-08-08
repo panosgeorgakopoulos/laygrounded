@@ -71,6 +71,11 @@ const GATED_ROUTES: Array<{ path: string; capability: Capability; why: string }>
   },
   // The claim.write set: what makes `viewer` mean anything at all.
   { path: "api/claims/route.ts", capability: "claim.write", why: "creates a claim" },
+  {
+    path: "api/seed/route.ts",
+    capability: "claim.write",
+    why: "writes three demo claims into the tenant — missed in Phase 14 because its idempotency guard made it a no-op on any tenant that already had claims, which is not an authorisation control",
+  },
   { path: "api/claims/[claimId]/route.ts", capability: "claim.write", why: "edits a claim" },
   {
     path: "api/claims/[claimId]/events/route.ts",

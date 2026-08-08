@@ -8,5 +8,8 @@
 
 ## Layout gotchas
 
-- `src/app/(authenticated)/` is guarded client-side by the layout plus proxy redirects.
+- `src/app/(authenticated)/` is guarded client-side by the layout plus proxy redirects. The layout also redirects a user who is **authenticated but has no company** to `/onboarding` — that state is a 401 from `/api/me` carrying `NO_COMPANY`, which `role-provider.tsx` separates from `UNAUTHORIZED` by reading the error body, because the two need opposite destinations and share a status code.
 - `src/app/rooms/[token]/` — the public claim room (server-rendered, token-authenticated, `robots noindex`); intentionally **outside** the authenticated group and the proxy matcher. Don't "fix" this by moving it in.
+- `src/app/invite/accept/` and `src/app/onboarding/` are outside the authenticated group for the same reason: the person arriving has no tenant, and often no session. The authenticated layout would bounce them to `/sign-in` with no memory of the invitation token, and its chrome (nav, notification bell) queries a company that does not exist. Both are `robots noindex`; the invite page is also `referrer: no-referrer`, because the token is a credential in the URL.
+- **`/invite/accept` never mutates on GET.** Acceptance is a POST behind a button — a link-preview bot in a mail client fetches every URL it sees, and would otherwise redeem the invitation before the human clicked it.
+- The proxy's signed-in redirect honours `?next=` (same-site paths only). Without it, a signed-in user clicking an invite link is bounced from `/sign-in` to `/claims`, the destination is discarded, and the invitation is never accepted.
