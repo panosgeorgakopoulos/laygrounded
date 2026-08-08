@@ -153,15 +153,37 @@ export function auditDefinerGrants(
 /**
  * The audit reduced to the functions that violate the rule. Empty = clean.
  *
- * Exempt: allowlisted functions, and `event_trigger` functions, which Postgres
- * invokes on DDL and which have no PostgREST-callable signature.
+ * THE ALLOWLIST IS PER-ROLE, AND THAT IS THE POINT.
+ *
+ * It used to exempt a listed function from BOTH checks, which is broader than
+ * anything the entries justify. Every reason written beside a name in
+ * `INTENTIONALLY_EXECUTABLE` is the same one: the function is called from
+ * inside an RLS policy expression, policies evaluate as the querying role, so
+ * revoking `authenticated` would deny users their own rows. Not one of them is
+ * an argument for letting `anon` execute anything.
+ *
+ * The consequence of the coarse version showed up in Supabase's own security
+ * advisor after Phase 17: five SECURITY DEFINER helpers were executable by
+ * `anon` and by the PUBLIC pseudo-role, and this test was green throughout
+ * because the names were on the list. Nothing was exploitable — they all key on
+ * `auth.uid()`, which is NULL for an anonymous caller — but "the grant is
+ * harmless because of how the function happens to be written" is not the
+ * guarantee this module claims to provide.
+ *
+ * So: `anon` is never exempt. `authenticated` may be, with a written reason.
+ *
+ * `event_trigger` functions stay fully exempt — Postgres invokes them on DDL
+ * and they have no PostgREST-callable signature to revoke.
  */
 export function findUnlockedDefinerFunctions(
   files: Array<{ file: string; sql: string }>,
 ): DefinerAudit[] {
   return auditDefinerGrants(files).filter((a) => {
-    if (INTENTIONALLY_EXECUTABLE.has(a.fn.name)) return false;
     if (a.fn.returns === "event_trigger") return false;
-    return !a.revokesAnon || !a.revokesAuthenticated;
+    // No exemptions, for any function, ever.
+    if (!a.revokesAnon) return true;
+    // `authenticated` is the only half the allowlist may waive.
+    if (INTENTIONALLY_EXECUTABLE.has(a.fn.name)) return false;
+    return !a.revokesAuthenticated;
   });
 }
