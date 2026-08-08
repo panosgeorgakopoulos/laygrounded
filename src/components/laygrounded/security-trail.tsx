@@ -50,6 +50,11 @@ const ACTION_FILTERS = [
   { id: "api_key.revoked", label: "API keys revoked" },
   { id: "webhook.registered", label: "Webhooks registered" },
   { id: "member.invited", label: "Members invited" },
+  // The filter an investigation actually reaches for: "how did this person get
+  // access", which `member.invited` alone cannot answer now that an invitation
+  // can be made and never taken up.
+  { id: "invitation.accepted", label: "Invitations accepted" },
+  { id: "invitation.revoked", label: "Invitations withdrawn" },
   { id: "member.removed", label: "Members removed" },
   { id: "proposal.accepted", label: "Amendments accepted" },
   { id: "claim.access_denied", label: "Access refused" },

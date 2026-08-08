@@ -178,7 +178,21 @@ export function proxy(request: NextRequest) {
   if (hasAuthCookie) {
     const path = request.nextUrl.pathname;
     if (path === '/' || path === '/sign-in' || path === '/sign-up') {
-      return NextResponse.redirect(new URL('/claims', request.url));
+      // A signed-in user asking for the sign-in page usually wants the app, so
+      // /claims is the right default. But `?next=` means they were sent here to
+      // reach somewhere specific — and the case that matters is an invitation:
+      // someone already signed in clicks an invite link, gets bounced here for
+      // authentication they already have, and this redirect would then throw
+      // the destination away and drop them on /claims. The invitation is never
+      // accepted and the link looks broken.
+      //
+      // Same-site path destinations only, mirroring `safeNext()` in the
+      // sign-in form: an absolute URL here would turn a proxy redirect into an
+      // open redirect off the back of nothing but an auth cookie.
+      const next = request.nextUrl.searchParams.get('next');
+      const safeNext =
+        next && next.startsWith('/') && !next.startsWith('//') ? next : '/claims';
+      return NextResponse.redirect(new URL(safeNext, request.url));
     }
   }
 

@@ -9,7 +9,7 @@
 // the server refuses a capability the label promised.
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Loader2, MailX, Trash2, UserPlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/core/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/core/Card";
@@ -30,14 +30,41 @@ interface Member {
   email: string;
   displayName: string | null;
   role: Role;
-  pending: boolean;
   joinedAt: string | null;
+  neverSignedIn: boolean;
+}
+
+/** An offer, not a person. Kept in its own list for exactly that reason. */
+interface Invitation {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+  expiresAt: string;
+  expired: boolean;
 }
 
 interface TeamPayload {
   members: Member[];
+  invitations: Invitation[];
   selfId: string;
   selfRole: Role;
+}
+
+/**
+ * The result of a successful invite, held so the accept link can be shown.
+ *
+ * The token is stored only as a hash, so this is the ONE moment it can be
+ * surfaced — reloading the page will not bring it back. Same contract as a
+ * finance grant token, and worth showing rather than hiding: Supabase cannot
+ * email an address that already has an account, so for those invitees this
+ * link is the only way they will ever hear about it.
+ */
+interface IssuedInvite {
+  email: string;
+  role: Role;
+  acceptUrl: string;
+  emailed: boolean;
 }
 
 /** Server sentinels turned into something a person can act on. */
@@ -52,10 +79,12 @@ const ERROR_COPY: Record<string, string> = {
   FORBIDDEN: "Only an admin can change the team.",
   USER_LOOKUP_FAILED: "Could not check that email address just now. Try again in a moment.",
   FAILED_TO_INVITE: "The invitation could not be sent.",
-  FAILED_TO_ADD_MEMBER: "The invitation was sent but the membership could not be created.",
   FAILED_TO_CHANGE_ROLE: "The role could not be changed.",
   FAILED_TO_REMOVE: "That person could not be removed.",
   VALIDATION_ERROR: "Check the email address and try again.",
+  INVITATION_ALREADY_OUTSTANDING:
+    "That person already has an invitation waiting. Withdraw it first if you want to change their role.",
+  INVITATION_NOT_FOUND: "That invitation is no longer outstanding. Refresh to see the current list.",
 };
 
 function readableError(code: string | undefined): string {
@@ -88,6 +117,8 @@ export function TeamManagement() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [issued, setIssued] = useState<IssuedInvite | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +145,8 @@ export function TeamManagement() {
     setInviting(true);
     setError(null);
     setSuccess(null);
+    setIssued(null);
+    setCopied(false);
     try {
       const res = await fetch("/api/settings/members", {
         method: "POST",
@@ -122,17 +155,61 @@ export function TeamManagement() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(readableError(body?.error));
-      setSuccess(
-        body.pending
-          ? `Invitation sent to ${inviteEmail}. They join as ${ROLE_LABELS[inviteRole]} once they accept.`
-          : `${inviteEmail} added as ${ROLE_LABELS[inviteRole]}.`
-      );
+
+      // Held in state rather than announced and forgotten: the accept link is
+      // shown exactly once, because only its hash is stored.
+      setIssued({
+        email: inviteEmail,
+        role: inviteRole,
+        acceptUrl: body.acceptUrl,
+        emailed: Boolean(body.emailed),
+      });
       setInviteEmail("");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not send the invitation.");
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function withdraw(invitation: Invitation) {
+    if (
+      !window.confirm(
+        `Withdraw the invitation to ${invitation.email}?\n\nTheir link stops working immediately. You can invite them again afterwards.`
+      )
+    ) {
+      return;
+    }
+    setBusyId(invitation.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/settings/members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId: invitation.id }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(readableError(body?.error));
+      setSuccess(`The invitation to ${invitation.email} was withdrawn.`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not withdraw that invitation.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // Clipboard access can be refused (insecure origin, permissions). The
+      // link is on screen and selectable either way, so this is not an error
+      // worth interrupting anyone over — it just does not get to say "Copied".
+      setCopied(false);
     }
   }
 
@@ -263,6 +340,32 @@ export function TeamManagement() {
               </Button>
             </form>
             <p className={styles.roleHint}>{ROLE_DESCRIPTIONS[inviteRole]}</p>
+
+            {issued && (
+              <div className={styles.issued} role="status">
+                <div className={styles.issuedHead}>
+                  <CheckCircle2 size={16} />
+                  <span>
+                    {issued.email} has been invited as {ROLE_LABELS[issued.role]}.
+                  </span>
+                </div>
+                <p className={styles.issuedNote}>
+                  {issued.emailed
+                    ? "An invitation email is on its way. If it does not arrive, send them this link — it is shown once and cannot be retrieved later."
+                    : "This address already has an account, so no invitation email could be sent. Send them this link — it is shown once and cannot be retrieved later."}
+                </p>
+                <div className={styles.issuedLinkRow}>
+                  <code className={styles.issuedLink}>{issued.acceptUrl}</code>
+                  <button
+                    type="button"
+                    className={styles.copyButton}
+                    onClick={() => copyLink(issued.acceptUrl)}
+                  >
+                    <Copy size={14} /> {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -311,9 +414,9 @@ export function TeamManagement() {
                         <span className={styles.name}>
                           {m.displayName || m.email.split("@")[0]}
                           {isSelf && <span className={styles.you}>you</span>}
-                          {m.pending && (
-                            <span className={styles.pending} title="Has not signed in yet">
-                              invited
+                          {m.neverSignedIn && (
+                            <span className={styles.pending} title="Has an account but has never signed in">
+                              never signed in
                             </span>
                           )}
                         </span>
@@ -372,6 +475,75 @@ export function TeamManagement() {
           </table>
         </div>
       </Card>
+
+      {/* Invitations, in their own card rather than as greyed-out rows in the
+          team table. An offer is not a colleague: it has no role to change, no
+          claims to open and nobody to hold it. The previous design listed them
+          together and had to invent a `pending` flag from the invitee's
+          account, which reported anyone who had ever signed in anywhere as an
+          active member of a company they had never seen. */}
+      {data.invitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Invitations ({data.invitations.length})</CardTitle>
+            <CardDescription>
+              Sent but not yet accepted. Nobody here has access until they accept — invitations
+              expire after seven days.
+            </CardDescription>
+          </CardHeader>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Role</th>
+                  <th scope="col" className={styles.right}>
+                    Expires
+                  </th>
+                  {isAdmin && <th scope="col" className={styles.actionCol}></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {data.invitations.map((inv) => (
+                  <tr key={inv.id}>
+                    <td>
+                      <div className={styles.person}>
+                        <span className={styles.email}>{inv.email}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={styles.badge}>{ROLE_LABELS[inv.role]}</span>
+                    </td>
+                    <td className={`${styles.right} tnum`}>
+                      {inv.expired ? (
+                        <span className={styles.pending} title="This invitation can no longer be accepted">
+                          expired
+                        </span>
+                      ) : (
+                        format(parseISO(inv.expiresAt), "dd MMM yyyy")
+                      )}
+                    </td>
+                    {isAdmin && (
+                      <td className={styles.right}>
+                        <button
+                          type="button"
+                          className={styles.remove}
+                          onClick={() => withdraw(inv)}
+                          disabled={busyId === inv.id}
+                          title={`Withdraw the invitation to ${inv.email}`}
+                          aria-label={`Withdraw the invitation to ${inv.email}`}
+                        >
+                          <MailX size={16} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

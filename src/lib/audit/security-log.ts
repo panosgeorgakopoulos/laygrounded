@@ -53,6 +53,14 @@ export const SECURITY_ACTIONS = [
   "member.invited", // the tenant's user set changed
   "member.removed",
   "member.role_changed", // someone's authority inside the tenant changed
+  // The other two thirds of the invitation lifecycle. `member.invited` records
+  // that an offer was MADE; on its own it implies the tenant gained a member,
+  // which from Phase 16 is no longer true — an invitation is a separate object
+  // that may be accepted, withdrawn or left to expire. Without these, the trail
+  // shows a stream of invitations and no way to tell which produced the people
+  // now holding a role.
+  "invitation.accepted", // an outsider became a member, and on whose invitation
+  "invitation.revoked", // an outstanding offer was withdrawn before acceptance
   // A role that was not high enough for what was attempted. Recorded because
   // the denied half of an audit trail is the half that shows intent, and an
   // RBAC model nobody can prove was enforced is a claim rather than a control.

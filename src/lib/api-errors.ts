@@ -25,6 +25,27 @@ const DEFAULT_KNOWN: Record<string, number> = {
   // Demoting or removing the last admin would leave the tenant unable to manage
   // its own team, with no self-service way back.
   LAST_ADMIN: 409,
+
+  // Invitation redemption. Each is a distinct thing to tell the person holding
+  // the link, which is why they are not one sentinel: "expired" means ask for
+  // another, "revoked" means the offer was withdrawn, "already accepted" means
+  // just sign in, and a mismatch means they are signed in as somebody else.
+  //
+  // NOT_FOUND is 404 and is also what a guessed or truncated token yields —
+  // there is deliberately no way to tell those apart from the outside.
+  INVITATION_NOT_FOUND: 404,
+  INVITATION_EXPIRED: 410,
+  INVITATION_REVOKED: 410,
+  INVITATION_ALREADY_ACCEPTED: 409,
+  // 403 rather than 404: the token IS valid, and the holder is being refused on
+  // identity. Saying "not found" here would send somebody signed in on the
+  // wrong account hunting for a broken link instead of switching accounts.
+  INVITATION_EMAIL_MISMATCH: 403,
+  INVITATION_ALREADY_OUTSTANDING: 409,
+  // Claiming an invitation by id, from the onboarding list, on an address the
+  // identity provider has never confirmed. The emailed token is the way in for
+  // anybody in that position.
+  EMAIL_NOT_VERIFIED: 403,
 };
 
 export const GENERIC_ERROR_MESSAGE = "An unexpected server error occurred";

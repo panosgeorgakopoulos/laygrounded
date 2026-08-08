@@ -30,6 +30,40 @@ The third is the one worth internalising. Nothing was broken, nothing errored,
 and no unit test could have seen it: the button was wired to the wrong transport
 and only an assertion about what appears on screen *afterwards* caught it.
 
+## The two specs
+
+| Spec | Signs in as | Covers |
+|---|---|---|
+| `golden-path.spec.ts` | the demo **admin** | a claim from creation to a revoked bank credential |
+| `rbac-boundaries.spec.ts` | **operator**, then **viewer** | the refusals — every capability those roles lack |
+
+The golden path passes every capability check it meets, because an admin holds
+them all. The interesting half of an authorisation model is the refusals, and
+until `rbac-boundaries` existed not one of them was exercised end to end.
+
+It asserts **both halves separately, on purpose**:
+
+- the API returns **403 exactly** — a 500 would mean the `FORBIDDEN` throw
+  escaped `apiError()` and became an opaque server fault, which is precisely
+  what four routes did before Phase 14, and a laxer "not 2xx" assertion would
+  have shrugged at it;
+- the UI does not offer the control it would be refused for.
+
+A suite checking only the second would pass happily on a build whose API had
+stopped checking anything at all.
+
+**It found two real gaps on its first run.** `POST /api/seed` wrote three claims
+behind `requireAuth()` alone with no `claim.write` check — a viewer could seed
+a tenant — and neither claims-list button was gated, so a viewer could fill in
+the whole create-claim form and collect a 403 on submit.
+
+The spec is **read-only by construction**: every mutation it attempts is one it
+expects to be refused, so unlike the golden path it leaves nothing behind. If
+one ever succeeds, the assertion fails *and* the tenant has been modified.
+
+It needs `operator@` and `viewer@laygrounded.com` in the demo tenant —
+`bun run seed:rbac`, or any call to `POST /api/init-demo`.
+
 ## Why the suite does not clean up after itself
 
 **There is no claim-deletion route, and this suite did not add one.** A claim is

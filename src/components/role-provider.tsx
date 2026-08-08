@@ -19,12 +19,24 @@ interface RoleState {
   role: Role | null;
   capabilities: Capability[];
   loading: boolean;
+  /**
+   * The caller is authenticated but belongs to no company — `requireAuth()`
+   * threw NO_COMPANY.
+   *
+   * Distinguished from "signed out" because the two need opposite responses:
+   * a signed-out user goes to /sign-in, a tenantless one to /onboarding. Both
+   * arrive here as a 401, so the ERROR BODY has to be read to tell them apart.
+   * Collapsing them is what used to drop a freshly-invited user on an empty
+   * dashboard whose every panel returned an error.
+   */
+  noCompany: boolean;
 }
 
 const RoleContext = createContext<RoleState>({
   role: null,
   capabilities: [],
   loading: true,
+  noCompany: false,
 });
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
@@ -32,6 +44,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     role: null,
     capabilities: [],
     loading: true,
+    noCompany: false,
   });
 
   useEffect(() => {
@@ -39,18 +52,40 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const res = await fetch("/api/me");
-        if (!res.ok) throw new Error(String(res.status));
+
+        if (!res.ok) {
+          // NO_COMPANY and UNAUTHORIZED both come back as 401 (see
+          // `api-errors.ts`), so the status alone cannot separate "you have no
+          // workspace yet" from "you are signed out". The body can.
+          const body = await res.json().catch(() => ({}));
+          if (!cancelled) {
+            setState({
+              role: null,
+              capabilities: [],
+              loading: false,
+              noCompany: body?.error === "NO_COMPANY",
+            });
+          }
+          return;
+        }
+
         const body = await res.json();
         if (cancelled) return;
         setState({
           role: (body.role as Role) ?? null,
           capabilities: (body.capabilities as Capability[]) ?? [],
           loading: false,
+          noCompany: false,
         });
       } catch {
-        // Signed out, or the request failed. Either way: no capabilities, which
+        // The request itself failed — offline, or a 500. No capabilities, which
         // hides gated controls rather than showing ones that would be refused.
-        if (!cancelled) setState({ role: null, capabilities: [], loading: false });
+        // NOT treated as `noCompany`: bouncing somebody to onboarding because
+        // their connection dropped would be worse than showing them a stale
+        // page, and they may well already have a workspace.
+        if (!cancelled) {
+          setState({ role: null, capabilities: [], loading: false, noCompany: false });
+        }
       }
     })();
     return () => {

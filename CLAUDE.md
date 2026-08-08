@@ -67,7 +67,18 @@ Module-level docs live next to the code: `src/lib/CLAUDE.md` (module map), `src/
 - Three Supabase client factories: `src/lib/supabase/client.ts` (browser), `createClient()` in `src/lib/supabase/server.ts` (cookie-based, subject to RLS), and `createServiceRoleClient()` (bypasses RLS — only for trusted server paths like seeding/admin).
 - Tenancy is company-based: `companies` ↔ `company_members` (a user belongs to one company). `requireAuth()` in `src/lib/server-auth.ts` returns `{ userId, email, companyId, companyName }` and throws `UNAUTHORIZED` / `NO_COMPANY`.
 - Every claim-scoped API route both relies on RLS **and** explicitly checks `claim.company_id === auth.companyId` — preserve this defense-in-depth pattern in new routes.
-- `bootstrapUserCompany` in `src/lib/auth-helpers.ts` creates a company + admin membership on first sign-in.
+- `bootstrapUserCompany` in `src/lib/auth-helpers.ts` creates a company + admin membership. **It is no longer called from sign-up.** Sign-up creates the account only; tenancy is decided at `/onboarding`, after authentication, where "has anybody invited you" is knowable. Calling it from sign-up is what created orphaned companies: an invited user was bootstrapped into a company of their own, and the single-company rule then permanently refused the invitation they were holding.
+
+## Joining a tenant (invitations and onboarding)
+
+A user reaches a company one of two ways, and both end at `/onboarding` or `/invite/accept` — never at an automatic bootstrap.
+
+- **An invitation is a record, not a membership.** `company_invitations` (migration `20260808000000`) holds the offer with its own lifecycle: made, accepted, withdrawn, expired (7 days). Before Phase 16 an invite inserted a `company_members` row immediately, which meant the invitee held a role in a tenant they had never agreed to join, "pending" was inferred from `auth.users.last_sign_in_at`, and a never-accepted `admin` invitation counted toward the admin census in `wouldOrphanCompany` — so the last real admin could demote themselves and lock the tenant out.
+- **The token is stored only as a SHA-256 hash** and returned to the inviting admin exactly once, the same contract as a finance grant. The team page surfaces the accept link at that moment because it cannot be recovered later.
+- **Invitations are bound to an email address.** A forwarded or leaked link is useless to anyone else — a tenant here holds bank details and settlement instructions. The policy is one pure function, `decideRedemption` in `src/lib/auth/invitations.ts`; the six refusal paths and their *ordering* are pinned by tests.
+- **Two proofs of entitlement, and they are not equivalent.** `"token"` is the emailed secret and is self-proving. `"verified-email"` is the onboarding page, where a user with no token claims an invitation found by their own address — necessary because `inviteUserByEmail` refuses an address that already has an account, so for those invitees no token ever exists. That path additionally requires `email_confirmed_at`; without it, registering as somebody else's address on a deployment that does not enforce confirmation would hand over whatever was waiting for them.
+- Writes go through the **service-role client** behind `requireCapability("team.manage")`. The person accepting is by definition not yet a member, so no RLS policy could authorise their `company_members` insert without also authorising a stranger's — the same reason `company_members` has only a SELECT policy.
+- `POST /api/bootstrap` **refuses when an invitation is outstanding**, so the orphaned-company bug cannot come back through a stale tab or a direct API call.
 
 ## Roles (RBAC)
 
@@ -80,6 +91,7 @@ Module-level docs live next to the code: `src/lib/CLAUDE.md` (module map), `src/
 - A route that moves money or issues a credential **must** be added to `GATED_ROUTES` in `src/lib/auth/route-guards.test.ts`. That list is the specification.
 - Client components read the role through `useCan()` (`src/components/role-provider.tsx`, fed by `GET /api/me`), because the role is **not in the JWT** — `custom_access_token_hook` was never enabled. Hiding a control is courtesy; the server refusal is the security.
 - **Demo accounts at each role**, so the refusals can be walked through in a browser: `bun run seed:rbac` puts `operator@` and `viewer@laygrounded.com` (password `demo1234`) in the same company as `demo2@`. `POST /api/init-demo` does the same on every run. No second admin is seeded — `demo2@` already holds that role, and another known-password admin is another key to the tenant for no extra coverage.
+- **`tests/e2e/rbac-boundaries.spec.ts` runs the refusals in a browser** as the operator and the viewer. It asserts both halves separately: the API returns **403 exactly** (a 500 would mean the `FORBIDDEN` throw escaped `apiError`, which is what four routes did before Phase 14), and the UI does not offer the control. It found two real gaps on its first run — `POST /api/seed` wrote claims behind `requireAuth()` alone with no `claim.write` check, and neither claims-list button was gated at all.
 
 ## Conventions
 
