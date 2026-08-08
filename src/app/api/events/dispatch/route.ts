@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/server-auth";
 import { dispatchErpEvents } from "@/lib/events/erp-dispatch";
 import { dispatchHinterlandWebhooks } from "@/lib/events/webhook-dispatch";
 import { dispatchSettlementPayloads } from "@/lib/events/settlement-dispatch";
+import { dispatchNotifications } from "@/lib/notifications/dispatch";
 import { runPendingSyncJobs } from "@/lib/integrations/sync";
 import { runPendingDeliveries } from "@/lib/webhooks/delivery";
 import { apiError } from "@/lib/api-errors";
@@ -38,6 +39,10 @@ export async function POST(req: NextRequest) {
     const erp = await dispatchErpEvents(service, { limit: eventLimit });
     const hinterland = await dispatchHinterlandWebhooks(service, { limit: eventLimit });
     const settlement = await dispatchSettlementPayloads(service, { limit: eventLimit });
+    // Fourth consumer, with its own cursor. Runs last only because it is the
+    // cheapest — there is no ordering dependency between consumers, and there
+    // must not be one: a fact has many independent readers.
+    const notifications = await dispatchNotifications(service, { limit: eventLimit });
 
     // Drain what was just enqueued so a manual trigger shows an end-to-end
     // result rather than "enqueued, check back later".
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       mode: isCron ? "cron" : "manual",
-      dispatch: { erp, hinterland, settlement },
+      dispatch: { erp, hinterland, settlement, notifications },
       delivery: { erp: syncDelivery, hinterland: webhookDelivery },
     });
   } catch (e) {

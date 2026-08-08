@@ -2,6 +2,19 @@
 
 Pure logic + unit tests in `src/lib/**`, DB access in the route or a `*-server.ts`. Design ledger, schema map, and verification log live in `docs/build-memory/`.
 
+## `notifications/` — the inbox
+
+The **fourth outbox consumer**. `rules.ts` is pure (`draftFor(event) → draft | null`) and `dispatch.ts` fans each draft out to recipients.
+
+- **Routed by CAPABILITY, never by role name.** "Alert the finance manager" stored as `role: 'finance_manager'` would exclude admins — who outrank them and can do everything they can — and in a small tenant where the admin *is* the finance manager it would deliver to nobody. A rule names the capability a reader would need to act, and recipients are everyone whose role clears it on the Phase 14 ladder.
+- **Silence is the default.** `draftFor` returns null for everything without an explicit rule; `claim.recomputed` fires on every engine run, and an inbox that receives it is one nobody reads. A **non-decision-grade** risk assessment is also silent — telling someone to re-plan a voyage around a figure the system will not stand behind is worse than telling them nothing.
+- **Idempotent on `(user_id, dedupe_key)`** with duplicates *ignored*, not merged: outbox delivery is at-least-once, and `upsert` with merge semantics would reset `read_at` and resurrect an alert somebody had already dealt with.
+- An event with no eligible recipient is **acked, not retried** — a tenant of viewers would otherwise leave a permanently stuck row at the head of the queue.
+- `notifications` RLS is keyed on `auth.uid()`, not company membership — the only table in the app where that is true, because an admin has no business reading a colleague's inbox. UPDATE is granted **column-wise** on `read_at`/`dismissed_at`, which is the one thing RLS `WITH CHECK` cannot express.
+- Delivery is **polled at 60s**, not Realtime. Nothing here is time-critical to the second, and a websocket per tab is a lot of moving parts for that.
+
+UI: `notification-bell.tsx` (bell + dropdown, mounted in the authenticated layout outside the collapsing nav pill) and `/notifications` (full inbox, including dismissed).
+
 ## `auth/` — the RBAC model
 
 `roles.ts` is pure and is the single authority for who may do what: four totally-ordered roles and a **minimum role per capability**, so a capability a lower role holds and a higher one does not cannot be expressed. `roleOf()` fails closed — anything unrecognised becomes `viewer`, and only the legacy `member` is mapped (to `operator`) rather than rejected. Enforcement helpers are in `server-auth.ts`; the SQL mirror (`current_role_rank()`) and the route-gate audit are both pinned by tests in this directory. See the Roles section of the root `CLAUDE.md` for why the API layer, not RLS, is the primary enforcement.
@@ -85,6 +98,7 @@ An owner-exported package carries `grant: null` and a caveat saying so, rather t
 | Settlement expectation (`settlement/expectation.ts`) | `claim-outlook-panel.tsx` (right) |
 | Counterparty intel (`intel/counterparty.ts`) | `counterparty-intel.tsx` on `/analytics` |
 | CP risk analyzer (`prefixture/analyze-server.ts`) | `cp-risk-analyzer.tsx` on `/analytics` |
+| Notifications (`notifications/dispatch.ts`) | `notification-bell.tsx` in the authenticated layout, plus `/notifications` |
 
 Routes with **no** UI are machine-facing by design: cron sweeps (`*/run`, `events/dispatch`), M2M under `/api/v1/*`, inbound webhooks, the bank-facing `/v1/claims/:id/verify` (grant-redeemed), public verifier artifacts, and `/mcp`.
 

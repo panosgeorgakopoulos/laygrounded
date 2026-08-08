@@ -79,6 +79,7 @@ Module-level docs live next to the code: `src/lib/CLAUDE.md` (module map), `src/
 - `public.current_role_rank()` restates the ladder in SQL because policies cannot import TypeScript. `roles.test.ts` fails if it drifts from `ROLE_RANK`, and `route-guards.test.ts` fails if a gated route loses its check — that test is mutation-verified, not just green.
 - A route that moves money or issues a credential **must** be added to `GATED_ROUTES` in `src/lib/auth/route-guards.test.ts`. That list is the specification.
 - Client components read the role through `useCan()` (`src/components/role-provider.tsx`, fed by `GET /api/me`), because the role is **not in the JWT** — `custom_access_token_hook` was never enabled. Hiding a control is courtesy; the server refusal is the security.
+- **Demo accounts at each role**, so the refusals can be walked through in a browser: `bun run seed:rbac` puts `operator@` and `viewer@laygrounded.com` (password `demo1234`) in the same company as `demo2@`. `POST /api/init-demo` does the same on every run. No second admin is seeded — `demo2@` already holds that role, and another known-password admin is another key to the tenant for no extra coverage.
 
 ## Conventions
 

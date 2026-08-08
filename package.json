@@ -17,6 +17,7 @@
     "tzdata": "bun scripts/build-tzdata.ts",
     "verify:build": "bun packages/laytime-verify/scripts/build-artifacts.ts",
     "check:routes": "bun scripts/check-orphaned-routes.ts",
+    "seed:rbac": "bun scripts/seed-rbac-users.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "dev:e2e": "bun scripts/sync-pdfjs-assets.ts && next dev -p ${E2E_PORT:-3100}"
